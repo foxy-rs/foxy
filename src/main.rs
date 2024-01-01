@@ -2,7 +2,7 @@
 use ookami::prelude::*;
 
 fn main() {
-    log::init_max();
+    log::init_max_debug();
     log::lib_info();
 
     AppBuilder::new()
