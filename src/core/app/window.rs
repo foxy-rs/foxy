@@ -18,6 +18,7 @@ use windows::{
 use self::message::Message;
 
 pub mod message;
+pub mod keyboard;
 
 #[derive(Debug, Clone, Copy)]
 #[allow(unused)]
@@ -106,7 +107,7 @@ impl AppWindow {
                 Self::message_pump(hwnd, &message_sender)
             })?;
 
-        if let Message::WindowCreated { hwnd } = message_receiver.recv()? {
+        if let Message::WindowOpened { hwnd } = message_receiver.recv()? {
             Ok(Self {
                 hwnd,
                 message_receiver,
@@ -117,15 +118,26 @@ impl AppWindow {
     }
 
     fn message_pump(hwnd: HWND, message_sender: &Sender<Message>) -> anyhow::Result<()> {
-        message_sender.send(Message::WindowCreated { hwnd })?;
+        message_sender.send(Message::WindowOpened { hwnd })?;
         trace!("Window Created: {hwnd:?}");
 
         let mut msg = MSG::default();
         while msg.message != WM_QUIT {
-            if unsafe { PeekMessageW(&mut msg, None, 0, 0, PM_REMOVE) }.as_bool() {
+            // Keep in mind that this blocks the windows thread until the next Windows message.
+            if unsafe { GetMessageW(&mut msg, None, 0, 0) }.as_bool() {
                 unsafe {
                     TranslateMessage(&msg);
                     DispatchMessageW(&msg);
+                }
+
+                match msg.message {
+                    WM_KEYDOWN => {
+                        message_sender.send(Message::KeyDown {  })?;
+                    }
+                    WM_KEYUP => {
+                        message_sender.send(Message::KeyUp {  })?;
+                    }
+                    _ => {}
                 }
             }
         }
@@ -133,6 +145,7 @@ impl AppWindow {
         message_sender.send(Message::WindowClosed)?;
         trace!("Window Closed");
 
+        message_sender.send(Message::Exit)?;
         Ok(())
     }
 
@@ -154,9 +167,13 @@ impl Iterator for AppWindow {
 
     fn next(&mut self) -> Option<Self::Item> {
         if let Ok(message) = self.message_receiver.try_recv() {
-            Some(message)
+            if let Message::Exit = message {
+                None
+            } else {
+                Some(message)
+            }
         } else {
-            None
+            Some(Message::Empty)
         }
     }
 }

@@ -11,7 +11,7 @@ pub struct AppState {
 impl AppState {
     pub fn new() -> Self {
         Self {
-            time: Time::new(128.0, 1024),
+            time: Time::new(1.0, 1024),
         }
     }
 
@@ -19,15 +19,19 @@ impl AppState {
         trace!("START");
     }
 
-    pub fn early_update(&mut self, _event: Option<&Message>) {
+    pub fn early_update(&mut self, _event: &Message) {
         // trace!("EARLY_UPDATE");
     }
 
-    pub fn fixed_update(&mut self, _event: Option<&Message>) {
+    pub fn fixed_update(&mut self, _event: &Message) {
+        trace!("FIXED_UPDATE: {}", _event)
         // trace!("FIXED_UPDATE");
     }
 
-    pub fn update(&mut self, _event: Option<&Message>) {
+    pub fn update(&mut self, _event: &Message) {
+        if let Message::Empty = _event { } else {
+            trace!("UPDATE: {}", _event)
+        }
         // trace!("UPDATE");
     }
 

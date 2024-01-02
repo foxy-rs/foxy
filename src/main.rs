@@ -10,3 +10,6 @@ fn main() {
         .with_size(800, 450)
         .run();
 }
+
+// TODO: Wrap up window class into separate library for reuse.
+//       Keep it simple with the iterator method from Piston or trait method from Koyote.

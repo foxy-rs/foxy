@@ -1,6 +1,12 @@
+use strum::Display;
 use windows::Win32::Foundation::HWND;
 
+#[derive(Debug, Display)]
 pub enum Message {
-    WindowCreated { hwnd: HWND },
+    Empty,
+    WindowOpened { hwnd: HWND },
     WindowClosed,
+    KeyDown { },
+    KeyUp { },
+    Exit,
 }

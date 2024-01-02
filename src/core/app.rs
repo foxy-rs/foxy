@@ -21,7 +21,7 @@ impl App {
         Ok(Self { state, window })
     }
 
-    fn game_loop(&mut self, event: Option<&Message>) {
+    fn game_loop(&mut self, event: &Message) {
         self.state.time.update();
         self.state.early_update(event);
         while self.state.time.should_do_tick() {
@@ -36,16 +36,8 @@ impl App {
 
         // Main lifecycle
         self.state.start();
-        loop {
-            if let Some(message) = self.window.next() {
-                self.game_loop(Some(&message));
-
-                if let Message::WindowClosed = message {
-                    break;
-                }
-            } else {
-                self.game_loop(None);
-            }
+        while let Some(event) = self.window.next() {
+            self.game_loop(&event);
         }
         self.state.stop();
 
