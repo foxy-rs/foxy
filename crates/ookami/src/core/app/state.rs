@@ -34,10 +34,10 @@ impl AppState {
     pub fn update(&mut self, _window: &mut Window, _msg: &WindowMessage) {
         // let fps = 1.0 / self.time.average_delta_secs();
         // trace!("UPDATE: {:?}", _msg)
-        // match _msg {
-        //     WindowMessage::Empty | WindowMessage::Mouse(MouseMessage::Cursor) => {}
-        //     _ => trace!("UPDATE: {:?}", _msg),
-        // }
+        match _msg {
+            WindowMessage::Empty | WindowMessage::Mouse(MouseMessage::Cursor) => {}
+            _ => trace!("UPDATE: {:?}", _msg),
+        }
         // trace!("UPDATE");
     }
 

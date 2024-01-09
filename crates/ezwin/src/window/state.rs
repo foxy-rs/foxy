@@ -16,27 +16,3 @@ pub struct WindowState {
     pub visibility: Visibility,
     pub input: Input,
 }
-
-// impl WindowState {
-//     pub fn new(
-//         hwnd: HWND,
-//         width: i32,
-//         height: i32,
-//         title: &str,
-//         color_mode: ColorMode,
-//         close_behavior: CloseBehavior,
-//         visibility: Visibility,
-//         input: Input,
-//     ) -> Self {
-//         Self {
-//             hwnd,
-//             width,
-//             height,
-//             title: String::from(title),
-//             color_mode,
-//             close_behavior,
-//             visibility,
-//             input,
-//         }
-//     }
-// }

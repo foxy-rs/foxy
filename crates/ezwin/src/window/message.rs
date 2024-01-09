@@ -19,15 +19,6 @@ use super::input::{
     mouse::MouseCode,
 };
 
-// #[derive(Debug, Display, PartialEq, Eq)]
-// pub enum Message {
-//     Empty,
-//     Window(WindowMessage),
-//     Keyboard(KeyboardMessage),
-//     Mouse(MouseMessage),
-//     Exit,
-// }
-
 #[derive(Debug, PartialEq, Eq)]
 pub enum WindowMessage {
     Empty,
@@ -70,10 +61,11 @@ impl WindowMessage {
             WindowsAndMessaging::WM_CLOSE => WindowMessage::CloseRequested,
             // WindowsAndMessaging::WM_NCDESTROY => WindowMessage::Closed,
             WindowsAndMessaging::WM_QUIT => WindowMessage::Exit,
-            WindowsAndMessaging::WM_KEYDOWN
-            | WindowsAndMessaging::WM_KEYUP
-            | WindowsAndMessaging::WM_SYSKEYDOWN
-            | WindowsAndMessaging::WM_SYSKEYUP => Self::new_keyboard_message(l_param),
+            msg if (WindowsAndMessaging::WM_KEYFIRST..=WindowsAndMessaging::WM_KEYLAST)
+                .contains(&msg) =>
+            {
+                Self::new_keyboard_message(l_param)
+            }
             WindowsAndMessaging::WM_LBUTTONDBLCLK
             | WindowsAndMessaging::WM_RBUTTONDBLCLK
             | WindowsAndMessaging::WM_MBUTTONDBLCLK
@@ -131,19 +123,6 @@ impl WindowMessage {
             virtual_keycode.into()
         };
 
-        // key_code = match key_code {
-        //     KeyCode::Enter if is_extended_key => {
-        //         KeyCode::NumEnter
-        //     },
-        //     KeyCode::Plus if is_extended_key => {
-        //         KeyCode::NumPlus
-        //     },
-        //     KeyCode::Comma if is_extended_key => {
-        //         KeyCode::NumComma
-        //     },
-        //     _ => key_code
-        // };
-
         let state = {
             let was_key_down = (flags & KF_REPEAT as u16) == KF_REPEAT as u16;
             let repeat_count = loword(l_param.0 as u32);
@@ -167,38 +146,46 @@ impl WindowMessage {
     }
 
     fn new_mouse_button_message(message: u32, w_param: WPARAM, l_param: LPARAM) -> WindowMessage {
-        //debug!("\nMessage: {:#032b}\nwParam:  {:#032b}\nlParam:  {:#032b}", msg.message, msg.wParam.0, msg.lParam.0);
-        let position = (loword(l_param.0 as u32), hiword(l_param.0 as u32));
         let flags = w_param.0 as u32;
-        let mod_flags = MODIFIERKEYS_FLAGS(flags);
-        let is_l_down = (mod_flags & MK_LBUTTON) == MK_LBUTTON;
-        let is_m_down = (mod_flags & MK_MBUTTON) == MK_MBUTTON;
-        let is_r_down = (mod_flags & MK_RBUTTON) == MK_RBUTTON;
-        let is_x1_down = (mod_flags & MK_XBUTTON1) == MK_XBUTTON1;
-        let is_x2_down = (mod_flags & MK_XBUTTON2) == MK_XBUTTON2;
+        // let x1_was_pressed = (flags & XBUTTON2);
+        //debug!("\nMessage: {:#032b}\nwParam:  {:#032b}\nlParam:  {:#032b}", msg.message, msg.wParam.0, msg.lParam.0);
+
+        // debug!(
+        //     "\nMessage: {:#034b}\nwParam:  {:#0wparam_width$b}\nlParam:  {:#0lparam_width$b}\nflags:   {:#034b}\nhiflags: {:#018b}",
+        //     message,
+        //     w_param.0,
+        //     l_param.0,
+        //     // loword(w_param.0 as u32),
+        //     flags,
+        //     hiflags,
+        //     wparam_width = std::mem::size_of::<WPARAM>() * 8 + 2,
+        //     lparam_width = std::mem::size_of::<LPARAM>() * 8 + 2,
+        // );
 
         let mouse_code: MouseCode = {
-            let virtual_keycode = VIRTUAL_KEY(loword(w_param.0 as u32));
-            // match msg.message {
-            //     WindowsAndMessaging::WM_LBUTTONDBLCLK | WindowsAndMessaging::WM_LBUTTONDOWN | WindowsAndMessaging::WM_LBUTTONUP => {
-            //         MouseCode::Left
-            //     }
-            //     WindowsAndMessaging::WM_MBUTTONDBLCLK | WindowsAndMessaging::WM_MBUTTONDOWN | WindowsAndMessaging::WM_RBUTTONUP => {
-            //         MouseCode::Middle
-            //     }
-            //     WindowsAndMessaging::WM_RBUTTONDBLCLK | WindowsAndMessaging::WM_RBUTTONDOWN | WindowsAndMessaging::WM_MBUTTONUP => {
-            //         MouseCode::Right
-            //     }
-            //     WindowsAndMessaging::WM_XBUTTONDBLCLK | WindowsAndMessaging::WM_XBUTTONDOWN | WindowsAndMessaging::WM_XBUTTONUP => {
-            //         MouseCode::Left
-            //     }
-            //     WindowsAndMessaging::WM_XBUTTONDBLCLK | WindowsAndMessaging::WM_XBUTTONDOWN | WindowsAndMessaging::WM_XBUTTONUP => {
-            //         MouseCode::Left
-            //     }
-            //     _ => false
-            // };
+            // let virtual_keycode = VIRTUAL_KEY(loword(w_param.0 as u32));
+            match message {
+                WindowsAndMessaging::WM_LBUTTONDBLCLK | WindowsAndMessaging::WM_LBUTTONDOWN | WindowsAndMessaging::WM_LBUTTONUP => {
+                    MouseCode::Left
+                }
+                WindowsAndMessaging::WM_MBUTTONDBLCLK | WindowsAndMessaging::WM_MBUTTONDOWN | WindowsAndMessaging::WM_RBUTTONUP => {
+                    MouseCode::Middle
+                }
+                WindowsAndMessaging::WM_RBUTTONDBLCLK | WindowsAndMessaging::WM_RBUTTONDOWN | WindowsAndMessaging::WM_MBUTTONUP => {
+                    MouseCode::Right
+                }
+                WindowsAndMessaging::WM_XBUTTONDBLCLK | WindowsAndMessaging::WM_XBUTTONDOWN | WindowsAndMessaging::WM_XBUTTONUP => {
+                    let hiflags = hiword(flags);
+                    if (hiflags & XBUTTON1) == XBUTTON1 {
+                        MouseCode::Back
+                    } else {
+                        MouseCode::Forward
+                    }
+                }
+                _ => MouseCode::Unknown
+            }
 
-            virtual_keycode.into()
+            // virtual_keycode.into()
         };
         // debug!("{:?}", mouse_code);
 
@@ -211,6 +198,13 @@ impl WindowMessage {
         );
 
         let state = {
+            let mod_flags = MODIFIERKEYS_FLAGS(flags);
+            let is_l_down = (mod_flags & MK_LBUTTON) == MK_LBUTTON;
+            let is_m_down = (mod_flags & MK_MBUTTON) == MK_MBUTTON;
+            let is_r_down = (mod_flags & MK_RBUTTON) == MK_RBUTTON;
+            let is_x1_down = (mod_flags & MK_XBUTTON1) == MK_XBUTTON1;
+            let is_x2_down = (mod_flags & MK_XBUTTON2) == MK_XBUTTON2;
+
             let is_down = match message {
                 WindowsAndMessaging::WM_LBUTTONDBLCLK | WindowsAndMessaging::WM_LBUTTONDOWN
                     if is_l_down =>
@@ -236,11 +230,13 @@ impl WindowMessage {
             };
 
             if is_down {
-                ButtonState::Released
-            } else {
                 ButtonState::Pressed
+            } else {
+                ButtonState::Released
             }
         };
+
+        let position = (loword(l_param.0 as u32), hiword(l_param.0 as u32));
 
         WindowMessage::Mouse(MouseMessage::Button {
             mouse_code,
