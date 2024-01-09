@@ -168,10 +168,10 @@ impl WindowMessage {
                 WindowsAndMessaging::WM_LBUTTONDBLCLK | WindowsAndMessaging::WM_LBUTTONDOWN | WindowsAndMessaging::WM_LBUTTONUP => {
                     MouseCode::Left
                 }
-                WindowsAndMessaging::WM_MBUTTONDBLCLK | WindowsAndMessaging::WM_MBUTTONDOWN | WindowsAndMessaging::WM_RBUTTONUP => {
+                WindowsAndMessaging::WM_MBUTTONDBLCLK | WindowsAndMessaging::WM_MBUTTONDOWN | WindowsAndMessaging::WM_MBUTTONUP => {
                     MouseCode::Middle
                 }
-                WindowsAndMessaging::WM_RBUTTONDBLCLK | WindowsAndMessaging::WM_RBUTTONDOWN | WindowsAndMessaging::WM_MBUTTONUP => {
+                WindowsAndMessaging::WM_RBUTTONDBLCLK | WindowsAndMessaging::WM_RBUTTONDOWN | WindowsAndMessaging::WM_RBUTTONUP => {
                     MouseCode::Right
                 }
                 WindowsAndMessaging::WM_XBUTTONDBLCLK | WindowsAndMessaging::WM_XBUTTONDOWN | WindowsAndMessaging::WM_XBUTTONUP => {
