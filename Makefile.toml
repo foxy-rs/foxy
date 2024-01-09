@@ -3,7 +3,7 @@
 [env]
 CARGO_MAKE_EXTEND_WORKSPACE_MAKEFILE = true
 CARGO_MAKE_RUN_TARGET = "ookami"
-ASSET_FOLDER_LOCATION = "./assets"
+ASSET_FOLDER_LOCATION = "./crates/ookami/assets"
 
 [env.development]
 BUILD_TYPE = "debug"
