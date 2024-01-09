@@ -90,17 +90,7 @@ impl WindowMessage {
 
     fn new_keyboard_message(l_param: LPARAM) -> WindowMessage {
         let flags = hiword(unsafe { std::mem::transmute::<i32, u32>(l_param.0 as i32) });
-        // debug!(
-        //     "\nMessage: {:#034b}\nwParam:  {:#0wparam_width$b}\nlParam:  {:#0lparam_width$b}\nvk:      {:#018b}\nflags:   {:#018b}",
-        //     msg.message,
-        //     msg.wParam.0,
-        //     msg.lParam.0,
-        //     loword(msg.wParam.0 as u32),
-        //     flags,
-        //     wparam_width = std::mem::size_of::<WPARAM>() * 8 + 2,
-        //     lparam_width = std::mem::size_of::<LPARAM>() * 8 + 2,
-        // );
-
+        
         let is_extended_key = (flags & KF_EXTENDED as u16) == KF_EXTENDED as u16;
 
         let mut scan_code = lobyte(flags) as u16;
@@ -147,23 +137,8 @@ impl WindowMessage {
 
     fn new_mouse_button_message(message: u32, w_param: WPARAM, l_param: LPARAM) -> WindowMessage {
         let flags = w_param.0 as u32;
-        // let x1_was_pressed = (flags & XBUTTON2);
-        //debug!("\nMessage: {:#032b}\nwParam:  {:#032b}\nlParam:  {:#032b}", msg.message, msg.wParam.0, msg.lParam.0);
-
-        // debug!(
-        //     "\nMessage: {:#034b}\nwParam:  {:#0wparam_width$b}\nlParam:  {:#0lparam_width$b}\nflags:   {:#034b}\nhiflags: {:#018b}",
-        //     message,
-        //     w_param.0,
-        //     l_param.0,
-        //     // loword(w_param.0 as u32),
-        //     flags,
-        //     hiflags,
-        //     wparam_width = std::mem::size_of::<WPARAM>() * 8 + 2,
-        //     lparam_width = std::mem::size_of::<LPARAM>() * 8 + 2,
-        // );
 
         let mouse_code: MouseCode = {
-            // let virtual_keycode = VIRTUAL_KEY(loword(w_param.0 as u32));
             match message {
                 WindowsAndMessaging::WM_LBUTTONDBLCLK | WindowsAndMessaging::WM_LBUTTONDOWN | WindowsAndMessaging::WM_LBUTTONUP => {
                     MouseCode::Left
@@ -184,10 +159,7 @@ impl WindowMessage {
                 }
                 _ => MouseCode::Unknown
             }
-
-            // virtual_keycode.into()
         };
-        // debug!("{:?}", mouse_code);
 
         let is_double_click = matches!(
             message,
