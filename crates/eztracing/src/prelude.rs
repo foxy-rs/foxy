@@ -8,37 +8,37 @@ pub use crate::{
     logging_session_ex,
 };
 
-#[macro_export]
-macro_rules! trace {
-    ($($tts:tt)*) => {
-        tracing::trace!($($tts)*)
-    };
-}
+// #[macro_export]
+// macro_rules! trace {
+//     ($($tts:tt)*) => {
+//         tracing::trace!($($tts)*)
+//     };
+// }
 
-#[macro_export]
-macro_rules! debug {
-    ($($tts:tt)*) => {
-        tracing::debug!($($tts)*)
-    };
-}
+// #[macro_export]
+// macro_rules! debug {
+//     ($($tts:tt)*) => {
+//         tracing::debug!($($tts)*)
+//     };
+// }
 
-#[macro_export]
-macro_rules! info {
-    ($($tts:tt)*) => {
-        tracing::info!($($tts)*)
-    };
-}
+// #[macro_export]
+// macro_rules! info {
+//     ($($tts:tt)*) => {
+//         tracing::info!($($tts)*)
+//     };
+// }
 
-#[macro_export]
-macro_rules! warn {
-    ($($tts:tt)*) => {
-        tracing::warn!($($tts)*)
-    };
-}
+// #[macro_export]
+// macro_rules! warn {
+//     ($($tts:tt)*) => {
+//         tracing::warn!($($tts)*)
+//     };
+// }
 
-#[macro_export]
-macro_rules! error {
-    ($($tts:tt)*) => {
-        tracing::error!($($tts)*)
-    };
-}
+// #[macro_export]
+// macro_rules! error {
+//     ($($tts:tt)*) => {
+//         tracing::error!($($tts)*)
+//     };
+// }
