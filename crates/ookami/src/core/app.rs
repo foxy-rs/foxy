@@ -81,6 +81,8 @@ impl App {
                     // trace!("POST: Game synced!");
                 },
             }
+
+            sender.send(GameLoopMessage::RenderData {})?;
         }
 
         sender.send(GameLoopMessage::Exit)?;

@@ -4,5 +4,6 @@ pub enum RenderLoopMessage {
 
 pub enum GameLoopMessage {
     SyncWithRenderer,
+    RenderData {},
     Exit,
 }

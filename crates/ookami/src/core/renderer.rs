@@ -37,20 +37,30 @@ impl Renderer {
                 loop {
                     sender.send(RenderLoopMessage::SyncWithGame)?;
                     match reciever.recv()? {
+                        GameLoopMessage::Exit => break,
                         GameLoopMessage::SyncWithRenderer => {
                             // trace!("PRE: Render synced!");
                         },
-                        GameLoopMessage::Exit => break,
+                        _ => {},
                     }
     
                     self.render()?;
     
                     sender.send(RenderLoopMessage::SyncWithGame)?;
                     match reciever.recv()? {
+                        GameLoopMessage::Exit => break,
                         GameLoopMessage::SyncWithRenderer => {
                             // trace!("POST: Render synced!");
                         },
+                        _ => {},
+                    }
+
+                    match reciever.recv()? {
                         GameLoopMessage::Exit => break,
+                        GameLoopMessage::RenderData { .. } => {
+                            // trace!("Copying game thread data to renderer");
+                        }
+                        _ => {},
                     }
                 }
 
