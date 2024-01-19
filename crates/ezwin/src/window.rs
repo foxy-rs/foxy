@@ -21,7 +21,7 @@ use self::{
     builder::{CloseBehavior, HasSize, HasTitle, Visibility, WindowCreateInfo},
     input::Input,
     message::{AppMessage, KeyboardMessage, MouseMessage, WindowMessage},
-    state::WindowState,
+    state::{WindowSize, WindowState},
 };
 
 pub mod builder;
@@ -132,8 +132,7 @@ impl Window {
                 let input = Input::new();
                 let state = WindowState {
                     hwnd,
-                    width: create_info.size.width,
-                    height: create_info.size.height,
+                    size: WindowSize { width: create_info.size.width, height: create_info.size.height },
                     title: String::from(create_info.title.0),
                     color_mode: create_info.color_mode,
                     close_behavior: create_info.close_behavior,
@@ -215,8 +214,14 @@ impl Window {
 
     pub fn set_title(&self, title: &str) {
         unsafe {
-            let _ = SetWindowTextW(self.state.hwnd, &HSTRING::from(title));
+            if let Err(error) = SetWindowTextW(self.state.hwnd, &HSTRING::from(title)) {
+                error!("{error}");
+            }
         }
+    }
+
+    pub fn size(&self) -> WindowSize {
+        self.state.size
     }
 
     #[allow(unused)]

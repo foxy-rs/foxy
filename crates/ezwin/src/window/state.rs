@@ -8,11 +8,16 @@ use super::{
 #[derive(Debug)]
 pub struct WindowState {
     pub hwnd: HWND,
-    pub width: i32,
-    pub height: i32,
+    pub size: WindowSize,
     pub title: String,
     pub color_mode: ColorMode,
     pub close_behavior: CloseBehavior,
     pub visibility: Visibility,
     pub input: Input,
+}
+
+#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub struct WindowSize {
+    pub width: i32,
+    pub height: i32,
 }
