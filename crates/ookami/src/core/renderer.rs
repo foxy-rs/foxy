@@ -1,5 +1,9 @@
+use std::sync::mpsc::{Receiver, Sender};
+
 use tracing::*;
 use windows::Win32::Foundation::HWND;
+
+use super::message::{GameLoopMessage, RenderLoopMessage};
 
 mod resources;
 
@@ -12,6 +16,7 @@ impl Drop for Renderer {
 }
 
 impl Renderer {
+    pub const RENDER_THREAD_ID: &'static str = "render";
     pub const FRAME_COUNT: u32 = 2;
 
     pub fn new(hwnd: HWND, width: i32, height: i32) -> anyhow::Result<Self> {
@@ -20,6 +25,40 @@ impl Renderer {
 
     pub fn render(&mut self) -> anyhow::Result<()> {
         // warn!("Rendering");
+        Ok(())
+    }
+
+    pub fn render_loop(mut self, sender: Sender<RenderLoopMessage>, reciever: Receiver<GameLoopMessage>) -> anyhow::Result<()> {
+        std::thread::Builder::new()
+            .name(Self::RENDER_THREAD_ID.into())
+            .spawn(move || -> anyhow::Result<()> {
+                trace!("Beginning render");
+
+                loop {
+                    sender.send(RenderLoopMessage::SyncWithGame)?;
+                    match reciever.recv()? {
+                        GameLoopMessage::SyncWithRenderer => {
+                            // trace!("PRE: Render synced!");
+                        },
+                        GameLoopMessage::Exit => break,
+                    }
+    
+                    self.render()?;
+    
+                    sender.send(RenderLoopMessage::SyncWithGame)?;
+                    match reciever.recv()? {
+                        GameLoopMessage::SyncWithRenderer => {
+                            // trace!("POST: Render synced!");
+                        },
+                        GameLoopMessage::Exit => break,
+                    }
+                }
+
+                trace!("Ending render");
+
+                Ok(())
+            })?;
+
         Ok(())
     }
 }

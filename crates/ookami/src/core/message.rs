@@ -1,8 +1,8 @@
 pub enum RenderLoopMessage {
-    Sync,
+    SyncWithGame,
 }
 
 pub enum GameLoopMessage {
-    Sync,
+    SyncWithRenderer,
     Exit,
 }

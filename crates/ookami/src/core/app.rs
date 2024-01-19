@@ -21,8 +21,6 @@ struct App {
 }
 
 impl App {
-    pub const RENDER_THREAD_ID: &'static str = "render";
-
     pub fn new(app_create_info: AppCreateInfo<HasTitle, HasSize>) -> anyhow::Result<Self> {
         let state = AppState::new();
         let mut window = 
@@ -50,7 +48,7 @@ impl App {
         
         // to allow double mutable borrow
         if let (Some(mut window), Some(renderer)) = (self.window.take(), self.renderer.take()) {
-            Self::render_loop(renderer, render_message_sender, game_message_receiver)?;
+            renderer.render_loop(render_message_sender, game_message_receiver)?;
             self.game_loop(&mut window, game_message_sender, render_message_receiver)?;
         };
 
@@ -61,9 +59,9 @@ impl App {
         self.state.start(window);
 
         while let Some(message) = window.next() {
-            sender.send(GameLoopMessage::Sync)?;
+            sender.send(GameLoopMessage::SyncWithRenderer)?;
             match reciever.recv()? {
-                RenderLoopMessage::Sync => {
+                RenderLoopMessage::SyncWithGame => {
                     // trace!("PRE: Game synced!");
                 },
             }
@@ -77,44 +75,17 @@ impl App {
             }
             self.state.update(window, &message);
 
-            sender.send(GameLoopMessage::Sync)?;
+            sender.send(GameLoopMessage::SyncWithRenderer)?;
             match reciever.recv()? {
-                RenderLoopMessage::Sync => {
+                RenderLoopMessage::SyncWithGame => {
                     // trace!("POST: Game synced!");
                 },
             }
         }
 
+        sender.send(GameLoopMessage::Exit)?;
+
         self.state.stop(window);
-
-        Ok(())
-    }
-
-    fn render_loop(mut renderer: Renderer, sender: Sender<RenderLoopMessage>, reciever: Receiver<GameLoopMessage>) -> anyhow::Result<()> {
-        std::thread::Builder::new()
-            .name(Self::RENDER_THREAD_ID.into())
-            .spawn(move || -> anyhow::Result<()> {
-                loop {
-                    sender.send(RenderLoopMessage::Sync)?;
-                    match reciever.recv()? {
-                        GameLoopMessage::Sync => {
-                            // trace!("PRE: Render synced!");
-                        },
-                        GameLoopMessage::Exit => break,
-                    }
-    
-                    renderer.render()?;
-    
-                    sender.send(RenderLoopMessage::Sync)?;
-                    match reciever.recv()? {
-                        GameLoopMessage::Sync => {
-                            // trace!("POST: Render synced!");
-                        },
-                        GameLoopMessage::Exit => break,
-                    }
-                }
-                Ok(())
-            })?;
 
         Ok(())
     }
