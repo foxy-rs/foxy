@@ -26,6 +26,7 @@ pub enum WindowMessage {
     CloseRequested,
     Keyboard(KeyboardMessage),
     Mouse(MouseMessage),
+    Other { hwnd: HWND, message: u32, w_param: WPARAM, l_param: LPARAM },
     // Closed,
     Exit,
 }
@@ -56,7 +57,7 @@ pub enum MouseMessage {
 }
 
 impl WindowMessage {
-    pub fn new(_hwnd: HWND, message: u32, w_param: WPARAM, l_param: LPARAM) -> Self {
+    pub fn new(hwnd: HWND, message: u32, w_param: WPARAM, l_param: LPARAM) -> Self {
         match message {
             WindowsAndMessaging::WM_CLOSE => WindowMessage::CloseRequested,
             // WindowsAndMessaging::WM_NCDESTROY => WindowMessage::Closed,
@@ -84,7 +85,7 @@ impl WindowMessage {
             WindowsAndMessaging::WM_MOUSEWHEEL | WindowsAndMessaging::WM_MOUSEHWHEEL => {
                 WindowMessage::Mouse(MouseMessage::Scroll)
             }
-            _ => WindowMessage::Empty,
+            _ => WindowMessage::Other { hwnd, message, w_param, l_param },
         }
     }
 

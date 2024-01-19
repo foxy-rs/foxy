@@ -35,7 +35,7 @@ impl AppState {
         // let fps = 1.0 / self.time.average_delta_secs();
         // trace!("UPDATE: {:?}", _msg)
         match msg {
-            WindowMessage::Empty | WindowMessage::Mouse(MouseMessage::Cursor) => {}
+            WindowMessage::Empty | WindowMessage::Other { .. } | WindowMessage::Mouse(MouseMessage::Cursor) => {}
             _ => debug!("UPDATE: {:?}", msg),
         }
         // trace!("UPDATE");

@@ -21,7 +21,7 @@ struct App {
 impl App {
     pub fn new(app_create_info: AppCreateInfo<HasTitle, HasSize>) -> anyhow::Result<Self> {
         let state = AppState::new();
-        let window = Some(
+        let mut window = Some(
             WindowBuilder::new()
                 .with_title(app_create_info.title.0)
                 .with_size(app_create_info.size.width, app_create_info.size.height)
@@ -31,6 +31,9 @@ impl App {
                 .build()?,
         );
         let renderer = Some(Renderer::new()?);
+        if let Some(window) = window.as_mut() {
+            window.set_visibility(Visibility::Shown);
+        }
         Ok(Self {
             state,
             window,
