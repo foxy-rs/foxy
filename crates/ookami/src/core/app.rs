@@ -6,12 +6,16 @@ use self::{
     state::AppState,
 };
 
+use super::renderer::Renderer;
+
 pub mod builder;
 mod state;
 
 struct App {
     state: AppState,
-    window: Option<Window>, // This is optional to allow take-ing in main loop
+    // These are optional to allow take-ing in main loop
+    window: Option<Window>,
+    renderer: Option<Renderer>,
 }
 
 impl App {
@@ -23,9 +27,15 @@ impl App {
                 .with_size(app_create_info.size.width, app_create_info.size.height)
                 .with_color_mode(app_create_info.color_mode)
                 .with_close_behavior(app_create_info.close_behavior)
+                .with_visibility(Visibility::Hidden)
                 .build()?,
         );
-        Ok(Self { state, window })
+        let renderer = Some(Renderer::new()?);
+        Ok(Self {
+            state,
+            window,
+            renderer,
+        })
     }
 
     fn game_loop(&mut self, window: &mut Window, message: &WindowMessage) {
@@ -39,7 +49,7 @@ impl App {
     }
 
     fn main_loop(mut self) -> anyhow::Result<()> {
-        if let Some(mut window) = self.window.take() {
+        if let (Some(mut window), Some(mut renderer)) = (self.window.take(), self.renderer.take()) {
             // to allow double mutable borrow
             // Main lifecycle
             self.state.start(&mut window);
