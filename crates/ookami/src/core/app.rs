@@ -11,7 +11,7 @@ mod state;
 
 struct App {
     state: AppState,
-    window: Option<Window>,
+    window: Option<Window>, // This is optional to allow take-ing in main loop
 }
 
 impl App {
@@ -39,9 +39,7 @@ impl App {
     }
 
     fn main_loop(mut self) -> anyhow::Result<()> {
-        if let Some(mut window) = self.window.take() {
-            // window.set_visibility(Visibility::Shown);
-
+        if let Some(mut window) = self.window.take() { // to allow double mutable borrow
             // Main lifecycle
             self.state.start(&mut window);
             while let Some(message) = window.next() {

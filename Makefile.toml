@@ -39,7 +39,7 @@ workspace = false
 condition = { files_modified = { input = ["${CARGO_MAKE_WORKING_DIRECTORY}/Cargo.toml", "${CARGO_MAKE_WORKING_DIRECTORY}/Makefile.toml", "${ASSET_FOLDER_LOCATION}/**/*"], output = ["./target/${BUILD_TYPE}/assets/**/*"] } }
 script_runner = "@shell"
 windows.script = '''
-  xcopy "${ASSET_FOLDER_LOCATION}" "./target/${BUILD_TYPE}/assets/" /Efu /Y
+  xcopy "${ASSET_FOLDER_LOCATION}" "./target/${BUILD_TYPE}/assets/" /e /y /i
 '''
 script = '''
   cp -rfu ${ASSET_FOLDER_LOCATION} ./target/${BUILD_TYPE}/assets/
