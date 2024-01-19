@@ -15,7 +15,7 @@ use windows::{
     },
 };
 
-use crate::window::builder::ColorMode;
+use crate::{prelude::ValidationLayer, window::builder::ColorMode};
 
 use self::{
     builder::{CloseBehavior, HasSize, HasTitle, Visibility, WindowCreateInfo},
@@ -43,12 +43,20 @@ pub struct Window {
     state: WindowState,
 }
 
+impl Drop for Window {
+    fn drop(&mut self) {
+        ValidationLayer::instance().shutdown();
+    }
+}
+
 impl Window {
     pub const WINDOW_THREAD_ID: &'static str = "window";
     pub const WINDOW_STATE_PTR_ID: usize = 0;
     pub const WINDOW_SUBCLASS_ID: usize = 0;
 
     pub fn new(create_info: WindowCreateInfo<HasTitle, HasSize>) -> anyhow::Result<Self> {
+        ValidationLayer::instance().init();
+
         let htitle = HSTRING::from(create_info.title.0);
 
         let (window_message_sender, window_message_receiver) = std::sync::mpsc::channel();

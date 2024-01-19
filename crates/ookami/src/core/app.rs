@@ -39,7 +39,8 @@ impl App {
     }
 
     fn main_loop(mut self) -> anyhow::Result<()> {
-        if let Some(mut window) = self.window.take() { // to allow double mutable borrow
+        if let Some(mut window) = self.window.take() {
+            // to allow double mutable borrow
             // Main lifecycle
             self.state.start(&mut window);
             while let Some(message) = window.next() {

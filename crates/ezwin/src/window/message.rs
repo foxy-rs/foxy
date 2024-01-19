@@ -90,7 +90,7 @@ impl WindowMessage {
 
     fn new_keyboard_message(l_param: LPARAM) -> WindowMessage {
         let flags = hiword(unsafe { std::mem::transmute::<i32, u32>(l_param.0 as i32) });
-        
+
         let is_extended_key = (flags & KF_EXTENDED as u16) == KF_EXTENDED as u16;
 
         let mut scan_code = lobyte(flags) as u16;
@@ -140,16 +140,18 @@ impl WindowMessage {
 
         let mouse_code: MouseCode = {
             match message {
-                WindowsAndMessaging::WM_LBUTTONDBLCLK | WindowsAndMessaging::WM_LBUTTONDOWN | WindowsAndMessaging::WM_LBUTTONUP => {
-                    MouseCode::Left
-                }
-                WindowsAndMessaging::WM_MBUTTONDBLCLK | WindowsAndMessaging::WM_MBUTTONDOWN | WindowsAndMessaging::WM_MBUTTONUP => {
-                    MouseCode::Middle
-                }
-                WindowsAndMessaging::WM_RBUTTONDBLCLK | WindowsAndMessaging::WM_RBUTTONDOWN | WindowsAndMessaging::WM_RBUTTONUP => {
-                    MouseCode::Right
-                }
-                WindowsAndMessaging::WM_XBUTTONDBLCLK | WindowsAndMessaging::WM_XBUTTONDOWN | WindowsAndMessaging::WM_XBUTTONUP => {
+                WindowsAndMessaging::WM_LBUTTONDBLCLK
+                | WindowsAndMessaging::WM_LBUTTONDOWN
+                | WindowsAndMessaging::WM_LBUTTONUP => MouseCode::Left,
+                WindowsAndMessaging::WM_MBUTTONDBLCLK
+                | WindowsAndMessaging::WM_MBUTTONDOWN
+                | WindowsAndMessaging::WM_MBUTTONUP => MouseCode::Middle,
+                WindowsAndMessaging::WM_RBUTTONDBLCLK
+                | WindowsAndMessaging::WM_RBUTTONDOWN
+                | WindowsAndMessaging::WM_RBUTTONUP => MouseCode::Right,
+                WindowsAndMessaging::WM_XBUTTONDBLCLK
+                | WindowsAndMessaging::WM_XBUTTONDOWN
+                | WindowsAndMessaging::WM_XBUTTONUP => {
                     let hiflags = hiword(flags);
                     if (hiflags & XBUTTON1) == XBUTTON1 {
                         MouseCode::Back
@@ -157,7 +159,7 @@ impl WindowMessage {
                         MouseCode::Forward
                     }
                 }
-                _ => MouseCode::Unknown
+                _ => MouseCode::Unknown,
             }
         };
 
