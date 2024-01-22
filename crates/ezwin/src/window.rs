@@ -64,7 +64,7 @@ impl Window {
         ValidationLayer::instance().init();
 
         let (mut app_mailbox, win32_mailbox) = Mailbox::new_entangled_pair();
-        Self::window_thread(create_info.clone(), win32_mailbox)?;
+        Self::spawn_window_thread(create_info.clone(), win32_mailbox)?;
 
         // block until first message sent (which will be the window opening)
         match app_mailbox.wait()? {
@@ -95,7 +95,7 @@ impl Window {
         }
     }
 
-    fn window_thread(create_info: WindowCreateInfo<HasTitle, HasSize>, win32_mailbox: Mailbox<WindowMessage, AppMessage>) -> anyhow::Result<()> {
+    fn spawn_window_thread(create_info: WindowCreateInfo<HasTitle, HasSize>, win32_mailbox: Mailbox<WindowMessage, AppMessage>) -> anyhow::Result<()> {
         let htitle = HSTRING::from(create_info.title.0);
         std::thread::Builder::new()
             .name(Self::WINDOW_THREAD_ID.into())
