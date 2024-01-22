@@ -2,7 +2,7 @@
 
 
 Example
-```
+```rust
 let (renderer_mailbox, game_mailbox) = Mailbox::new_entangled_pair();
 
 renderer_mailbox.send_and_wait(RenderLoopMessage::SyncWithGame);
