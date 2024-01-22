@@ -1,6 +1,6 @@
 [package]
 name = "messaging"
-version = "1.0.1"
+version = "1.0.2"
 edition = "2021"
 repository = "https://github.com/GTLugo/ookami/tree/master/crates/messaging"
 license = "MIT OR Apache-2.0"
