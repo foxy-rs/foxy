@@ -4,7 +4,11 @@
 
 use std::{num::NonZeroIsize, prelude::v1::Result};
 
-use raw_window_handle::{DisplayHandle, HandleError, HasDisplayHandle, HasWindowHandle, RawDisplayHandle, RawWindowHandle, Win32WindowHandle, WindowHandle, WindowsDisplayHandle};
+use messaging::Mailbox;
+use raw_window_handle::{
+    DisplayHandle, HandleError, HasDisplayHandle, HasWindowHandle, RawDisplayHandle,
+    RawWindowHandle, Win32WindowHandle, WindowHandle, WindowsDisplayHandle,
+};
 use tracing::*;
 use windows::{
     core::*,
@@ -21,7 +25,7 @@ use crate::{prelude::ValidationLayer, window::builder::ColorMode};
 use self::{
     builder::{CloseBehavior, HasSize, HasTitle, Visibility, WindowCreateInfo},
     input::Input,
-    message::{AppMessage, KeyboardMessage, Mailbox, MouseMessage, WindowMessage},
+    message::{AppMessage, KeyboardMessage, MouseMessage, WindowMessage},
     state::{WindowSize, WindowState},
 };
 
@@ -123,7 +127,7 @@ impl Window {
             })?;
 
         // block until first message sent (which will be the window opening)
-        match app_mailbox.wait_for_message()? {
+        match app_mailbox.wait()? {
             WindowMessage::Ready { hwnd, hinstance } => {
                 let input = Input::new();
                 let state = WindowState {
@@ -140,10 +144,7 @@ impl Window {
                     input,
                 };
 
-                let mut window = Self {
-                    app_mailbox,
-                    state,
-                };
+                let mut window = Self { app_mailbox, state };
 
                 window.set_color_mode(window.state.color_mode);
                 window.set_visibility(window.state.visibility);
@@ -225,8 +226,11 @@ impl Window {
 
     #[allow(unused)]
     pub fn raw_window_handle(&self) -> RawWindowHandle {
-        let mut handle = Win32WindowHandle::new(NonZeroIsize::new(self.state.hwnd.0).expect("window handle should not be zero"));
-        let hinstance = NonZeroIsize::new(self.state.hinstance.0).expect("instance handle should not be zero");
+        let mut handle = Win32WindowHandle::new(
+            NonZeroIsize::new(self.state.hwnd.0).expect("window handle should not be zero"),
+        );
+        let hinstance =
+            NonZeroIsize::new(self.state.hinstance.0).expect("instance handle should not be zero");
         handle.hinstance = Some(hinstance);
         RawWindowHandle::Win32(handle)
     }
@@ -270,7 +274,7 @@ impl Window {
     /// Use this if you want the application to only react to window events.
     #[allow(unused)]
     pub fn wait(&mut self) -> Option<WindowMessage> {
-        if let Ok(message) = self.app_mailbox.wait_for_message() {
+        if let Ok(message) = self.app_mailbox.wait() {
             self.message_handler(message)
         } else {
             None
@@ -289,7 +293,7 @@ impl Iterator for Window {
     ///
     /// ***Note:** the window message thread will still block until a message is recieved from Windows.*
     fn next(&mut self) -> Option<Self::Item> {
-        if let Ok(message) = self.app_mailbox.check_for_message() {
+        if let Ok(message) = self.app_mailbox.poll() {
             self.message_handler(message)
         } else {
             Some(WindowMessage::Empty)

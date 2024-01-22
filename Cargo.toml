@@ -3,7 +3,8 @@ resolver = "2"
 members = [
   "crates/ookami",
   "crates/ezwin", 
-  "crates/eztracing"
+  "crates/eztracing", 
+  "crates/messaging"
 ]
 
 # Enable a small amount of optimization in debug mode

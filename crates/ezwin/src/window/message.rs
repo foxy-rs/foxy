@@ -1,5 +1,3 @@
-use std::sync::mpsc::{Receiver, Sender};
-
 use enumflags2::BitFlags;
 use windows::Win32::{
     Foundation::{HINSTANCE, HWND, LPARAM, WPARAM},
@@ -241,40 +239,4 @@ impl WindowMessage {
 pub enum AppMessage {
     Empty,
     Exit,
-}
-
-#[derive(Debug)]
-pub struct Mailbox<SenderMessage: Send + Sync, ReceiverMessage: Send + Sync> {
-    pub sender: Sender<SenderMessage>,
-    pub receiver: Receiver<ReceiverMessage>,
-}
-
-impl<MessageA: Send + Sync + 'static, MessageB: Send + Sync + 'static> Mailbox<MessageA, MessageB> {
-    pub fn new_entangled_pair() -> (Mailbox<MessageA, MessageB>, Mailbox<MessageB, MessageA>) {
-        let (sender_a, receiver_a) = std::sync::mpsc::channel();
-        let (sender_b, receiver_b) = std::sync::mpsc::channel();
-
-        let mailbox_a = Mailbox::new(sender_a, receiver_b);
-        let mailbox_b = Mailbox::new(sender_b, receiver_a);
-
-        (mailbox_a, mailbox_b)
-    }
-}
-
-impl<SenderMessage: Send + Sync + 'static, ReceiverMessage: Send + Sync> Mailbox<SenderMessage, ReceiverMessage> {
-    pub fn new(sender: Sender<SenderMessage>, receiver: Receiver<ReceiverMessage>) -> Self {
-        Self { sender, receiver }
-    }
-
-    pub fn send(&self, message: SenderMessage) -> anyhow::Result<()> {
-        self.sender.send(message).map_err(anyhow::Error::from)
-    }
-
-    pub fn wait_for_message(&mut self) -> anyhow::Result<ReceiverMessage> {
-        self.receiver.recv().map_err(anyhow::Error::from)
-    }
-
-    pub fn check_for_message(&mut self) -> anyhow::Result<ReceiverMessage> {
-        self.receiver.try_recv().map_err(anyhow::Error::from)
-    }
 }

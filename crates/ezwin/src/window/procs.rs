@@ -1,10 +1,11 @@
+use messaging::Mailbox;
 use tracing::*;
 use windows::Win32::{
     Foundation::*,
     UI::{Shell::DefSubclassProc, WindowsAndMessaging::*},
 };
 
-use super::message::{AppMessage, Mailbox, WindowMessage};
+use super::message::{AppMessage, WindowMessage};
 
 pub extern "system" fn wnd_proc(
     hwnd: HWND,
@@ -26,13 +27,10 @@ pub extern "system" fn subclass_proc(
     _u_id_subclass: usize,
     dw_ref_data: usize,
 ) -> LRESULT {
-    let Mailbox {
-        sender,
-        receiver,
-    } = unsafe { &mut *(dw_ref_data as *mut Mailbox<WindowMessage, AppMessage>) };
+    let mailbox = unsafe { &mut *(dw_ref_data as *mut Mailbox<WindowMessage, AppMessage>) };
 
-    if let Ok(AppMessage::Exit) = receiver.try_recv() {
-        if let Err(error) = sender.send(WindowMessage::Exit) {
+    if let Ok(AppMessage::Exit) = mailbox.poll() {
+        if let Err(error) = mailbox.send(WindowMessage::Exit) {
             error!("{error}")
         };
         unsafe {
@@ -42,9 +40,7 @@ pub extern "system" fn subclass_proc(
         }
     }
 
-    if let Err(error) =
-        sender.send(WindowMessage::new(hwnd, message, w_param, l_param))
-    {
+    if let Err(error) = mailbox.send(WindowMessage::new(hwnd, message, w_param, l_param)) {
         error!("{error}")
     };
 
