@@ -8,6 +8,7 @@ use crate::core::time::{Time, Timer};
 pub struct AppState {
     pub time: Time,
     fps_timer: Timer,
+    message_timer: Timer,
 }
 
 // TODO: Move AppWindow reference into Messages
@@ -15,7 +16,8 @@ impl AppState {
     pub fn new() -> Self {
         Self {
             time: Time::new(128.0, 1024),
-            fps_timer: Timer::new(Duration::from_secs_f64(0.33))
+            fps_timer: Timer::new(Duration::from_secs_f64(0.33)),
+            message_timer: Timer::new(Duration::from_secs_f64(0.5)),
         }
     }
 
@@ -32,11 +34,14 @@ impl AppState {
             let fps = 1.0 / self.time.average_delta_secs();
             window.set_title(&format!("{}: {:.2}", window.title(), fps));
         }
-        // trace!("FIXED_UPDATE: [{}]", fps)
-        // trace!("FIXED_UPDATE");
     }
 
     pub fn update(&mut self, _window: &mut Window, msg: &WindowMessage) {
+
+        if self.message_timer.is_elapsed() {
+            trace!("MESSAGE");
+        }
+
         // let fps = 1.0 / self.time.average_delta_secs();
         // trace!("UPDATE: {:?}", _msg)
         match msg {
