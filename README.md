@@ -8,9 +8,9 @@ This repository contains a few crates as they each naturally evolved and split a
 
 # Ookami
 
-`ookami` is a simple renderer which is a WIP. Still deciding on OpenGL or Vulkan. OpenGL has benefits with quick development, but Vulkan would allow for hardware raytracing.
+`ookami` is a simple renderer which is a WIP. Still deciding on OpenGL or Vulkan. OpenGL has benefits with quick development, but Vulkan would allow for hardware raytracing. The window uses `ezwin` to create a Win32 desktop window. 
 
-The window uses `ezwin` to create a Win32 desktop window. There are **3** primary threads in `ookami`:
+There are **3** primary threads in `ookami`:
 
 * **main:** where all the main application code is executed
 * **window:** where the Win32 message pump lives
