@@ -5,22 +5,22 @@ use tracing_subscriber::filter::LevelFilter;
 #[derive(Default, Display)]
 #[strum(serialize_all = "snake_case")]
 pub enum LogLevel {
-    Trace,
-    Debug,
-    #[default]
-    Info,
-    Warn,
-    Error,
+  Trace,
+  Debug,
+  #[default]
+  Info,
+  Warn,
+  Error,
 }
 
 impl From<LogLevel> for LevelFilter {
-    fn from(value: LogLevel) -> Self {
-        match value {
-            LogLevel::Trace => LevelFilter::TRACE,
-            LogLevel::Debug => LevelFilter::DEBUG,
-            LogLevel::Info => LevelFilter::INFO,
-            LogLevel::Warn => LevelFilter::WARN,
-            LogLevel::Error => LevelFilter::ERROR,
-        }
+  fn from(value: LogLevel) -> Self {
+    match value {
+      LogLevel::Trace => LevelFilter::TRACE,
+      LogLevel::Debug => LevelFilter::DEBUG,
+      LogLevel::Info => LevelFilter::INFO,
+      LogLevel::Warn => LevelFilter::WARN,
+      LogLevel::Error => LevelFilter::ERROR,
     }
+  }
 }

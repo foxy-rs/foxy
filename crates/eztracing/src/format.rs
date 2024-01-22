@@ -2,43 +2,40 @@ use crate::prelude::LogLevel;
 
 #[allow(unused)]
 pub fn format_filter_slice(crate_logging_levels: &[(&str, Option<LogLevel>)]) -> String {
-    // const NAME: &str = env!("CARGO_PKG_NAME");
-    let mut filter = String::from("RUST_LOG=off,");
-    let joined: String = crate_logging_levels
-        .iter()
-        .map(|(name, level)| {
-            format!(
-                "{name}={}",
-                match &level {
-                    None => "off".to_string(),
-                    Some(level) => level.to_string(),
-                }
-            )
-        })
-        .collect::<Vec<String>>()
-        .join(",");
-    filter.push_str(&joined);
+  // const NAME: &str = env!("CARGO_PKG_NAME");
+  let mut filter = String::from("RUST_LOG=off,");
+  let joined: String = crate_logging_levels
+    .iter()
+    .map(|(name, level)| {
+      format!(
+        "{name}={}",
+        match &level {
+          None => "off".to_string(),
+          Some(level) => level.to_string(),
+        }
+      )
+    })
+    .collect::<Vec<String>>()
+    .join(",");
+  filter.push_str(&joined);
 
-    filter
+  filter
 }
 
 #[macro_export]
 macro_rules! log_filter_max {
-    () => {{
-        const NAME: &str = env!("CARGO_PKG_NAME");
-        $crate::format::format_filter_slice(&[
-            ("RUST_LOG", None),
-            (NAME, Some($crate::level::LogLevel::Trace)),
-        ])
-    }};
+  () => {{
+    const NAME: &str = env!("CARGO_PKG_NAME");
+    $crate::format::format_filter_slice(&[("RUST_LOG", None), (NAME, Some($crate::level::LogLevel::Trace))])
+  }};
 }
 
 #[macro_export]
 macro_rules! log_filter {
-    ($level:expr) => {{
-        const NAME: &str = env!("CARGO_PKG_NAME");
-        $crate::format::format_filter_slice(&[("RUST_LOG", None), (NAME, $level)])
-    }};
+  ($level:expr) => {{
+    const NAME: &str = env!("CARGO_PKG_NAME");
+    $crate::format::format_filter_slice(&[("RUST_LOG", None), (NAME, $level)])
+  }};
 }
 
 /// example: `ezwin::init_with_levels!(("ookami", Some(log::Level::Trace)), ("ezwin", None));`

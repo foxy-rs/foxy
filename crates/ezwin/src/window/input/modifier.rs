@@ -5,10 +5,10 @@ use strum::EnumIter;
 #[repr(u8)]
 #[derive(EnumIter, Debug, Copy, Clone, Eq, PartialEq)]
 pub enum Modifiers {
-    Shift = 0b00000001,
-    Ctrl = 0b00000010,
-    Alt = 0b00000100,
-    Windows = 0b00001000,
+  Shift = 0b00000001,
+  Ctrl = 0b00000010,
+  Alt = 0b00000100,
+  Windows = 0b00001000,
 }
 
 // impl Into<ModifiersState> for Modifiers {

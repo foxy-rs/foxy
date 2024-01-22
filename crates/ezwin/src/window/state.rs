@@ -1,24 +1,24 @@
 use windows::Win32::Foundation::{HINSTANCE, HWND};
 
 use super::{
-    builder::{CloseBehavior, ColorMode, Visibility},
-    input::Input,
+  builder::{CloseBehavior, ColorMode, Visibility},
+  input::Input,
 };
 
 #[derive(Debug)]
 pub struct WindowState {
-    pub hwnd: HWND,
-    pub hinstance: HINSTANCE,
-    pub size: WindowSize,
-    pub title: String,
-    pub color_mode: ColorMode,
-    pub close_behavior: CloseBehavior,
-    pub visibility: Visibility,
-    pub input: Input,
+  pub hwnd: HWND,
+  pub hinstance: HINSTANCE,
+  pub size: WindowSize,
+  pub title: String,
+  pub color_mode: ColorMode,
+  pub close_behavior: CloseBehavior,
+  pub visibility: Visibility,
+  pub input: Input,
 }
 
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct WindowSize {
-    pub width: i32,
-    pub height: i32,
+  pub width: i32,
+  pub height: i32,
 }
