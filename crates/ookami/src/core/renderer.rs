@@ -1,15 +1,11 @@
-use std::sync::mpsc::{Receiver, Sender};
-
 use tracing::*;
 use windows::Win32::Foundation::HWND;
 
-use super::message::{GameLoopMessage, RenderLoopMessage};
+use super::message::{GameLoopMessage, RendererMessenger};
 
 mod resources;
 
-pub struct Renderer {
-    
-}
+pub struct Renderer {}
 
 impl Drop for Renderer {
     fn drop(&mut self) {}
@@ -24,43 +20,29 @@ impl Renderer {
     }
 
     pub fn render(&mut self) -> anyhow::Result<()> {
-        // warn!("Rendering");
+        
         Ok(())
     }
 
-    pub fn render_loop(mut self, sender: Sender<RenderLoopMessage>, reciever: Receiver<GameLoopMessage>) -> anyhow::Result<()> {
+    pub fn render_loop(mut self, mut messenger: RendererMessenger) -> anyhow::Result<()> {
         std::thread::Builder::new()
             .name(Self::RENDER_THREAD_ID.into())
             .spawn(move || -> anyhow::Result<()> {
                 trace!("Beginning render");
 
                 loop {
-                    sender.send(RenderLoopMessage::SyncWithGame)?;
-                    match reciever.recv()? {
-                        GameLoopMessage::Exit => break,
-                        GameLoopMessage::SyncWithRenderer => {
-                            // trace!("PRE: Render synced!");
-                        },
-                        _ => {},
-                    }
-    
-                    self.render()?;
-    
-                    sender.send(RenderLoopMessage::SyncWithGame)?;
-                    match reciever.recv()? {
-                        GameLoopMessage::Exit => break,
-                        GameLoopMessage::SyncWithRenderer => {
-                            // trace!("POST: Render synced!");
-                        },
-                        _ => {},
+                    if let GameLoopMessage::Exit = messenger.sync_and_recieve()? {
+                        break;
                     }
 
-                    match reciever.recv()? {
+                    self.render()?;
+
+                    match messenger.sync_and_recieve()? {
                         GameLoopMessage::Exit => break,
-                        GameLoopMessage::RenderData { .. } => {
-                            // trace!("Copying game thread data to renderer");
+                        GameLoopMessage::RenderData {} => {
+                            
                         }
-                        _ => {},
+                        _ => {}
                     }
                 }
 

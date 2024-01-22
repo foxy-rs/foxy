@@ -1,5 +1,3 @@
-use std::sync::mpsc::{Receiver, Sender};
-
 use ezwin::prelude::*;
 use tracing::*;
 
@@ -8,7 +6,10 @@ use self::{
     state::AppState,
 };
 
-use super::{message::{GameLoopMessage, RenderLoopMessage}, renderer::Renderer};
+use super::{
+    message::{GameLoopMessage, GameMessenger, RenderLoopMessage, RendererMessenger},
+    renderer::Renderer,
+};
 
 pub mod builder;
 mod state;
@@ -23,14 +24,13 @@ struct App {
 impl App {
     pub fn new(app_create_info: AppCreateInfo<HasTitle, HasSize>) -> anyhow::Result<Self> {
         let state = AppState::new();
-        let mut window = 
-            WindowBuilder::new()
-                .with_title(app_create_info.title.0)
-                .with_size(app_create_info.size.width, app_create_info.size.height)
-                .with_color_mode(app_create_info.color_mode)
-                .with_close_behavior(app_create_info.close_behavior)
-                .with_visibility(Visibility::Hidden)
-                .build()?;
+        let mut window = WindowBuilder::new()
+            .with_title(app_create_info.title.0)
+            .with_size(app_create_info.size.width, app_create_info.size.height)
+            .with_color_mode(app_create_info.color_mode)
+            .with_close_behavior(app_create_info.close_behavior)
+            .with_visibility(Visibility::Hidden)
+            .build()?;
         let size = window.size();
         let renderer = Renderer::new(window.raw_window_handle(), size.width, size.height)?;
         window.set_visibility(Visibility::Shown);
@@ -43,28 +43,32 @@ impl App {
     }
 
     fn run_internal(mut self) -> anyhow::Result<()> {
-        let (render_message_sender, render_message_receiver) = std::sync::mpsc::channel::<RenderLoopMessage>();
-        let (game_message_sender, game_message_receiver) = std::sync::mpsc::channel::<GameLoopMessage>();
-        
+        let (render_message_sender, render_message_receiver) =
+            std::sync::mpsc::channel::<RenderLoopMessage>();
+        let (game_message_sender, game_message_receiver) =
+            std::sync::mpsc::channel::<GameLoopMessage>();
+        let renderer_messenger =
+            RendererMessenger::new(render_message_sender, game_message_receiver);
+        let game_messenger = GameMessenger::new(game_message_sender, render_message_receiver);
+
         // to allow double mutable borrow
         if let (Some(mut window), Some(renderer)) = (self.window.take(), self.renderer.take()) {
-            renderer.render_loop(render_message_sender, game_message_receiver)?;
-            self.game_loop(&mut window, game_message_sender, render_message_receiver)?;
+            renderer.render_loop(renderer_messenger)?;
+            self.game_loop(&mut window, game_messenger)?;
         };
 
         Ok(())
     }
 
-    fn game_loop(&mut self, window: &mut Window, sender: Sender<GameLoopMessage>, reciever: Receiver<RenderLoopMessage>) -> anyhow::Result<()> {
+    fn game_loop(
+        &mut self,
+        window: &mut Window,
+        mut messenger: GameMessenger,
+    ) -> anyhow::Result<()> {
         self.state.start(window);
 
         while let Some(message) = window.next() {
-            sender.send(GameLoopMessage::SyncWithRenderer)?;
-            match reciever.recv()? {
-                RenderLoopMessage::SyncWithGame => {
-                    // trace!("PRE: Game synced!");
-                },
-            }
+            messenger.sync_and_recieve()?;
 
             // Main lifecycle
             self.state.time.update();
@@ -75,17 +79,10 @@ impl App {
             }
             self.state.update(window, &message);
 
-            sender.send(GameLoopMessage::SyncWithRenderer)?;
-            match reciever.recv()? {
-                RenderLoopMessage::SyncWithGame => {
-                    // trace!("POST: Game synced!");
-                },
-            }
-
-            sender.send(GameLoopMessage::RenderData {})?;
+            messenger.send_and_sync(GameLoopMessage::RenderData {})?;
         }
 
-        sender.send(GameLoopMessage::Exit)?;
+        messenger.send(GameLoopMessage::Exit);
 
         self.state.stop(window);
 

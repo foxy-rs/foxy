@@ -132,7 +132,10 @@ impl Window {
                 let input = Input::new();
                 let state = WindowState {
                     hwnd,
-                    size: WindowSize { width: create_info.size.width, height: create_info.size.height },
+                    size: WindowSize {
+                        width: create_info.size.width,
+                        height: create_info.size.height,
+                    },
                     title: String::from(create_info.title.0),
                     color_mode: create_info.color_mode,
                     close_behavior: create_info.close_behavior,

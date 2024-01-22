@@ -1,4 +1,1 @@
-
-pub struct Resources {
-    
-}
+pub struct Resources {}

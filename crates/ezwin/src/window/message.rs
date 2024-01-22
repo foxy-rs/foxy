@@ -22,11 +22,18 @@ use super::input::{
 #[derive(Debug, PartialEq, Eq)]
 pub enum WindowMessage {
     Empty,
-    Ready { hwnd: HWND },
+    Ready {
+        hwnd: HWND,
+    },
     CloseRequested,
     Keyboard(KeyboardMessage),
     Mouse(MouseMessage),
-    Other { hwnd: HWND, message: u32, w_param: WPARAM, l_param: LPARAM },
+    Other {
+        hwnd: HWND,
+        message: u32,
+        w_param: WPARAM,
+        l_param: LPARAM,
+    },
     // Closed,
     Exit,
 }
@@ -85,7 +92,12 @@ impl WindowMessage {
             WindowsAndMessaging::WM_MOUSEWHEEL | WindowsAndMessaging::WM_MOUSEHWHEEL => {
                 WindowMessage::Mouse(MouseMessage::Scroll)
             }
-            _ => WindowMessage::Other { hwnd, message, w_param, l_param },
+            _ => WindowMessage::Other {
+                hwnd,
+                message,
+                w_param,
+                l_param,
+            },
         }
     }
 
