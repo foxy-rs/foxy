@@ -21,15 +21,18 @@ pub enum CloseBehavior {
     Custom,
 }
 
+#[derive(Debug, Clone)]
 pub struct HasTitle(pub &'static str);
 pub struct MissingTitle;
 
+#[derive(Debug, Clone)]
 pub struct HasSize {
     pub width: i32,
     pub height: i32,
 }
 pub struct MissingSize;
 
+#[derive(Debug, Clone)]
 pub struct WindowCreateInfo<Title, Size> {
     pub title: Title,
     pub size: Size,

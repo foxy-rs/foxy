@@ -63,10 +63,40 @@ impl Window {
     pub fn new(create_info: WindowCreateInfo<HasTitle, HasSize>) -> anyhow::Result<Self> {
         ValidationLayer::instance().init();
 
-        let htitle = HSTRING::from(create_info.title.0);
-
         let (mut app_mailbox, win32_mailbox) = Mailbox::new_entangled_pair();
+        Self::window_thread(create_info.clone(), win32_mailbox)?;
 
+        // block until first message sent (which will be the window opening)
+        match app_mailbox.wait()? {
+            WindowMessage::Ready { hwnd, hinstance } => {
+                let input = Input::new();
+                let state = WindowState {
+                    hwnd,
+                    hinstance,
+                    size: WindowSize {
+                        width: create_info.size.width,
+                        height: create_info.size.height,
+                    },
+                    title: String::from(create_info.title.0),
+                    color_mode: create_info.color_mode,
+                    close_behavior: create_info.close_behavior,
+                    visibility: create_info.visibility,
+                    input,
+                };
+
+                let mut window = Self { app_mailbox, state };
+
+                window.set_color_mode(window.state.color_mode);
+                window.set_visibility(window.state.visibility);
+
+                Ok(window)
+            }
+            _ => Err(anyhow::format_err!("Invalid message")),
+        }
+    }
+
+    fn window_thread(create_info: WindowCreateInfo<HasTitle, HasSize>, win32_mailbox: Mailbox<WindowMessage, AppMessage>) -> anyhow::Result<()> {
+        let htitle = HSTRING::from(create_info.title.0);
         std::thread::Builder::new()
             .name(Self::WINDOW_THREAD_ID.into())
             .spawn(move || -> anyhow::Result<()> {
@@ -126,33 +156,7 @@ impl Window {
                 Ok(())
             })?;
 
-        // block until first message sent (which will be the window opening)
-        match app_mailbox.wait()? {
-            WindowMessage::Ready { hwnd, hinstance } => {
-                let input = Input::new();
-                let state = WindowState {
-                    hwnd,
-                    hinstance,
-                    size: WindowSize {
-                        width: create_info.size.width,
-                        height: create_info.size.height,
-                    },
-                    title: String::from(create_info.title.0),
-                    color_mode: create_info.color_mode,
-                    close_behavior: create_info.close_behavior,
-                    visibility: create_info.visibility,
-                    input,
-                };
-
-                let mut window = Self { app_mailbox, state };
-
-                window.set_color_mode(window.state.color_mode);
-                window.set_visibility(window.state.visibility);
-
-                Ok(window)
-            }
-            _ => Err(anyhow::format_err!("Invalid message")),
-        }
+        Ok(())
     }
 
     fn next_message() -> Option<WindowMessage> {
