@@ -1,4 +1,5 @@
  # A simple two-way messaging crate
+ [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/R6R8PGIU6)
  
 Good for use cases such as communication across two threads.
 
