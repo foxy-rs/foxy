@@ -5,6 +5,7 @@ edition = "2021"
 repository = "https://github.com/GTLugo/ookami/tree/master/crates/messaging"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
+description = "An easy two-way messaging crate. Good for use cases such as communication across two threads."
 authors = ["Gabriel Lugo <dev.gabriel.lugo@gmail.com>"]
 keywords = ["messages", "messaging", "synchronization", "sync"]
 categories = ["data-structures"]
