@@ -1,5 +1,5 @@
-use std::fmt::{Display, Formatter};
-use std::time::{Duration, Instant};
+use std::{fmt::{Display, Formatter}, time::Duration};
+use quanta::Instant;
 use tracing::*;
 
 #[derive(Debug)]
@@ -175,5 +175,48 @@ impl GameLoop {
             (self.update)(&self.time);
         }
         (self.stop)(&self.time);
+    }
+}
+
+#[allow(dead_code)]
+pub struct Stopwatch {
+    start_time: Instant,
+}
+
+#[allow(dead_code)]
+impl Stopwatch {
+    pub fn new() -> Self {
+        Self {
+            start_time: Instant::now(),
+        }
+    }
+
+    pub fn elapsed(&self) -> Duration {
+        Instant::now() - self.start_time
+    }
+}
+
+#[allow(dead_code)]
+pub struct Timer {
+    start_of_lap: Instant,
+    duration: Duration,
+}
+
+#[allow(dead_code)]
+impl Timer {
+    pub fn new(duration: Duration) -> Self {
+        Self {
+            start_of_lap: Instant::now(),
+            duration,
+        }
+    }
+
+    pub fn is_elapsed(&mut self) -> bool {
+        let now = Instant::now();
+        let is_elapsed = now - self.start_of_lap >= self.duration;
+        if is_elapsed {
+            self.start_of_lap = now;
+        }
+        is_elapsed
     }
 }

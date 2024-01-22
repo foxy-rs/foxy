@@ -1,11 +1,13 @@
+use std::time::Duration;
+
 use ezwin::prelude::*;
 use tracing::*;
 
-use crate::core::time::Time;
+use crate::core::time::{Time, Timer};
 
-#[derive(Debug)]
 pub struct AppState {
     pub time: Time,
+    fps_timer: Timer,
 }
 
 // TODO: Move AppWindow reference into Messages
@@ -13,6 +15,7 @@ impl AppState {
     pub fn new() -> Self {
         Self {
             time: Time::new(128.0, 1024),
+            fps_timer: Timer::new(Duration::from_secs_f64(0.33))
         }
     }
 
@@ -25,8 +28,10 @@ impl AppState {
     }
 
     pub fn fixed_update(&mut self, window: &mut Window) {
-        let fps = 1.0 / self.time.average_delta_secs();
-        window.set_title(&format!("{}: {:.2}", window.title(), fps));
+        if self.fps_timer.is_elapsed() {
+            let fps = 1.0 / self.time.average_delta_secs();
+            window.set_title(&format!("{}: {:.2}", window.title(), fps));
+        }
         // trace!("FIXED_UPDATE: [{}]", fps)
         // trace!("FIXED_UPDATE");
     }

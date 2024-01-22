@@ -21,4 +21,5 @@ messaging = "1.0.6"
 # glow = "0.13.0"
 ezwin = { version = "*", path = "../ezwin" }
 ash = "0.37.3"
+quanta = "0.12.2"
 # glfw = { version = "0.54.0", features = ["log"] }
