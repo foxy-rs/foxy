@@ -1,4 +1,4 @@
-use windows::Win32::Foundation::HWND;
+use windows::Win32::Foundation::{HINSTANCE, HWND};
 
 use super::{
     builder::{CloseBehavior, ColorMode, Visibility},
@@ -8,6 +8,7 @@ use super::{
 #[derive(Debug)]
 pub struct WindowState {
     pub hwnd: HWND,
+    pub hinstance: HINSTANCE,
     pub size: WindowSize,
     pub title: String,
     pub color_mode: ColorMode,

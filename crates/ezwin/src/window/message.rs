@@ -1,6 +1,6 @@
 use enumflags2::BitFlags;
 use windows::Win32::{
-    Foundation::{HWND, LPARAM, WPARAM},
+    Foundation::{HINSTANCE, HWND, LPARAM, WPARAM},
     System::SystemServices::{
         MK_LBUTTON, MK_MBUTTON, MK_RBUTTON, MK_XBUTTON1, MK_XBUTTON2, MODIFIERKEYS_FLAGS,
     },
@@ -24,6 +24,7 @@ pub enum WindowMessage {
     Empty,
     Ready {
         hwnd: HWND,
+        hinstance: HINSTANCE,
     },
     CloseRequested,
     Keyboard(KeyboardMessage),

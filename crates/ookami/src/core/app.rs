@@ -32,7 +32,7 @@ impl App {
             .with_visibility(Visibility::Hidden)
             .build()?;
         let size = window.size();
-        let renderer = Renderer::new(window.raw_window_handle(), size.width, size.height)?;
+        let renderer = Renderer::new(&window, size.width, size.height)?;
         window.set_visibility(Visibility::Shown);
 
         Ok(Self {

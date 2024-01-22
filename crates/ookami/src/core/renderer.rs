@@ -1,5 +1,5 @@
+use ezwin::window::Window;
 use tracing::*;
-use windows::Win32::Foundation::HWND;
 
 use self::render_data::RenderData;
 
@@ -8,7 +8,6 @@ use super::message::{GameLoopMessage, RendererMessenger};
 pub mod render_data;
 
 pub struct Renderer {
-
     render_data: RenderData
 }
 
@@ -20,7 +19,7 @@ impl Renderer {
     pub const RENDER_THREAD_ID: &'static str = "render";
     pub const FRAME_COUNT: u32 = 2;
 
-    pub fn new(hwnd: HWND, width: i32, height: i32) -> anyhow::Result<Self> {
+    pub fn new(window: &Window, width: i32, height: i32) -> anyhow::Result<Self> {
         Ok(Self {
             render_data: RenderData::default()
         })

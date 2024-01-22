@@ -2,8 +2,9 @@
 //   * https://www.jendrikillner.com/post/rust-game-part-3/
 //   * https://github.com/jendrikillner/RustMatch3/blob/rust-game-part-3/
 
-use std::sync::mpsc::{Receiver, Sender};
+use std::{num::NonZeroIsize, prelude::v1::Result, sync::mpsc::{Receiver, Sender}};
 
+use raw_window_handle::{DisplayHandle, HandleError, HasDisplayHandle, HasWindowHandle, RawDisplayHandle, RawWindowHandle, Win32WindowHandle, WindowHandle, WindowsDisplayHandle};
 use tracing::*;
 use windows::{
     core::*,
@@ -65,8 +66,8 @@ impl Window {
         std::thread::Builder::new()
             .name(Self::WINDOW_THREAD_ID.into())
             .spawn(move || -> anyhow::Result<()> {
-                let instance = unsafe { GetModuleHandleW(None)? };
-                debug_assert_ne!(instance.0, 0);
+                let hinstance: HINSTANCE = unsafe { GetModuleHandleW(None)? }.into();
+                debug_assert_ne!(hinstance.0, 0);
                 let window_class = htitle.clone();
 
                 let wc = WNDCLASSEXW {
@@ -74,7 +75,7 @@ impl Window {
                     style: CS_VREDRAW | CS_HREDRAW | CS_DBLCLKS,
                     cbWndExtra: std::mem::size_of::<WNDCLASSEXW>() as i32,
                     lpfnWndProc: Some(crate::window::procs::wnd_proc),
-                    hInstance: instance.into(),
+                    hInstance: hinstance,
                     hCursor: unsafe { LoadCursorW(None, IDC_ARROW)? },
                     lpszClassName: PCWSTR(window_class.as_ptr()),
                     ..Default::default()
@@ -97,13 +98,13 @@ impl Window {
                         create_info.size.height,
                         None,
                         None,
-                        instance,
+                        hinstance,
                         None,
                     )
                 };
 
                 // Send opened message before surrendering the message sender
-                window_message_sender.send(WindowMessage::Ready { hwnd })?;
+                window_message_sender.send(WindowMessage::Ready { hwnd, hinstance })?;
 
                 let window_channels = WindowChannels {
                     window_message_sender,
@@ -128,10 +129,11 @@ impl Window {
 
         // block until first message sent (which will be the window opening)
         match window_message_receiver.recv()? {
-            WindowMessage::Ready { hwnd } => {
+            WindowMessage::Ready { hwnd, hinstance } => {
                 let input = Input::new();
                 let state = WindowState {
                     hwnd,
+                    hinstance,
                     size: WindowSize {
                         width: create_info.size.width,
                         height: create_info.size.height,
@@ -228,8 +230,16 @@ impl Window {
     }
 
     #[allow(unused)]
-    pub fn raw_window_handle(&self) -> HWND {
-        self.state.hwnd
+    pub fn raw_window_handle(&self) -> RawWindowHandle {
+        let mut handle = Win32WindowHandle::new(NonZeroIsize::new(self.state.hwnd.0).expect("window handle should not be zero"));
+        let hinstance = NonZeroIsize::new(self.state.hinstance.0).expect("instance handle should not be zero");
+        handle.hinstance = Some(hinstance);
+        RawWindowHandle::Win32(handle)
+    }
+
+    #[allow(unused)]
+    pub fn raw_display_handle(&self) -> RawDisplayHandle {
+        RawDisplayHandle::Windows(WindowsDisplayHandle::new())
     }
 
     /// Handles windows messages and then passes most onto the user
@@ -290,5 +300,17 @@ impl Iterator for Window {
         } else {
             Some(WindowMessage::Empty)
         }
+    }
+}
+
+impl HasWindowHandle for Window {
+    fn window_handle(&self) -> Result<WindowHandle<'_>, HandleError> {
+        Ok(unsafe { WindowHandle::borrow_raw(self.raw_window_handle()) })
+    }
+}
+
+impl HasDisplayHandle for Window {
+    fn display_handle(&self) -> Result<DisplayHandle<'_>, HandleError> {
+        Ok(unsafe { DisplayHandle::borrow_raw(self.raw_display_handle()) })
     }
 }
