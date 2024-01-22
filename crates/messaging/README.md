@@ -5,12 +5,10 @@ Example
 ```rust
 let (renderer_mailbox, game_mailbox) = Mailbox::new_entangled_pair();
 
-renderer_mailbox.send_and_wait(RenderLoopMessage::SyncWithGame);
+renderer_mailbox.send(RenderLoopMessage::SyncWithGame);
 if let Ok(RenderLoopMessage::SyncWithGame) = game_mailbox.poll() {
     // ...
 }
-game_mailbox.send_and_wait(GameLoopMessage::SyncWithRender);
-if let Ok(GameLoopMessage::SyncWithRender) = renderer_mailbox.poll() {
-    // ...
-}
+
+game_mailbox.send_and_wait(GameLoopMessage::SyncWithRender)?;
 ```

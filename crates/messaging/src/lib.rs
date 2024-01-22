@@ -14,17 +14,15 @@ impl<MessageA: Send + Sync + 'static, MessageB: Send + Sync + 'static> Mailbox<M
     /// Creates a new pair of `Mailbox`s in the form of `(Mailbox<MessageA, MessageB>, Mailbox<MessageB, MessageA>)`
     ///
     /// # Example
-    /// ```
+    /// ```rust
     /// let (renderer_mailbox, game_mailbox) = Mailbox::new_entangled_pair();
     ///
-    /// renderer_mailbox.send_and_wait(RenderLoopMessage::SyncWithGame);
+    /// renderer_mailbox.send(RenderLoopMessage::SyncWithGame);
     /// if let Ok(RenderLoopMessage::SyncWithGame) = game_mailbox.poll() {
     ///     // ...
     /// }
-    /// game_mailbox.send_and_wait(GameLoopMessage::SyncWithRender);
-    /// if let Ok(GameLoopMessage::SyncWithRender) = renderer_mailbox.poll() {
-    ///     // ...
-    /// }
+    /// 
+    /// game_mailbox.send_and_wait(GameLoopMessage::SyncWithRender)?;
     /// ```
     ///
     pub fn new_entangled_pair() -> (Mailbox<MessageA, MessageB>, Mailbox<MessageB, MessageA>) {
@@ -45,21 +43,19 @@ impl<SenderMessage: Send + Sync, ReceiverMessage: Send + Sync>
     /// Creates a new `Mailbox`. Since `new_entangled_pair()` exists, this is only exposed in case that doesn't cover your use case. Otherwise you should just use that method instead.
     ///
     /// # Example
-    /// ```
+    /// ```rust
     /// let (sender_a, receiver_a) = std::sync::mpsc::channel();
     /// let (sender_b, receiver_b) = std::sync::mpsc::channel();
     ///
     /// let renderer_mailbox = Mailbox::new(sender_a, receiver_b);
     /// let game_mailbox = Mailbox::new(sender_b, receiver_a);
     ///
-    /// renderer_mailbox.send_and_wait(RenderLoopMessage::SyncWithGame);
+    /// renderer_mailbox.send(RenderLoopMessage::SyncWithGame);
     /// if let Ok(RenderLoopMessage::SyncWithGame) = game_mailbox.poll() {
     ///     // ...
     /// }
-    /// game_mailbox.send_and_wait(GameLoopMessage::SyncWithRender);
-    /// if let Ok(GameLoopMessage::SyncWithRender) = renderer_mailbox.poll() {
-    ///     // ...
-    /// }
+    /// 
+    /// game_mailbox.send_and_wait(GameLoopMessage::SyncWithRender)?;
     /// ```
     ///
     pub fn new(sender: Sender<SenderMessage>, receiver: Receiver<ReceiverMessage>) -> Self {
