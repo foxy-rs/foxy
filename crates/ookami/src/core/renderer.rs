@@ -18,7 +18,7 @@ impl Drop for Renderer {
 
 impl Renderer {
     pub const RENDER_THREAD_ID: &'static str = "render";
-    pub const FRAME_COUNT: u32 = 2;
+    pub const MAX_FRAME_COUNT: u32 = 2;
 
     pub fn new(window: &Window) -> anyhow::Result<Self> {
         Ok(Self {
