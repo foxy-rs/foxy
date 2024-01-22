@@ -2,7 +2,7 @@
 //   * https://www.jendrikillner.com/post/rust-game-part-3/
 //   * https://github.com/jendrikillner/RustMatch3/blob/rust-game-part-3/
 
-use std::{num::NonZeroIsize, prelude::v1::Result, sync::mpsc::{Receiver, Sender}};
+use std::{num::NonZeroIsize, prelude::v1::Result};
 
 use raw_window_handle::{DisplayHandle, HandleError, HasDisplayHandle, HasWindowHandle, RawDisplayHandle, RawWindowHandle, Win32WindowHandle, WindowHandle, WindowsDisplayHandle};
 use tracing::*;
@@ -21,7 +21,7 @@ use crate::{prelude::ValidationLayer, window::builder::ColorMode};
 use self::{
     builder::{CloseBehavior, HasSize, HasTitle, Visibility, WindowCreateInfo},
     input::Input,
-    message::{AppMessage, KeyboardMessage, MouseMessage, WindowMessage},
+    message::{AppMessage, KeyboardMessage, Mailbox, MouseMessage, WindowMessage},
     state::{WindowSize, WindowState},
 };
 
@@ -31,16 +31,17 @@ pub mod message;
 pub mod procs;
 pub mod state;
 
-struct WindowChannels {
-    pub window_message_sender: Sender<WindowMessage>,
-    pub app_message_receiver: Receiver<AppMessage>,
-}
+// struct AppMessenger {
+//     pub sender: Sender<AppMessage>,
+//     pub receiver: Receiver<WindowMessage>,
+// }
 
 #[derive(Debug)]
 #[allow(unused)]
 pub struct Window {
-    window_message_receiver: Receiver<WindowMessage>,
-    app_message_sender: Sender<AppMessage>,
+    // window_message_receiver: Receiver<WindowMessage>,
+    // app_message_sender: Sender<AppMessage>,
+    app_mailbox: Mailbox<AppMessage, WindowMessage>,
     state: WindowState,
 }
 
@@ -60,8 +61,7 @@ impl Window {
 
         let htitle = HSTRING::from(create_info.title.0);
 
-        let (window_message_sender, window_message_receiver) = std::sync::mpsc::channel();
-        let (app_message_sender, app_message_receiver) = std::sync::mpsc::channel();
+        let (mut app_mailbox, win32_mailbox) = Mailbox::new_entangled_pair();
 
         std::thread::Builder::new()
             .name(Self::WINDOW_THREAD_ID.into())
@@ -104,14 +104,9 @@ impl Window {
                 };
 
                 // Send opened message before surrendering the message sender
-                window_message_sender.send(WindowMessage::Ready { hwnd, hinstance })?;
+                win32_mailbox.send(WindowMessage::Ready { hwnd, hinstance })?;
 
-                let window_channels = WindowChannels {
-                    window_message_sender,
-                    app_message_receiver,
-                };
-
-                let window_channels_ptr = Box::into_raw(Box::new(window_channels));
+                let window_channels_ptr = Box::into_raw(Box::new(win32_mailbox));
 
                 unsafe {
                     windows::Win32::UI::Shell::SetWindowSubclass(
@@ -128,7 +123,7 @@ impl Window {
             })?;
 
         // block until first message sent (which will be the window opening)
-        match window_message_receiver.recv()? {
+        match app_mailbox.wait_for_message()? {
             WindowMessage::Ready { hwnd, hinstance } => {
                 let input = Input::new();
                 let state = WindowState {
@@ -146,8 +141,7 @@ impl Window {
                 };
 
                 let mut window = Self {
-                    window_message_receiver,
-                    app_message_sender,
+                    app_mailbox,
                     state,
                 };
 
@@ -180,7 +174,7 @@ impl Window {
     }
 
     pub fn close(&self) {
-        if let Err(error) = self.app_message_sender.send(AppMessage::Exit) {
+        if let Err(error) = self.app_mailbox.send(AppMessage::Exit) {
             error!("{error}");
         }
     }
@@ -276,7 +270,7 @@ impl Window {
     /// Use this if you want the application to only react to window events.
     #[allow(unused)]
     pub fn wait(&mut self) -> Option<WindowMessage> {
-        if let Ok(message) = self.window_message_receiver.recv() {
+        if let Ok(message) = self.app_mailbox.wait_for_message() {
             self.message_handler(message)
         } else {
             None
@@ -295,7 +289,7 @@ impl Iterator for Window {
     ///
     /// ***Note:** the window message thread will still block until a message is recieved from Windows.*
     fn next(&mut self) -> Option<Self::Item> {
-        if let Ok(message) = self.window_message_receiver.try_recv() {
+        if let Ok(message) = self.app_mailbox.check_for_message() {
             self.message_handler(message)
         } else {
             Some(WindowMessage::Empty)

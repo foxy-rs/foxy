@@ -19,7 +19,7 @@ impl Renderer {
     pub const RENDER_THREAD_ID: &'static str = "render";
     pub const FRAME_COUNT: u32 = 2;
 
-    pub fn new(window: &Window, width: i32, height: i32) -> anyhow::Result<Self> {
+    pub fn new(window: &Window) -> anyhow::Result<Self> {
         Ok(Self {
             render_data: RenderData::default()
         })
@@ -37,13 +37,13 @@ impl Renderer {
                 trace!("Beginning render");
 
                 loop {
-                    if let GameLoopMessage::Exit = messenger.sync_and_recieve()? {
+                    if let GameLoopMessage::Exit = messenger.sync_and_receive()? {
                         break;
                     }
 
                     self.render()?;
 
-                    match messenger.sync_and_recieve()? {
+                    match messenger.sync_and_receive()? {
                         GameLoopMessage::Exit => break,
                         GameLoopMessage::RenderData(render_data) => {
                             self.render_data = render_data;

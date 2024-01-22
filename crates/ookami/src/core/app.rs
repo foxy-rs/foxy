@@ -31,8 +31,7 @@ impl App {
             .with_close_behavior(app_create_info.close_behavior)
             .with_visibility(Visibility::Hidden)
             .build()?;
-        let size = window.size();
-        let renderer = Renderer::new(&window, size.width, size.height)?;
+        let renderer = Renderer::new(&window)?;
         window.set_visibility(Visibility::Shown);
 
         Ok(Self {
@@ -68,7 +67,7 @@ impl App {
         self.state.start(window);
 
         while let Some(message) = window.next() {
-            messenger.sync_and_recieve()?;
+            messenger.sync_and_receive()?;
 
             // Main lifecycle
             self.state.time.update();

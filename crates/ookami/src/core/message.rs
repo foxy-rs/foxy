@@ -10,12 +10,12 @@ pub enum RenderLoopMessage {
 
 pub struct RendererMessenger {
     sender: Sender<RenderLoopMessage>,
-    reciever: Receiver<GameLoopMessage>,
+    receiver: Receiver<GameLoopMessage>,
 }
 
 impl RendererMessenger {
-    pub fn new(sender: Sender<RenderLoopMessage>, reciever: Receiver<GameLoopMessage>) -> Self {
-        Self { sender, reciever }
+    pub fn new(sender: Sender<RenderLoopMessage>, receiver: Receiver<GameLoopMessage>) -> Self {
+        Self { sender, receiver }
     }
 
     pub fn send(&mut self, message: RenderLoopMessage) {
@@ -28,10 +28,10 @@ impl RendererMessenger {
         if let Err(error) = self.sender.send(message) {
             error!("{error}");
         }
-        self.reciever.recv().map_err(|e| e.into())
+        self.receiver.recv().map_err(|e| e.into())
     }
 
-    pub fn sync_and_recieve(&mut self) -> anyhow::Result<GameLoopMessage> {
+    pub fn sync_and_receive(&mut self) -> anyhow::Result<GameLoopMessage> {
         self.send_and_sync(RenderLoopMessage::SyncWithGame)
     }
 }
@@ -44,12 +44,12 @@ pub enum GameLoopMessage {
 
 pub struct GameMessenger {
     sender: Sender<GameLoopMessage>,
-    reciever: Receiver<RenderLoopMessage>,
+    receiver: Receiver<RenderLoopMessage>,
 }
 
 impl GameMessenger {
-    pub fn new(sender: Sender<GameLoopMessage>, reciever: Receiver<RenderLoopMessage>) -> Self {
-        Self { sender, reciever }
+    pub fn new(sender: Sender<GameLoopMessage>, receiver: Receiver<RenderLoopMessage>) -> Self {
+        Self { sender, receiver }
     }
 
     pub fn send(&mut self, message: GameLoopMessage) {
@@ -62,10 +62,10 @@ impl GameMessenger {
         if let Err(error) = self.sender.send(message) {
             error!("{error}");
         }
-        self.reciever.recv().map_err(|e| e.into())
+        self.receiver.recv().map_err(|e| e.into())
     }
 
-    pub fn sync_and_recieve(&mut self) -> anyhow::Result<RenderLoopMessage> {
+    pub fn sync_and_receive(&mut self) -> anyhow::Result<RenderLoopMessage> {
         self.send_and_sync(GameLoopMessage::SyncWithRenderer)
     }
 }
