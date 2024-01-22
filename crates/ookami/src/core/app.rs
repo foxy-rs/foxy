@@ -84,7 +84,7 @@ impl App {
             messenger.send_and_wait(GameLoopMessage::RenderData(RenderData {}))?;
         }
 
-        messenger.send(GameLoopMessage::Exit);
+        messenger.send(GameLoopMessage::Exit)?;
 
         self.state.stop(window);
 
