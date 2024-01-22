@@ -1,4 +1,4 @@
-# https://rust-lang.github.io/rustfmt/?version=v1.6.0&search=
+# https://rust-lang.github.io/rustfmt/
 tab_spaces = 2
 fn_call_width = 80
 max_width = 120
