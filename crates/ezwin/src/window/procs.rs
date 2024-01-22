@@ -24,7 +24,10 @@ pub extern "system" fn subclass_proc(
 ) -> LRESULT {
   let mailbox = unsafe { &mut *(dw_ref_data as *mut Mailbox<WindowMessage, AppMessage>) };
 
-  if let Ok(AppMessage::Exit) = mailbox.poll() {
+  if let Ok(AppMessage::RequestExit) = mailbox.poll() {
+    if let Err(error) = mailbox.send(WindowMessage::Closed) {
+      error!("{error}")
+    };
     if let Err(error) = mailbox.send(WindowMessage::Exit) {
       error!("{error}")
     };

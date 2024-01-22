@@ -177,7 +177,7 @@ impl Window {
   }
 
   pub fn close(&self) {
-    if let Err(error) = self.app_mailbox.send(AppMessage::Exit) {
+    if let Err(error) = self.app_mailbox.send(AppMessage::RequestExit) {
       error!("{error}");
     }
   }
