@@ -2,6 +2,8 @@ use std::sync::mpsc::{Receiver, Sender};
 
 use tracing::*;
 
+use super::renderer::render_data::RenderData;
+
 pub enum RenderLoopMessage {
     SyncWithGame,
 }
@@ -36,7 +38,7 @@ impl RendererMessenger {
 
 pub enum GameLoopMessage {
     SyncWithRenderer,
-    RenderData {},
+    RenderData(RenderData),
     Exit,
 }
 

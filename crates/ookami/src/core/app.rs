@@ -8,7 +8,7 @@ use self::{
 
 use super::{
     message::{GameLoopMessage, GameMessenger, RenderLoopMessage, RendererMessenger},
-    renderer::Renderer,
+    renderer::{render_data::RenderData, Renderer},
 };
 
 pub mod builder;
@@ -79,7 +79,7 @@ impl App {
             }
             self.state.update(window, &message);
 
-            messenger.send_and_sync(GameLoopMessage::RenderData {})?;
+            messenger.send_and_sync(GameLoopMessage::RenderData(RenderData { }))?;
         }
 
         messenger.send(GameLoopMessage::Exit);

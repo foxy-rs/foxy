@@ -1,11 +1,16 @@
 use tracing::*;
 use windows::Win32::Foundation::HWND;
 
+use self::render_data::RenderData;
+
 use super::message::{GameLoopMessage, RendererMessenger};
 
-mod resources;
+pub mod render_data;
 
-pub struct Renderer {}
+pub struct Renderer {
+
+    render_data: RenderData
+}
 
 impl Drop for Renderer {
     fn drop(&mut self) {}
@@ -16,7 +21,9 @@ impl Renderer {
     pub const FRAME_COUNT: u32 = 2;
 
     pub fn new(hwnd: HWND, width: i32, height: i32) -> anyhow::Result<Self> {
-        Ok(Self {})
+        Ok(Self {
+            render_data: RenderData::default()
+        })
     }
 
     pub fn render(&mut self) -> anyhow::Result<()> {
@@ -39,8 +46,8 @@ impl Renderer {
 
                     match messenger.sync_and_recieve()? {
                         GameLoopMessage::Exit => break,
-                        GameLoopMessage::RenderData {} => {
-                            
+                        GameLoopMessage::RenderData(render_data) => {
+                            self.render_data = render_data;
                         }
                         _ => {}
                     }
