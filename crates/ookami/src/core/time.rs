@@ -1,5 +1,8 @@
-use std::{fmt::{Display, Formatter}, time::Duration};
 use quanta::Instant;
+use std::{
+    fmt::{Display, Formatter},
+    time::Duration,
+};
 use tracing::*;
 
 #[derive(Debug)]

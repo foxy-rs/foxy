@@ -95,7 +95,10 @@ impl Window {
         }
     }
 
-    fn spawn_window_thread(create_info: WindowCreateInfo<HasTitle, HasSize>, win32_mailbox: Mailbox<WindowMessage, AppMessage>) -> anyhow::Result<()> {
+    fn spawn_window_thread(
+        create_info: WindowCreateInfo<HasTitle, HasSize>,
+        win32_mailbox: Mailbox<WindowMessage, AppMessage>,
+    ) -> anyhow::Result<()> {
         let htitle = HSTRING::from(create_info.title.0);
         std::thread::Builder::new()
             .name(Self::WINDOW_THREAD_ID.into())

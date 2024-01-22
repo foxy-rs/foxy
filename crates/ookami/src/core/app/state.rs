@@ -26,6 +26,9 @@ impl AppState {
     }
 
     pub fn early_update(&mut self, _window: &mut Window, _msg: &WindowMessage) {
+        if self.message_timer.is_elapsed() {
+            trace!("MESSAGE");
+        }
         // trace!("EARLY_UPDATE");
     }
 
@@ -37,11 +40,6 @@ impl AppState {
     }
 
     pub fn update(&mut self, _window: &mut Window, msg: &WindowMessage) {
-
-        if self.message_timer.is_elapsed() {
-            trace!("MESSAGE");
-        }
-
         // let fps = 1.0 / self.time.average_delta_secs();
         // trace!("UPDATE: {:?}", _msg)
         match msg {
