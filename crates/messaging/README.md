@@ -1,7 +1,7 @@
- # An easy two-way messaging crate. Good for use cases such as communication across two threads.
+ # A simple two-way messaging crate
+ 
+Good for use cases such as communication across two threads.
 
-
-Example
 ```rust
 let (renderer_mailbox, game_mailbox) = Mailbox::new_entangled_pair();
 
