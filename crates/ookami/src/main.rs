@@ -4,7 +4,7 @@ use ookami::prelude::*;
 
 fn main() {
   if cfg!(debug_assertions) {
-    logging_session_ex!(("ezwin", Some(LogLevel::Trace)))
+    logging_session_ex!(("foxy_window", Some(LogLevel::Trace)), ("foxy_vulkan", Some(LogLevel::Trace)))
       // .with_file_names(true)
       // .with_line_numbers(true)
       .start();
