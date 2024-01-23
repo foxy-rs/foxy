@@ -1,7 +1,5 @@
 pub mod app;
 mod message;
-pub mod renderer;
-mod time;
 
 pub fn loword(dword: u32) -> u16 {
   dword as u16

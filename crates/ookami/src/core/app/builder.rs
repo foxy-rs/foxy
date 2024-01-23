@@ -1,6 +1,6 @@
 use foxy_window::prelude::*;
 
-use super::App;
+use super::{state::Lifecycle, App};
 
 pub struct HasTitle(pub &'static str);
 pub struct MissingTitle;
@@ -92,9 +92,11 @@ impl<Title, Size> AppBuilder<Title, Size> {
 }
 
 impl AppBuilder<HasTitle, HasSize> {
-  pub fn run(self) {
-    if let Ok(app) = App::new(self.create_info) {
-      app.run();
-    }
+  pub fn run<L: Lifecycle>(self) {
+    if let Some(lifecycle) = L::new() {
+      if let Ok(app) = App::new(self.create_info, lifecycle) {
+        app.run();
+      }
+    };
   }
 }

@@ -1,4 +1,4 @@
-use super::renderer::render_data::RenderData;
+use foxy_renderer::renderer::render_data::RenderData;
 
 #[derive(Debug)]
 pub enum RenderLoopMessage {

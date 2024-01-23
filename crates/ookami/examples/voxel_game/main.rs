@@ -2,6 +2,10 @@
 use eztracing::prelude::*;
 use ookami::prelude::*;
 
+use self::state::State;
+
+mod state;
+
 fn main() {
   if cfg!(debug_assertions) {
     logging_session_ex!(("foxy_window", Some(LogLevel::Trace)), ("foxy_vulkan", Some(LogLevel::Trace)))
@@ -14,5 +18,5 @@ fn main() {
   AppBuilder::new()
     .with_title("Ookami Renderer")
     .with_size(800, 450)
-    .run();
+    .run::<State>();
 }

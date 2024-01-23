@@ -1,55 +1,19 @@
-use std::time::Duration;
-
 use foxy_window::prelude::*;
-use tracing::*;
 
-use crate::core::time::{Time, Timer};
+use super::time::Time;
 
-pub struct AppState {
-  pub time: Time,
-  fps_timer: Timer,
-  message_timer: Timer,
-}
+pub trait Lifecycle {
+  fn new() -> Option<Self>
+  where
+    Self: Sized;
 
-// TODO: Move AppWindow reference into Messages
-impl AppState {
-  pub fn new() -> Self {
-    Self {
-      time: Time::new(128.0, 1024),
-      fps_timer: Timer::new(Duration::from_secs_f64(0.33)),
-      message_timer: Timer::new(Duration::from_secs_f64(0.5)),
-    }
-  }
+  fn start(&mut self, _: &Time, _: &mut Window) {}
 
-  pub fn start(&mut self, _window: &mut Window) {
-    trace!("START");
-  }
+  fn early_update(&mut self, _: &Time, _: &mut Window, _: &WindowMessage) {}
 
-  pub fn early_update(&mut self, _window: &mut Window, _msg: &WindowMessage) {
-    if self.message_timer.is_elapsed() {
-      trace!("MESSAGE");
-    }
-    // trace!("EARLY_UPDATE");
-  }
+  fn fixed_update(&mut self, _: &Time, _: &mut Window) {}
 
-  pub fn fixed_update(&mut self, window: &mut Window) {
-    if self.fps_timer.is_elapsed() {
-      let fps = 1.0 / self.time.average_delta_secs();
-      window.set_title(&format!("{}: {:.2}", window.title(), fps));
-    }
-  }
+  fn update(&mut self, _: &Time, _: &mut Window, _: &WindowMessage) {}
 
-  pub fn update(&mut self, _window: &mut Window, msg: &WindowMessage) {
-    // let fps = 1.0 / self.time.average_delta_secs();
-    // trace!("UPDATE: {:?}", _msg)
-    match msg {
-      WindowMessage::Empty | WindowMessage::Other { .. } | WindowMessage::Mouse(MouseMessage::Cursor) => {}
-      _ => debug!("UPDATE: {:?}", msg),
-    }
-    // trace!("UPDATE");
-  }
-
-  pub fn stop(&mut self, _window: &mut Window) {
-    trace!("STOP");
-  }
+  fn stop(&mut self, _: &Time, _: &mut Window) {}
 }
