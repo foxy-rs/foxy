@@ -70,7 +70,15 @@ impl App {
     self.state.start(window);
 
     while let Some(message) = window.next() {
-      messenger.send_and_wait(GameLoopMessage::SyncWithRenderer)?;
+      match message {
+        WindowMessage::Closed => {
+          messenger.send_and_wait(GameLoopMessage::Exit)?;
+          break;
+        }
+        _ => {
+          messenger.send_and_wait(GameLoopMessage::SyncWithRenderer)?;
+        }
+      }
 
       // Main lifecycle
       self.state.time.update();
@@ -82,11 +90,6 @@ impl App {
       self.state.update(window, &message);
 
       messenger.send_and_wait(GameLoopMessage::RenderData(RenderData {}))?;
-
-      if let WindowMessage::Closed = message {
-        messenger.send_and_wait(GameLoopMessage::Exit)?;
-        break;
-      }
     }
 
     self.state.stop(window);

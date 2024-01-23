@@ -12,10 +12,6 @@ pub struct Renderer {
   render_data: RenderData,
 }
 
-impl Drop for Renderer {
-  fn drop(&mut self) {}
-}
-
 impl Renderer {
   pub const RENDER_THREAD_ID: &'static str = "render";
   pub const MAX_FRAME_COUNT: u32 = 2;
@@ -45,12 +41,8 @@ impl Renderer {
 
           self.render()?;
 
-          match messenger.send_and_wait(RenderLoopMessage::SyncWithGame)? {
-            GameLoopMessage::Exit => break,
-            GameLoopMessage::RenderData(render_data) => {
-              self.render_data = render_data;
-            }
-            _ => {}
+          if let GameLoopMessage::RenderData(render_data) = messenger.send_and_wait(RenderLoopMessage::SyncWithGame)? {
+            self.render_data = render_data;
           }
         }
 

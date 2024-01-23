@@ -212,5 +212,6 @@ impl WindowMessage {
 #[derive(Debug, PartialEq, Eq)]
 pub enum AppMessage {
   Empty,
-  RequestExit,
+  CloseRequested,
+  Closed,
 }

@@ -1,14 +1,27 @@
-use std::ffi::{c_char, CStr};
-use raw_window_handle::HasRawDisplayHandle;
 use ash::{prelude::*, vk};
 use ezwin::window::Window;
+use raw_window_handle::HasRawDisplayHandle;
+use std::ffi::{c_char, CStr};
 use tracing::*;
 
 pub struct Vulkan {
-  instance: vk::Instance,
+  instance: ash::Instance,
+}
+
+impl Drop for Vulkan {
+  fn drop(&mut self) {
+    unsafe {
+      self.instance.destroy_instance(None);
+    }
+  }
 }
 
 impl Vulkan {
+  #[cfg(not(debug_assertions))]
+  const VALIDATION_LAYERS: &'static [&'static CStr] = &[];
+  #[cfg(debug_assertions)]
+  const VALIDATION_LAYERS: &'static [&'static CStr] = &[c"VK_LAYER_KHRONOS_validation"];
+
   pub fn new(window: &Window) -> anyhow::Result<Self> {
     let instance = Self::create_instance(window)?;
     Ok(Self { instance })
@@ -45,28 +58,31 @@ impl Vulkan {
     version
   }
 
-  fn create_instance(window: &Window) -> anyhow::Result<vk::Instance> {
+  fn create_instance(window: &Window) -> anyhow::Result<ash::Instance> {
     trace!("Creating Vulkan instance");
-    
+
     let entry = ash::Entry::linked();
     let version = Self::select_version(&entry);
 
     let app_info = vk::ApplicationInfo::default()
       .api_version(version)
-      .engine_name(unsafe { CStr::from_bytes_with_nul_unchecked(b"Ookami\0") })
+      .engine_name(c"Ookami")
       .engine_version(vk::make_api_version(0, 1, 0, 0))
-      .application_name(unsafe { CStr::from_bytes_with_nul_unchecked(b"Ookami App\0") })
+      .application_name(c"Ookami App")
       .application_version(vk::make_api_version(0, 1, 0, 0));
 
-    if cfg!(debug_assertions) {
-      let layers = [unsafe { CStr::from_bytes_with_nul_unchecked(b"VK_LAYER_KHRONOS_validation\0") }];
-      let layers: Vec<*const c_char> = layers.iter().map(|name| name.as_ptr()).collect();
-      let extensions = ash_window::enumerate_required_extensions(window.raw_display_handle())
-        .unwrap()
-        .to_vec();
-      info!("Extensions: {extensions:?}");
-    }
+    let layers: Vec<*const c_char> = Self::VALIDATION_LAYERS.iter().map(|name| name.as_ptr()).collect();
+    let extensions = ash_window::enumerate_required_extensions(window.raw_display_handle())
+      .unwrap()
+      .to_vec();
+    
+    let instance_create_info = vk::InstanceCreateInfo::default()
+      .application_info(&app_info)
+      .enabled_layer_names(&layers)
+      .enabled_extension_names(&extensions);
 
-    Ok(vk::Instance::null())
+    let instance = unsafe { entry.create_instance(&instance_create_info, None)? };
+
+    Ok(instance)
   }
 }

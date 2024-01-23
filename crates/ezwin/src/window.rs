@@ -2,12 +2,11 @@
 //   * https://www.jendrikillner.com/post/rust-game-part-3/
 //   * https://github.com/jendrikillner/RustMatch3/blob/rust-game-part-3/
 
-use std::{num::NonZeroIsize, os::raw::c_void, prelude::v1::Result};
+use std::{os::raw::c_void, thread::JoinHandle};
 
 use messaging::Mailbox;
 use raw_window_handle::{
-  DisplayHandle, HandleError, HasDisplayHandle, HasRawDisplayHandle, HasRawWindowHandle, HasWindowHandle,
-  RawDisplayHandle, RawWindowHandle, Win32WindowHandle, WindowHandle, WindowsDisplayHandle,
+  HasRawDisplayHandle, HasRawWindowHandle, RawDisplayHandle, RawWindowHandle, Win32WindowHandle, WindowsDisplayHandle,
 };
 use tracing::*;
 use windows::{
@@ -35,11 +34,6 @@ pub mod message;
 pub mod procs;
 pub mod state;
 
-// struct AppMessenger {
-//     pub sender: Sender<AppMessage>,
-//     pub receiver: Receiver<WindowMessage>,
-// }
-
 #[derive(Debug)]
 #[allow(unused)]
 pub struct Window {
@@ -47,6 +41,7 @@ pub struct Window {
   // app_message_sender: Sender<AppMessage>,
   app_mailbox: Mailbox<AppMessage, WindowMessage>,
   state: WindowState,
+  window_thread: Option<JoinHandle<anyhow::Result<()>>>,
 }
 
 impl Drop for Window {
@@ -59,12 +54,13 @@ impl Window {
   pub const WINDOW_THREAD_ID: &'static str = "window";
   pub const WINDOW_STATE_PTR_ID: usize = 0;
   pub const WINDOW_SUBCLASS_ID: usize = 0;
+  pub const APP_MESSAGE: u32 = WM_USER + 11;
 
   pub fn new(create_info: WindowCreateInfo<HasTitle, HasSize>) -> anyhow::Result<Self> {
     ValidationLayer::instance().init();
 
     let (mut app_mailbox, win32_mailbox) = Mailbox::new_entangled_pair();
-    Self::window_loop(create_info.clone(), win32_mailbox)?;
+    let window_thread = Some(Self::window_loop(create_info.clone(), win32_mailbox)?);
 
     // block until first message sent (which will be the window opening)
     match app_mailbox.wait()? {
@@ -84,7 +80,7 @@ impl Window {
           input,
         };
 
-        let mut window = Self { app_mailbox, state };
+        let mut window = Self { app_mailbox, state, window_thread };
 
         window.set_color_mode(window.state.color_mode);
         window.set_visibility(window.state.visibility);
@@ -98,7 +94,7 @@ impl Window {
   fn window_loop(
     create_info: WindowCreateInfo<HasTitle, HasSize>,
     win32_mailbox: Mailbox<WindowMessage, AppMessage>,
-  ) -> anyhow::Result<()> {
+  ) -> anyhow::Result<JoinHandle<anyhow::Result<()>>> {
     let htitle = HSTRING::from(create_info.title.0);
     std::thread::Builder::new()
       .name(Self::WINDOW_THREAD_ID.into())
@@ -157,9 +153,7 @@ impl Window {
         while let Some(_message) = Self::next_message() {}
 
         Ok(())
-      })?;
-
-    Ok(())
+      }).map_err(anyhow::Error::from)
   }
 
   fn next_message() -> Option<WindowMessage> {
@@ -176,8 +170,16 @@ impl Window {
     }
   }
 
-  pub fn close(&self) {
-    if let Err(error) = self.app_mailbox.send(AppMessage::RequestExit) {
+  fn send_message_to_window(&self, message: AppMessage) -> anyhow::Result<()> {
+    self.app_mailbox.send(message)?;
+    unsafe {
+      SendMessageW(self.state.hwnd, Self::APP_MESSAGE, WPARAM(0), LPARAM(0));
+    }
+    Ok(())
+  }
+
+  pub fn close(&mut self) {
+    if let Err(error) = self.send_message_to_window(AppMessage::CloseRequested) {
       error!("{error}");
     }
   }
@@ -229,7 +231,17 @@ impl Window {
   /// Handles windows messages and then passes most onto the user
   fn message_handler(&mut self, message: WindowMessage) -> Option<WindowMessage> {
     match message {
-      WindowMessage::Exit => return None,
+      WindowMessage::Exit => {
+        if let Err(error) = self.window_thread.take().expect("window_thread handle should not be None").join() {
+          error!("{error:?}");
+        }
+        return None
+      },
+      WindowMessage::Closed => {
+        if let Err(error) = self.send_message_to_window(AppMessage::Closed) {
+          error!("{error}");
+        }
+      }
       WindowMessage::CloseRequested if CloseBehavior::Default == self.state.close_behavior => self.close(),
       WindowMessage::Keyboard(KeyboardMessage::Key { key_code, state, .. }) => {
         self.state.input.update_keyboard_state(key_code, state);
