@@ -1,0 +1,15 @@
+[package]
+name = "foxy_vulkan"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+tracing   = "0.1.40"
+thiserror = "1.0.44"
+anyhow    = "1.0.77"
+
+ash        = { git = "https://github.com/ash-rs/ash.git", features = ["linked", "debug"] }
+ash-window = { git = "https://github.com/ash-rs/ash.git" }
+raw-window-handle = "0.5.2"
