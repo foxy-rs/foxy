@@ -1,4 +1,4 @@
-use ezwin::prelude::*;
+use foxy_window::prelude::*;
 
 use super::App;
 

@@ -20,12 +20,7 @@ arraydeque = "0.5.1"
 messaging  = "1.0.6"
 quanta     = "0.12.2"
 
-ezwin = { version = "*", path = "../ezwin" }
-# glfw = { version = "0.54.0", features = ["log"] }
-
-# glow = "0.13.0"
-# ash        = { git = "https://github.com/ash-rs/ash.git", features = ["linked", "debug"] }
-# ash-window = { git = "https://github.com/ash-rs/ash.git" }
+foxy_window = { version = "*", path = "../foxy_window" }
 foxy_vulkan = { version = "*", path = "../foxy_vulkan" }
 # using older version for compatibility with ash
 raw-window-handle = "0.5.2"

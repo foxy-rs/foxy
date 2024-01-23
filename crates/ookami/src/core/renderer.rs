@@ -1,9 +1,8 @@
 use self::render_data::RenderData;
 use super::message::{GameLoopMessage, RenderLoopMessage};
-use ezwin::window::Window;
 use foxy_vulkan::vulkan::Vulkan;
+use foxy_window::prelude::*;
 use messaging::Mailbox;
-use raw_window_handle::HasRawDisplayHandle;
 use tracing::*;
 
 pub mod render_data;

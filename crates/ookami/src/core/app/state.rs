@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use ezwin::prelude::*;
+use foxy_window::prelude::*;
 use tracing::*;
 
 use crate::core::time::{Time, Timer};

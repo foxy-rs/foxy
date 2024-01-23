@@ -1,17 +1,13 @@
 [workspace]
 resolver = "2"
-members = [
-  "crates/ookami",
-  "crates/ezwin", 
-  "crates/eztracing", "crates/foxy_vulkan",
-]
+members  = ["crates/ookami", "crates/eztracing", "crates/foxy_vulkan", "crates/foxy_window"]
 
 # Enable a small amount of optimization in debug mode
 [profile.dev.package."ookami"]
 opt-level = 1
 
 # Enable a small amount of optimization in debug mode
-[profile.dev.package."ezwin"]
+[profile.dev.package."foxy_window"]
 opt-level = 1
 
 # Enable high optimizations for dependencies
