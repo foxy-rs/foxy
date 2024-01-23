@@ -44,15 +44,7 @@ impl App {
 
   fn run_internal(mut self) -> anyhow::Result<()> {
     let (renderer_mailbox, game_mailbox) = Mailbox::new_entangled_pair();
-
-    // let (render_message_sender, render_message_receiver) =
-    //     std::sync::mpsc::channel::<RenderLoopMessage>();
-    // let (game_message_sender, game_message_receiver) =
-    //     std::sync::mpsc::channel::<GameLoopMessage>();
-    // let renderer_messenger =
-    //     Mailbox::new(render_message_sender, game_message_receiver);
-    // let game_messenger = GameMessenger::new(game_message_sender, render_message_receiver);
-
+    
     // to allow double mutable borrow
     if let (Some(mut window), Some(renderer)) = (self.window.take(), self.renderer.take()) {
       renderer.render_loop(renderer_mailbox)?;
