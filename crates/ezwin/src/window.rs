@@ -2,12 +2,12 @@
 //   * https://www.jendrikillner.com/post/rust-game-part-3/
 //   * https://github.com/jendrikillner/RustMatch3/blob/rust-game-part-3/
 
-use std::{num::NonZeroIsize, prelude::v1::Result};
+use std::{num::NonZeroIsize, os::raw::c_void, prelude::v1::Result};
 
 use messaging::Mailbox;
 use raw_window_handle::{
-  DisplayHandle, HandleError, HasDisplayHandle, HasWindowHandle, RawDisplayHandle, RawWindowHandle, Win32WindowHandle,
-  WindowHandle, WindowsDisplayHandle,
+  DisplayHandle, HandleError, HasDisplayHandle, HasRawDisplayHandle, HasRawWindowHandle, HasWindowHandle,
+  RawDisplayHandle, RawWindowHandle, Win32WindowHandle, WindowHandle, WindowsDisplayHandle,
 };
 use tracing::*;
 use windows::{
@@ -64,7 +64,7 @@ impl Window {
     ValidationLayer::instance().init();
 
     let (mut app_mailbox, win32_mailbox) = Mailbox::new_entangled_pair();
-    Self::spawn_window_thread(create_info.clone(), win32_mailbox)?;
+    Self::window_loop(create_info.clone(), win32_mailbox)?;
 
     // block until first message sent (which will be the window opening)
     match app_mailbox.wait()? {
@@ -95,7 +95,7 @@ impl Window {
     }
   }
 
-  fn spawn_window_thread(
+  fn window_loop(
     create_info: WindowCreateInfo<HasTitle, HasSize>,
     win32_mailbox: Mailbox<WindowMessage, AppMessage>,
   ) -> anyhow::Result<()> {
@@ -226,20 +226,6 @@ impl Window {
     self.state.size
   }
 
-  #[allow(unused)]
-  pub fn raw_window_handle(&self) -> RawWindowHandle {
-    let mut handle =
-      Win32WindowHandle::new(NonZeroIsize::new(self.state.hwnd.0).expect("window handle should not be zero"));
-    let hinstance = NonZeroIsize::new(self.state.hinstance.0).expect("instance handle should not be zero");
-    handle.hinstance = Some(hinstance);
-    RawWindowHandle::Win32(handle)
-  }
-
-  #[allow(unused)]
-  pub fn raw_display_handle(&self) -> RawDisplayHandle {
-    RawDisplayHandle::Windows(WindowsDisplayHandle::new())
-  }
-
   /// Handles windows messages and then passes most onto the user
   fn message_handler(&mut self, message: WindowMessage) -> Option<WindowMessage> {
     match message {
@@ -291,14 +277,33 @@ impl Iterator for Window {
   }
 }
 
-impl HasWindowHandle for Window {
-  fn window_handle(&self) -> Result<WindowHandle<'_>, HandleError> {
-    Ok(unsafe { WindowHandle::borrow_raw(self.raw_window_handle()) })
+// impl HasWindowHandle for Window {
+//   fn window_handle(&self) -> Result<WindowHandle<'_>, HandleError> {
+//     Ok(unsafe { WindowHandle::borrow_raw(self.raw_window_handle()) })
+//   }
+// }
+
+// impl HasDisplayHandle for Window {
+//   fn display_handle(&self) -> Result<DisplayHandle<'_>, HandleError> {
+//     Ok(unsafe { DisplayHandle::borrow_raw(self.raw_display_handle()) })
+//   }
+// }
+
+unsafe impl HasRawWindowHandle for Window {
+  fn raw_window_handle(&self) -> RawWindowHandle {
+    let mut handle = Win32WindowHandle::empty();
+    handle.hwnd = self.state.hwnd.0 as *mut c_void;
+    handle.hinstance = self.state.hinstance.0 as *mut c_void;
+    // let mut handle =
+    //   Win32WindowHandle::new(NonZeroIsize::new(self.state.hwnd.0).expect("window handle should not be zero"));
+    // let hinstance = NonZeroIsize::new(self.state.hinstance.0).expect("instance handle should not be zero");
+    // handle.hinstance = Some(hinstance);
+    RawWindowHandle::Win32(handle)
   }
 }
 
-impl HasDisplayHandle for Window {
-  fn display_handle(&self) -> Result<DisplayHandle<'_>, HandleError> {
-    Ok(unsafe { DisplayHandle::borrow_raw(self.raw_display_handle()) })
+unsafe impl HasRawDisplayHandle for Window {
+  fn raw_display_handle(&self) -> RawDisplayHandle {
+    RawDisplayHandle::Windows(WindowsDisplayHandle::empty())
   }
 }
