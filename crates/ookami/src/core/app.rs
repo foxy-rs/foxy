@@ -113,13 +113,13 @@ impl<Life: Lifecycle> App<Life> {
         trace!("Beginning render");
 
         loop {
-          if Self::check_message(&mut renderer, &mut messenger)? {
+          if Self::sync_or_exit(&mut renderer, &mut messenger)? {
             break;
           }
 
           renderer.render()?;
 
-          if Self::check_message(&mut renderer, &mut messenger)? {
+          if Self::sync_or_exit(&mut renderer, &mut messenger)? {
             break;
           }
         }
@@ -131,17 +131,17 @@ impl<Life: Lifecycle> App<Life> {
       .map_err(anyhow::Error::from)
   }
 
-  fn check_message(
+  fn sync_or_exit(
     renderer: &mut Renderer,
     messenger: &mut Mailbox<RenderLoopMessage, GameLoopMessage>,
   ) -> anyhow::Result<bool> {
     match messenger.send_and_wait(RenderLoopMessage::SyncWithGame)? {
-        GameLoopMessage::SyncWithRenderer => Ok(false),
-        GameLoopMessage::RenderData(data) => {
-          renderer.update(data)?;
-          Ok(false)
-        },
-        GameLoopMessage::Exit => Ok(true),
+      GameLoopMessage::SyncWithRenderer => Ok(false),
+      GameLoopMessage::RenderData(data) => {
+        renderer.update(data)?;
+        Ok(false)
+      }
+      GameLoopMessage::Exit => Ok(true),
     }
   }
 
