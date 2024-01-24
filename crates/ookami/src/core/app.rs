@@ -1,3 +1,5 @@
+use std::thread::JoinHandle;
+
 use self::{
   builder::{AppCreateInfo, HasSize, HasTitle},
   lifecycle::Lifecycle,
@@ -19,6 +21,7 @@ struct App<State> {
   // These are optional to allow take-ing in main loop
   window: Option<Window>,
   renderer: Option<Renderer>,
+  render_thread: Option<JoinHandle<anyhow::Result<()>>>,
 }
 
 impl<Life: Lifecycle> App<Life> {
@@ -41,6 +44,7 @@ impl<Life: Lifecycle> App<Life> {
       lifecycle,
       window: Some(window),
       renderer: Some(renderer),
+      render_thread: None
     })
   }
 
@@ -49,7 +53,7 @@ impl<Life: Lifecycle> App<Life> {
 
     // to allow double mutable borrow
     if let (Some(mut window), Some(renderer)) = (self.window.take(), self.renderer.take()) {
-      Self::render_loop(renderer, renderer_mailbox)?;
+      self.render_thread = Some(Self::render_loop(renderer, renderer_mailbox)?);
       self.game_loop(&mut window, game_mailbox)?;
     };
 
@@ -67,6 +71,9 @@ impl<Life: Lifecycle> App<Life> {
       match message {
         WindowMessage::Closed => {
           messenger.send_and_wait(GameLoopMessage::Exit)?;
+          if let Err(error) = self.render_thread.take().expect("render_thread handle should not be None").join() {
+            error!("{error:?}");
+          }
           break;
         }
         _ => {
@@ -94,7 +101,7 @@ impl<Life: Lifecycle> App<Life> {
   fn render_loop(
     mut renderer: Renderer,
     mut messenger: Mailbox<RenderLoopMessage, GameLoopMessage>,
-  ) -> anyhow::Result<()> {
+  ) -> anyhow::Result<JoinHandle<anyhow::Result<()>>> {
     std::thread::Builder::new()
       .name(Self::RENDER_THREAD_ID.into())
       .spawn(move || -> anyhow::Result<()> {
@@ -115,9 +122,7 @@ impl<Life: Lifecycle> App<Life> {
         trace!("Ending render");
 
         Ok(())
-      })?;
-
-    Ok(())
+      }).map_err(anyhow::Error::from)
   }
 
   pub fn run(self) {

@@ -1,7 +1,6 @@
 use self::render_data::RenderData;
 use foxy_vulkan::vulkan::Vulkan;
 use raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle};
-use tracing::*;
 
 pub mod render_data;
 
