@@ -79,7 +79,7 @@ impl LoggingSession {
       .with_thread_names(self.thread_names)
       .with_file(self.file_names)
       .with_line_number(self.line_numbers)
-      .init()
+      .init();
   }
 }
 

@@ -15,11 +15,10 @@ impl Lifecycle for State {
     })
   }
 
-  fn early_update(&mut self, time: &Time, _window: &mut Window, _msg: &WindowMessage) {
+  fn early_update(&mut self, _time: &Time, _window: &mut Window, _msg: &WindowMessage) {
     if self.message_timer.is_elapsed() {
       trace!("MESSAGE");
     }
-    // trace!("EARLY_UPDATE");
   }
 
   fn fixed_update(&mut self, time: &Time, window: &mut Window) {
@@ -29,7 +28,7 @@ impl Lifecycle for State {
     }
   }
 
-  fn update(&mut self, time: &Time, _window: &mut Window, msg: &WindowMessage) {
+  fn update(&mut self, _time: &Time, _window: &mut Window, msg: &WindowMessage) {
     // let fps = 1.0 / self.time.average_delta_secs();
     // trace!("UPDATE: {:?}", _msg)
     match msg {

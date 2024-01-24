@@ -8,10 +8,15 @@ mod state;
 
 fn main() {
   if cfg!(debug_assertions) {
-    logging_session_ex!(("foxy_window", Some(LogLevel::Trace)), ("foxy_vulkan", Some(LogLevel::Trace)))
-      // .with_file_names(true)
-      // .with_line_numbers(true)
-      .start();
+    logging_session_ex!(
+      ("foxy_window", Some(LogLevel::Trace)),
+      ("foxy_vulkan", Some(LogLevel::Trace)),
+      ("foxy_renderer", Some(LogLevel::Trace)),
+      ("voxel_game", Some(LogLevel::Trace))
+    )
+    // .with_file_names(true)
+    // .with_line_numbers(true)
+    .start();
     log_lib_info!();
   }
 

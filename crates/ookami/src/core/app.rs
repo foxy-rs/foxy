@@ -1,6 +1,6 @@
 use self::{
   builder::{AppCreateInfo, HasSize, HasTitle},
-  state::Lifecycle,
+  lifecycle::Lifecycle,
   time::Time,
 };
 use super::message::{GameLoopMessage, RenderLoopMessage};
@@ -10,7 +10,7 @@ use messaging::Mailbox;
 use tracing::*;
 
 pub mod builder;
-pub mod state;
+pub mod lifecycle;
 pub mod time;
 
 struct App<State> {
@@ -108,7 +108,7 @@ impl<Life: Lifecycle> App<Life> {
           renderer.render()?;
 
           if let GameLoopMessage::RenderData(render_data) = messenger.send_and_wait(RenderLoopMessage::SyncWithGame)? {
-            renderer.update(render_data);
+            renderer.update(render_data)?;
           }
         }
 

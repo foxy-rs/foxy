@@ -2,7 +2,7 @@ use strum::Display;
 use tracing_subscriber::filter::LevelFilter;
 
 #[allow(unused)]
-#[derive(Default, Display)]
+#[derive(Default, Display, Debug)]
 #[strum(serialize_all = "snake_case")]
 pub enum LogLevel {
   Trace,

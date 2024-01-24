@@ -1,55 +1,58 @@
 ### ENV ###
-
-[env]
-CARGO_MAKE_EXTEND_WORKSPACE_MAKEFILE = true
-CARGO_MAKE_RUN_TARGET = "ookami"
-ASSET_FOLDER_LOCATION = "./crates/ookami/assets"
-
 [env.development]
 BUILD_TYPE = "debug"
 
 [env.release]
 BUILD_TYPE = "release"
 
+[env]
+CARGO_MAKE_EXTEND_WORKSPACE_MAKEFILE = true
+CARGO_MAKE_RUN_TARGET                = "ookami"
+ASSET_FOLDER_LOCATION                = "./crates/ookami/assets"
+ASSET_FOLDER_DESTINATION             = "./target/${BUILD_TYPE}/examples/assets"
+
 [config]
 skip_core_tasks = true
 
 [tasks.default]
 workspace = false
-alias = "build"
+alias     = "build"
 
 ### BUILD ###
 
 [tasks.build]
-workspace = false
-command = "cargo"
-args = ["build"]
+workspace    = false
+command      = "cargo"
+args         = ["build", "--examples"]
 dependencies = ["copy-resources"]
 
 [tasks.build-release]
-workspace = false
-command = "cargo"
-args = ["build", "--release"]
+workspace    = false
+command      = "cargo"
+args         = ["build", "--release", "--examples"]
 dependencies = ["copy-resources"]
 
 ### OTHER ###
 
 [tasks.copy-resources]
 workspace = false
-condition = { files_modified = { input = ["${CARGO_MAKE_WORKING_DIRECTORY}/Cargo.toml", "${CARGO_MAKE_WORKING_DIRECTORY}/Makefile.toml", "${ASSET_FOLDER_LOCATION}/**/*"], output = ["./target/${BUILD_TYPE}/assets/**/*"] } }
+condition = { files_modified = { input = ["${CARGO_MAKE_WORKING_DIRECTORY}/Cargo.toml", "${CARGO_MAKE_WORKING_DIRECTORY}/Makefile.toml", "${ASSET_FOLDER_LOCATION}/**/*"], output = ["${ASSET_FOLDER_DESTINATION}/**/*"] } }
 script_runner = "@shell"
 windows.script = '''
-  xcopy "${ASSET_FOLDER_LOCATION}" "./target/${BUILD_TYPE}/assets/" /e /y /i
+  xcopy "${ASSET_FOLDER_LOCATION}" "${ASSET_FOLDER_DESTINATION}/" /e /y /i
 '''
 script = '''
-  cp -rfu ${ASSET_FOLDER_LOCATION} ./target/${BUILD_TYPE}/assets/
+  cp -rfu ${ASSET_FOLDER_LOCATION} ${ASSET_FOLDER_DESTINATION}/
 '''
 dependencies = ["delete-resources"]
 
 [tasks.delete-resources]
 workspace = false
-condition = { files_exist = ["./target/${BUILD_TYPE}/assets"] }
+condition = { files_exist = ["${ASSET_FOLDER_DESTINATION}/"] }
 script_runner = "@shell"
+windows.script = '''
+  rmdir "${ASSET_FOLDER_DESTINATION}" /S /Q 
+'''
 script = '''
-  rm -rf ./target/${BUILD_TYPE}/assets
+  rm -rf ${ASSET_FOLDER_DESTINATION}
 '''

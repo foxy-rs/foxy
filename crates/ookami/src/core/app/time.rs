@@ -184,6 +184,12 @@ pub struct Stopwatch {
   start_time: Instant,
 }
 
+impl Default for Stopwatch {
+  fn default() -> Self {
+    Self::new()
+  }
+}
+
 #[allow(dead_code)]
 impl Stopwatch {
   pub fn new() -> Self {
