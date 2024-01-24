@@ -44,7 +44,7 @@ impl<Life: Lifecycle> App<Life> {
       lifecycle,
       window: Some(window),
       renderer: Some(renderer),
-      render_thread: None
+      render_thread: None,
     })
   }
 
@@ -68,18 +68,7 @@ impl<Life: Lifecycle> App<Life> {
     self.lifecycle.start(&self.time, window);
 
     while let Some(message) = window.next() {
-      match message {
-        WindowMessage::Closed => {
-          messenger.send_and_wait(GameLoopMessage::Exit)?;
-          if let Err(error) = self.render_thread.take().expect("render_thread handle should not be None").join() {
-            error!("{error:?}");
-          }
-          break;
-        }
-        _ => {
-          messenger.send_and_wait(GameLoopMessage::SyncWithRenderer)?;
-        }
-      }
+      messenger.send_and_wait(GameLoopMessage::SyncWithRenderer)?;
 
       // Main lifecycle
       self.time.update();
@@ -90,7 +79,23 @@ impl<Life: Lifecycle> App<Life> {
       }
       self.lifecycle.update(&self.time, window, &message);
 
-      messenger.send_and_wait(GameLoopMessage::RenderData(RenderData {}))?;
+      match message {
+        WindowMessage::Closed => {
+          messenger.send_and_wait(GameLoopMessage::Exit)?;
+          if let Err(error) = self
+            .render_thread
+            .take()
+            .expect("render_thread handle should not be None")
+            .join()
+          {
+            error!("{error:?}");
+          }
+          break;
+        }
+        _ => {
+          messenger.send_and_wait(GameLoopMessage::RenderData(RenderData {}))?;
+        }
+      }
     }
 
     self.lifecycle.stop(&self.time, window);
@@ -108,21 +113,36 @@ impl<Life: Lifecycle> App<Life> {
         trace!("Beginning render");
 
         loop {
-          if let GameLoopMessage::Exit = messenger.send_and_wait(RenderLoopMessage::SyncWithGame)? {
+          if Self::check_message(&mut renderer, &mut messenger)? {
             break;
           }
 
           renderer.render()?;
 
-          if let GameLoopMessage::RenderData(render_data) = messenger.send_and_wait(RenderLoopMessage::SyncWithGame)? {
-            renderer.update(render_data)?;
+          if Self::check_message(&mut renderer, &mut messenger)? {
+            break;
           }
         }
 
         trace!("Ending render");
 
         Ok(())
-      }).map_err(anyhow::Error::from)
+      })
+      .map_err(anyhow::Error::from)
+  }
+
+  fn check_message(
+    renderer: &mut Renderer,
+    messenger: &mut Mailbox<RenderLoopMessage, GameLoopMessage>,
+  ) -> anyhow::Result<bool> {
+    match messenger.send_and_wait(RenderLoopMessage::SyncWithGame)? {
+        GameLoopMessage::SyncWithRenderer => Ok(false),
+        GameLoopMessage::RenderData(data) => {
+          renderer.update(data)?;
+          Ok(false)
+        },
+        GameLoopMessage::Exit => Ok(true),
+    }
   }
 
   pub fn run(self) {
