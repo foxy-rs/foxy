@@ -1,5 +1,5 @@
+use super::Foxy;
 use foxy_window::prelude::*;
-use super::App;
 
 pub struct HasTitle(pub &'static str);
 pub struct MissingTitle;
@@ -10,27 +10,27 @@ pub struct HasSize {
 }
 pub struct MissingSize;
 
-pub struct AppCreateInfo<Title, Size> {
+pub struct FoxyCreateInfo<Title, Size> {
   pub title: Title,
   pub size: Size,
   pub color_mode: ColorMode,
   pub close_behavior: CloseBehavior,
 }
 
-pub struct AppBuilder<Title, Size> {
-  create_info: AppCreateInfo<Title, Size>,
+pub struct FoxyBuilder<Title, Size> {
+  create_info: FoxyCreateInfo<Title, Size>,
 }
 
-impl AppBuilder<MissingTitle, MissingSize> {
+impl FoxyBuilder<MissingTitle, MissingSize> {
   pub fn new() -> Self {
     Self::default()
   }
 }
 
-impl Default for AppBuilder<MissingTitle, MissingSize> {
+impl Default for FoxyBuilder<MissingTitle, MissingSize> {
   fn default() -> Self {
     Self {
-      create_info: AppCreateInfo {
+      create_info: FoxyCreateInfo {
         title: MissingTitle,
         size: MissingSize,
         color_mode: ColorMode::Dark,
@@ -40,10 +40,10 @@ impl Default for AppBuilder<MissingTitle, MissingSize> {
   }
 }
 
-impl<Size> AppBuilder<MissingTitle, Size> {
-  pub fn with_title(self, title: &'static str) -> AppBuilder<HasTitle, Size> {
-    AppBuilder {
-      create_info: AppCreateInfo {
+impl<Size> FoxyBuilder<MissingTitle, Size> {
+  pub fn with_title(self, title: &'static str) -> FoxyBuilder<HasTitle, Size> {
+    FoxyBuilder {
+      create_info: FoxyCreateInfo {
         title: HasTitle(title),
         size: self.create_info.size,
         color_mode: self.create_info.color_mode,
@@ -53,10 +53,10 @@ impl<Size> AppBuilder<MissingTitle, Size> {
   }
 }
 
-impl<Title> AppBuilder<Title, MissingSize> {
-  pub fn with_size(self, width: i32, height: i32) -> AppBuilder<Title, HasSize> {
-    AppBuilder {
-      create_info: AppCreateInfo {
+impl<Title> FoxyBuilder<Title, MissingSize> {
+  pub fn with_size(self, width: i32, height: i32) -> FoxyBuilder<Title, HasSize> {
+    FoxyBuilder {
+      create_info: FoxyCreateInfo {
         title: self.create_info.title,
         size: HasSize { width, height },
         color_mode: self.create_info.color_mode,
@@ -66,10 +66,10 @@ impl<Title> AppBuilder<Title, MissingSize> {
   }
 }
 
-impl<Title, Size> AppBuilder<Title, Size> {
+impl<Title, Size> FoxyBuilder<Title, Size> {
   pub fn with_dark_mode(self, color_mode: ColorMode) -> Self {
     Self {
-      create_info: AppCreateInfo {
+      create_info: FoxyCreateInfo {
         title: self.create_info.title,
         size: self.create_info.size,
         color_mode,
@@ -80,7 +80,7 @@ impl<Title, Size> AppBuilder<Title, Size> {
 
   pub fn with_close_behavior(self, close_behavior: CloseBehavior) -> Self {
     Self {
-      create_info: AppCreateInfo {
+      create_info: FoxyCreateInfo {
         title: self.create_info.title,
         size: self.create_info.size,
         color_mode: self.create_info.color_mode,
@@ -90,8 +90,8 @@ impl<Title, Size> AppBuilder<Title, Size> {
   }
 }
 
-impl AppBuilder<HasTitle, HasSize> {
-  pub fn build(self) -> anyhow::Result<App> {
-    App::new(self.create_info)
+impl FoxyBuilder<HasTitle, HasSize> {
+  pub fn build(self) -> anyhow::Result<Foxy> {
+    Foxy::new(self.create_info)
   }
 }

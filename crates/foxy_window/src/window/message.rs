@@ -20,7 +20,7 @@ use super::input::{
 #[derive(Debug, Default, PartialEq, Eq, Clone)]
 pub enum WindowMessage {
   #[default]
-  Empty,
+  None,
   Ready {
     hwnd: HWND,
     hinstance: HINSTANCE,

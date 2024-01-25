@@ -1,5 +1,5 @@
 use self::{
-  builder::{AppBuilder, AppCreateInfo, HasSize, HasTitle, MissingSize, MissingTitle},
+  builder::{FoxyBuilder, FoxyCreateInfo, HasSize, HasTitle, MissingSize, MissingTitle},
   lifecycle::Lifecycle,
 };
 use super::message::{GameLoopMessage, RenderLoopMessage};
@@ -13,7 +13,7 @@ use tracing::*;
 pub mod builder;
 pub mod lifecycle;
 
-pub struct App {
+pub struct Foxy {
   time: EngineTime,
   current_state: Lifecycle,
   window: Window,
@@ -21,22 +21,22 @@ pub struct App {
   game_mailbox: Mailbox<GameLoopMessage, RenderLoopMessage>,
 }
 
-impl App {
+impl Foxy {
   pub const RENDER_THREAD_ID: &'static str = "render";
 
-  pub fn builder() -> AppBuilder<MissingTitle, MissingSize> {
+  pub fn builder() -> FoxyBuilder<MissingTitle, MissingSize> {
     Default::default()
   }
 
-  pub fn new(app_create_info: AppCreateInfo<HasTitle, HasSize>) -> anyhow::Result<Self> {
+  pub fn new(foxy_create_info: FoxyCreateInfo<HasTitle, HasSize>) -> anyhow::Result<Self> {
     let time = EngineTime::new(128.0, 1024);
     let current_state = Lifecycle::Entering;
 
     let mut window = Window::builder()
-      .with_title(app_create_info.title.0)
-      .with_size(app_create_info.size.width, app_create_info.size.height)
-      .with_color_mode(app_create_info.color_mode)
-      .with_close_behavior(app_create_info.close_behavior)
+      .with_title(foxy_create_info.title.0)
+      .with_size(foxy_create_info.size.width, foxy_create_info.size.height)
+      .with_color_mode(foxy_create_info.color_mode)
+      .with_close_behavior(foxy_create_info.close_behavior)
       .with_visibility(Visibility::Hidden)
       .build()?;
 
@@ -71,7 +71,7 @@ impl App {
     self.next_state(true)
   }
 
-  pub fn next_state(&mut self, should_wait: bool) -> Option<&Lifecycle> {
+  fn next_state(&mut self, should_wait: bool) -> Option<&Lifecycle> {
     let new_state = match &mut self.current_state {
       Lifecycle::Entering => {
         let message = if should_wait {

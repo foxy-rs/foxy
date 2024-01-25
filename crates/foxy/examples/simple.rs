@@ -6,7 +6,7 @@ fn main() {
     logging_session_ex!(("simple", Some(LogLevel::Trace))).start();
   }
 
-  let mut app = App::builder()
+  let mut app = Foxy::builder()
     .with_title("Simple")
     .with_size(800, 450)
     .build()

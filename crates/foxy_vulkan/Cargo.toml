@@ -17,6 +17,6 @@ thiserror = "1.0"
 anyhow    = "1.0"
 tracing   = "0.1"
 
-ash               = { git = "https://github.com/ash-rs/ash.git", features = ["linked", "debug"] }
-ash-window        = { git = "https://github.com/ash-rs/ash.git" }
 raw-window-handle = "0.5"
+ash-window        = { git = "https://github.com/ash-rs/ash.git" }
+ash               = { git = "https://github.com/ash-rs/ash.git", features = ["linked", "debug"] }

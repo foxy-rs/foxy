@@ -1,25 +1,6 @@
+use foxy_types::window::{CloseBehavior, ColorMode, Visibility};
+
 use super::Window;
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[allow(unused)]
-pub enum Visibility {
-  Shown,
-  Hidden,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[allow(unused)]
-pub enum ColorMode {
-  Dark,
-  Light,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[allow(unused)]
-pub enum CloseBehavior {
-  Default,
-  Custom,
-}
 
 #[derive(Debug, Clone)]
 pub struct HasTitle(pub &'static str);

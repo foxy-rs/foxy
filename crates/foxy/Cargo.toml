@@ -17,6 +17,7 @@ thiserror = "1.0"
 anyhow    = "1.0"
 tracing   = "0.1"
 
+foxy_types  = { version = "0.1", path = "../foxy_types" }
 foxy_util  = { version = "0.1", path = "../foxy_util" }
 bytemuck   = "1.13"
 strum      = { version = "0.25.0", features = ["derive"] }

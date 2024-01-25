@@ -1,14 +1,16 @@
 // Reference for multithreaded input processing:
 //   * https://www.jendrikillner.com/post/rust-game-part-3/
 //   * https://github.com/jendrikillner/RustMatch3/blob/rust-game-part-3/
-
-use self::{
-  builder::{CloseBehavior, HasSize, HasTitle, MissingSize, MissingTitle, Visibility, WindowBuilder, WindowCreateInfo},
-  input::Input,
-  message::{AppMessage, KeyboardMessage, MouseMessage, WindowMessage},
-  state::{WindowSize, WindowState},
+use crate::{
+  debug::validation::ValidationLayer,
+  window::{
+    builder::{HasSize, HasTitle, MissingSize, MissingTitle, WindowBuilder, WindowCreateInfo},
+    input::Input,
+    message::{AppMessage, KeyboardMessage, MouseMessage, WindowMessage},
+    state::{WindowSize, WindowState},
+  },
 };
-use crate::{prelude::ValidationLayer, window::builder::ColorMode};
+use foxy_types::window::{CloseBehavior, ColorMode, Visibility};
 use messaging::Mailbox;
 use raw_window_handle::{
   HasRawDisplayHandle, HasRawWindowHandle, RawDisplayHandle, RawWindowHandle, Win32WindowHandle, WindowsDisplayHandle,
@@ -292,7 +294,7 @@ impl Iterator for Window {
     if let Ok(message) = self.app_mailbox.poll() {
       self.message_handler(message)
     } else {
-      Some(WindowMessage::Empty)
+      Some(WindowMessage::None)
     }
   }
 }

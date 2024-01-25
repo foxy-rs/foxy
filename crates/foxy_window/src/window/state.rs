@@ -1,9 +1,6 @@
+use super::input::Input;
+use foxy_types::window::{CloseBehavior, ColorMode, Visibility};
 use windows::Win32::Foundation::{HINSTANCE, HWND};
-
-use super::{
-  builder::{CloseBehavior, ColorMode, Visibility},
-  input::Input,
-};
 
 #[derive(Debug)]
 pub struct WindowState {

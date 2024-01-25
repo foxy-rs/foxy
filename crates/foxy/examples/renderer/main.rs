@@ -15,7 +15,7 @@ fn main() {
     log_lib_info!();
   }
 
-  let mut app = App::builder()
+  let mut foxy = Foxy::builder()
     .with_title("Foxy Renderer")
     .with_size(800, 450)
     .build()
@@ -23,17 +23,19 @@ fn main() {
 
   let mut fps_timer = Timer::new(Duration::from_secs_f64(0.33));
 
-  while let Some(message) = app.poll() {
+  while let Some(message) = foxy.poll() {
     match message {
       Lifecycle::EarlyUpdate { .. } => {}
       Lifecycle::FixedUpdate { .. } => {
         if fps_timer.is_elapsed() {
-          let fps = 1.0 / app.time().average_delta_secs();
-          app.window().set_title(&format!("{}: {:.2}", app.window().title(), fps));
+          let fps = 1.0 / foxy.time().average_delta_secs();
+          foxy
+            .window()
+            .set_title(&format!("{}: {:.2}", foxy.window().title(), fps));
         }
       }
       Lifecycle::Update { message } => match message {
-        WindowMessage::Empty | WindowMessage::Other { .. } | WindowMessage::Mouse(MouseMessage::Cursor) => {}
+        WindowMessage::None | WindowMessage::Other { .. } | WindowMessage::Mouse(MouseMessage::Cursor) => {}
         _ => debug!("UPDATE: {:?}", message),
       },
       _ => {}
