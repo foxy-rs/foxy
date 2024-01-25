@@ -34,8 +34,6 @@ pub mod state;
 #[derive(Debug)]
 #[allow(unused)]
 pub struct Window {
-  // window_message_receiver: Receiver<WindowMessage>,
-  // app_message_sender: Sender<AppMessage>,
   app_mailbox: Mailbox<AppMessage, WindowMessage>,
   state: WindowState,
   window_thread: Option<JoinHandle<anyhow::Result<()>>>,
