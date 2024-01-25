@@ -24,8 +24,7 @@ pub extern "system" fn subclass_proc(
   dw_ref_data: usize,
 ) -> LRESULT {
   let sender: &mut Sender<WindowMessage> = unsafe { std::mem::transmute(dw_ref_data) };
-
-  // let sender = unsafe { &mut *(dw_ref_data as *mut Sender<WindowMessage>) };
+  
   let _ = sender
     .send(WindowMessage::new(hwnd, message, w_param, l_param))
     .log_error_msg("WindowMessage::new");

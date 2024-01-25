@@ -11,46 +11,6 @@ use tracing::*;
 
 use super::message::{GameLoopMessage, RenderLoopMessage};
 
-// pub struct RenderThread {
-//   join_handle: Option<JoinHandle<anyhow::Result<()>>>,
-//   render_loop: Option<RenderLoop>,
-// }
-
-// impl RenderThread {
-//   pub fn new(
-//     renderer: Renderer,
-//     messenger: Mailbox<RenderLoopMessage, GameLoopMessage>,
-//     sync_barrier: Arc<Barrier>,
-//   ) -> Self {
-//     Self {
-//       join_handle: None,
-//       render_loop: Some(RenderLoop {
-//         renderer,
-//         messenger,
-//         sync_barrier,
-//       }),
-//     }
-//   }
-
-//   pub fn run(&mut self) {
-//     if let Some(render_loop) = self.render_loop.take() {
-//       self.join_handle = render_loop.run().inspect_err(|e| error!("{e}")).ok();
-//     }
-//   }
-
-//   pub fn join(&mut self) {
-//     if let Some(join_handle) = self.join_handle.take() {
-//       if let Err(error) = join_handle.join() {
-//         error!("{error:?}");
-//       } else {
-//         trace!("render thread joined");
-//       }
-//     } else {
-//       error!("render thread join_handle was None!");
-//     }
-//   }
-// }
-
 pub struct RenderLoop {
   pub renderer: Renderer,
   pub messenger: Mailbox<RenderLoopMessage, GameLoopMessage>,
