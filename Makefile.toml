@@ -23,13 +23,13 @@ alias     = "build"
 [tasks.build]
 workspace    = false
 command      = "cargo"
-args         = ["build", "--examples"]
+args         = ["build"]
 dependencies = ["copy-resources"]
 
 [tasks.build-release]
 workspace    = false
 command      = "cargo"
-args         = ["build", "--release", "--examples"]
+args         = ["build"]
 dependencies = ["copy-resources"]
 
 ### OTHER ###
