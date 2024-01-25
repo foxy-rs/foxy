@@ -11,6 +11,8 @@ This repository contains a few crates as they each naturally evolved and split a
 
 # Foxy
 
+ [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/R6R8PGIU6)
+
 ```rust
 use foxy::prelude::*;
 use tracing::debug;
@@ -38,8 +40,6 @@ fn main() {
 ```
 
 `foxy` is a simple renderer which is a WIP. Still deciding on OpenGL or Vulkan. OpenGL has benefits with quick development, but Vulkan would allow for hardware raytracing. The window uses `foxy_window` to create a Win32 desktop window. 
-
- [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/R6R8PGIU6)
 
 There are **3** primary threads in `foxy`:
 
