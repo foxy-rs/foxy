@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members  = ["crates/foxy", "crates/foxy_vulkan", "crates/foxy_window", "crates/foxy_renderer", "crates/foxy_types", "crates/foxy_util", "samples/simple", "samples/voxel_game"]
+members  = ["crates/foxy", "crates/foxy_vulkan", "crates/foxy_window", "crates/foxy_renderer", "crates/foxy_types", "crates/foxy_util", "samples/simple", "samples/ookami"]
 
 [profile.dev.package."foxy"]
 opt-level = 0

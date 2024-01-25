@@ -13,7 +13,7 @@ fn main() {
       ("foxy_vulkan", Some(LogLevel::Trace)),
       ("foxy_types", Some(LogLevel::Trace)),
       ("foxy_utils", Some(LogLevel::Trace)),
-      ("renderer", Some(LogLevel::Trace))
+      ("ookami", Some(LogLevel::Trace))
     )
     .start();
     log_lib_info!();
@@ -28,7 +28,6 @@ fn main() {
 
   while let Some(message) = foxy.poll() {
     match message {
-      Lifecycle::EarlyUpdate { .. } => {}
       Lifecycle::FixedUpdate { .. } => {
         if fps_timer.is_elapsed() {
           let fps = 1.0 / foxy.time().average_delta_secs();
