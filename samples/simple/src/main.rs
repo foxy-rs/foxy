@@ -10,11 +10,10 @@ fn main() {
 
   let mut app = Foxy::builder().with_title("Simple").with_size(800, 450).build_unwrap();
 
-  while let Some(stage) = app.wait() {
+  while let Some(stage) = app.poll() {
     match stage {
-      Lifecycle::Start => debug!("Start"),
-      // Lifecycle::Update { .. } => debug!("Update"),
-      Lifecycle::Exiting => debug!("Exiting"),
+      Lifecycle::FixedUpdate { .. } => debug!("FixedUpdate"),
+      Lifecycle::Update { .. } => debug!("Update"),
       _ => {}
     }
   }
