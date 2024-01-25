@@ -9,8 +9,8 @@ fn main() {
     logging_session!().start();
   }
 
-  let mut app = App::builder()
-    .with_title("Foxy")
+  let mut app = Foxy::builder()
+    .with_title("Simple")
     .with_size(800, 450)
     .build()
     .unwrap_or_else(|e| panic!("{e}"));
