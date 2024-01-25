@@ -30,7 +30,7 @@ use tracing::debug;
 
 fn main() {
   if cfg!(debug_assertions) {
-    logging_session_ex!(("simple", Some(LogLevel::Trace))).start();
+    logging_session!().start();
   }
 
   let mut app = App::builder()
