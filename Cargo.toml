@@ -1,9 +1,9 @@
 [workspace]
 resolver = "2"
-members  = ["crates/ookami", "crates/eztracing", "crates/foxy_vulkan", "crates/foxy_window", "crates/foxy_renderer"]
+members  = ["crates/foxy", "crates/eztracing", "crates/foxy_vulkan", "crates/foxy_window", "crates/foxy_renderer"]
 
 # Enable a small amount of optimization in debug mode
-[profile.dev.package."ookami"]
+[profile.dev.package."foxy"]
 opt-level = 1
 
 # Enable a small amount of optimization in debug mode

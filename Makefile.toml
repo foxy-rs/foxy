@@ -7,8 +7,8 @@ BUILD_TYPE = "release"
 
 [env]
 CARGO_MAKE_EXTEND_WORKSPACE_MAKEFILE = true
-CARGO_MAKE_RUN_TARGET                = "ookami"
-ASSET_FOLDER_LOCATION                = "./crates/ookami/assets"
+CARGO_MAKE_RUN_TARGET                = "foxy"
+ASSET_FOLDER_LOCATION                = "./crates/foxy/assets"
 ASSET_FOLDER_DESTINATION             = "./target/${BUILD_TYPE}/examples/assets"
 
 [config]

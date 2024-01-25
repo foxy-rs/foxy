@@ -1,6 +1,6 @@
 #![cfg_attr(all(windows, not(debug_assertions)), windows_subsystem = "windows")]
 use eztracing::prelude::*;
-use ookami::prelude::*;
+use foxy::prelude::*;
 use std::time::Duration;
 use tracing::*;
 

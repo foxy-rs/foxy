@@ -1,5 +1,5 @@
 use eztracing::prelude::*;
-use ookami::prelude::*;
+use foxy::prelude::*;
 use tracing::debug;
 
 fn main() {

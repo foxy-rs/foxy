@@ -1,8 +1,8 @@
 [package]
-name       = "ookami"
+name       = "foxy"
 version    = "0.0.1"
 edition    = "2021"
-repository = "https://github.com/GTLugo/ookami"
+repository = "https://github.com/GTLugo/foxy"
 license    = "MIT OR Apache-2.0"
 readme     = "README.md"
 authors    = ["Gabriel Lugo <dev.gabriel.lugo@gmail.com>"]
@@ -25,5 +25,5 @@ quanta     = "0.12.2"
 
 # using older version for compatibility with ash
 raw-window-handle = "0.5.2"
-foxy_window = { version = "*", path = "../foxy_window" }
-foxy_renderer = { version = "*", path = "../foxy_renderer" }
+foxy_window       = { version = "*", path = "../foxy_window" }
+foxy_renderer     = { version = "*", path = "../foxy_renderer" }
