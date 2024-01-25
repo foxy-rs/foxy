@@ -34,8 +34,8 @@ pub enum WindowMessage {
     w_param: WPARAM,
     l_param: LPARAM,
   },
-  Closed,
-  Exit,
+  Closing,
+  ExitLoop,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -67,7 +67,8 @@ impl WindowMessage {
   pub fn new(hwnd: HWND, message: u32, w_param: WPARAM, l_param: LPARAM) -> Self {
     match message {
       WindowsAndMessaging::WM_CLOSE => WindowMessage::CloseRequested,
-      WindowsAndMessaging::WM_QUIT => WindowMessage::Exit,
+      WindowsAndMessaging::WM_DESTROY => WindowMessage::Closing,
+      WindowsAndMessaging::WM_QUIT => WindowMessage::ExitLoop,
       msg if (WindowsAndMessaging::WM_KEYFIRST..=WindowsAndMessaging::WM_KEYLAST).contains(&msg) => {
         Self::new_keyboard_message(l_param)
       }
@@ -213,6 +214,6 @@ impl WindowMessage {
 #[derive(Debug, PartialEq, Eq)]
 pub enum AppMessage {
   Empty,
-  CloseRequested,
-  Closed,
+  DestroyWindow { hwnd: HWND },
+  Exited,
 }

@@ -5,63 +5,65 @@ use std::{
 
 use anyhow::anyhow;
 use foxy_renderer::renderer::Renderer;
+use foxy_types::thread::ThreadLoop;
 use messaging::Mailbox;
 use tracing::*;
 
 use super::message::{GameLoopMessage, RenderLoopMessage};
 
-pub struct RenderThread {
-  join_handle: Option<JoinHandle<anyhow::Result<()>>>,
-  render_loop: Option<RenderLoop>,
-}
+// pub struct RenderThread {
+//   join_handle: Option<JoinHandle<anyhow::Result<()>>>,
+//   render_loop: Option<RenderLoop>,
+// }
 
-impl RenderThread {
-  pub fn new(
-    renderer: Renderer,
-    messenger: Mailbox<RenderLoopMessage, GameLoopMessage>,
-    sync_barrier: Arc<Barrier>,
-  ) -> Self {
-    Self {
-      join_handle: None,
-      render_loop: Some(RenderLoop {
-        renderer,
-        messenger,
-        sync_barrier,
-      }),
-    }
-  }
+// impl RenderThread {
+//   pub fn new(
+//     renderer: Renderer,
+//     messenger: Mailbox<RenderLoopMessage, GameLoopMessage>,
+//     sync_barrier: Arc<Barrier>,
+//   ) -> Self {
+//     Self {
+//       join_handle: None,
+//       render_loop: Some(RenderLoop {
+//         renderer,
+//         messenger,
+//         sync_barrier,
+//       }),
+//     }
+//   }
 
-  pub fn run(&mut self) {
-    if let Some(render_loop) = self.render_loop.take() {
-      self.join_handle = render_loop.run().inspect_err(|e| error!("{e}")).ok();
-    }
-  }
+//   pub fn run(&mut self) {
+//     if let Some(render_loop) = self.render_loop.take() {
+//       self.join_handle = render_loop.run().inspect_err(|e| error!("{e}")).ok();
+//     }
+//   }
 
-  pub fn join(&mut self) {
-    if let Some(join_handle) = self.join_handle.take() {
-      if let Err(error) = join_handle.join() {
-        error!("{error:?}");
-      } else {
-        trace!("render thread joined");
-      }
-    } else {
-      error!("render thread join_handle was None!");
-    }
-  }
-}
+//   pub fn join(&mut self) {
+//     if let Some(join_handle) = self.join_handle.take() {
+//       if let Err(error) = join_handle.join() {
+//         error!("{error:?}");
+//       } else {
+//         trace!("render thread joined");
+//       }
+//     } else {
+//       error!("render thread join_handle was None!");
+//     }
+//   }
+// }
 
 pub struct RenderLoop {
-  renderer: Renderer,
-  messenger: Mailbox<RenderLoopMessage, GameLoopMessage>,
-  sync_barrier: Arc<Barrier>,
+  pub renderer: Renderer,
+  pub messenger: Mailbox<RenderLoopMessage, GameLoopMessage>,
+  pub sync_barrier: Arc<Barrier>,
 }
 
-impl RenderLoop {
-  pub const RENDER_THREAD_ID: &'static str = "render";
+impl ThreadLoop for RenderLoop {
+  const THREAD_ID: &'static str = "render";
+  type Params = ();
 
-  pub fn run(mut self) -> anyhow::Result<JoinHandle<anyhow::Result<()>>> {
+  fn run(mut self, _: Self::Params) -> anyhow::Result<JoinHandle<anyhow::Result<()>>> {
     std::thread::Builder::new()
-      .name(Self::RENDER_THREAD_ID.into())
+      .name(Self::THREAD_ID.into())
       .spawn(move || -> anyhow::Result<()> {
         trace!("Beginning render");
 
@@ -83,7 +85,9 @@ impl RenderLoop {
       })
       .map_err(anyhow::Error::from)
   }
+}
 
+impl RenderLoop {
   fn renderer_sync_or_exit(&mut self) -> anyhow::Result<bool> {
     self.sync_barrier.wait();
     match self.messenger.poll() {

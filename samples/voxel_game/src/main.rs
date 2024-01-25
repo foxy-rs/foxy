@@ -6,9 +6,12 @@ use tracing::*;
 fn main() {
   if cfg!(debug_assertions) {
     logging_session_ex!(
+      ("foxy", Some(LogLevel::Trace)),
       ("foxy_window", Some(LogLevel::Trace)),
-      ("foxy_vulkan", Some(LogLevel::Trace)),
       ("foxy_renderer", Some(LogLevel::Trace)),
+      ("foxy_vulkan", Some(LogLevel::Trace)),
+      ("foxy_types", Some(LogLevel::Trace)),
+      ("foxy_utils", Some(LogLevel::Trace)),
       ("renderer", Some(LogLevel::Trace))
     )
     .start();

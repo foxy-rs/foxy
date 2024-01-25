@@ -2,21 +2,23 @@
 resolver = "2"
 members  = ["crates/foxy", "crates/foxy_vulkan", "crates/foxy_window", "crates/foxy_renderer", "crates/foxy_types", "crates/foxy_util", "samples/simple", "samples/voxel_game"]
 
-# Enable a small amount of optimization in debug mode
 [profile.dev.package."foxy"]
-opt-level = 1
+opt-level = 0
 
-# Enable a small amount of optimization in debug mode
 [profile.dev.package."foxy_window"]
-opt-level = 1
+opt-level = 0
 
-# Enable a small amount of optimization in debug mode
 [profile.dev.package."foxy_vulkan"]
-opt-level = 1
+opt-level = 0
 
-# Enable a small amount of optimization in debug mode
 [profile.dev.package."foxy_renderer"]
-opt-level = 1
+opt-level = 0
+
+[profile.dev.package."foxy_util"]
+opt-level = 0
+
+[profile.dev.package."foxy_types"]
+opt-level = 0
 
 # Enable high optimizations for dependencies
 [profile.dev.package."*"]
