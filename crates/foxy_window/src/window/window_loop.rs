@@ -3,7 +3,6 @@ use std::{
   thread::JoinHandle,
 };
 
-use anyhow::anyhow;
 use foxy_types::thread::ThreadLoop;
 use foxy_util::log::LogErr;
 use messaging::{Mailbox, MessagingError};
