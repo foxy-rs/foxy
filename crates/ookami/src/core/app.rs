@@ -1,5 +1,3 @@
-use std::thread::JoinHandle;
-
 use self::{
   builder::{AppBuilder, AppCreateInfo, HasSize, HasTitle, MissingSize, MissingTitle},
   lifecycle::Lifecycle,
@@ -9,6 +7,7 @@ use super::message::{GameLoopMessage, RenderLoopMessage};
 use foxy_renderer::renderer::{render_data::RenderData, Renderer};
 use foxy_window::prelude::*;
 use messaging::Mailbox;
+use std::{mem, thread::JoinHandle};
 use tracing::*;
 
 pub mod builder;
@@ -82,13 +81,13 @@ impl App {
           self.window.next()
         };
         if let Some(message) = message {
-          Lifecycle::BeginFrame { message: Some(message) }
+          Lifecycle::BeginFrame { message }
         } else {
           Lifecycle::Exiting
         }
       }
       Lifecycle::BeginFrame { message } => {
-        let message = message.take();
+        let message = mem::replace(message, WindowMessage::Empty);
         if let Err(error) = self.game_mailbox.send_and_wait(GameLoopMessage::SyncWithRenderer) {
           error!("{error}");
           Lifecycle::Exiting
@@ -97,7 +96,7 @@ impl App {
         }
       }
       Lifecycle::EarlyUpdate { message } => {
-        let message = message.take();
+        let message = mem::replace(message, WindowMessage::Empty);
         self.time.update();
         if self.time.should_do_tick() {
           self.time.tick();
@@ -107,7 +106,7 @@ impl App {
         }
       }
       Lifecycle::FixedUpdate { message } => {
-        let message = message.take();
+        let message = mem::replace(message, WindowMessage::Empty);
         if self.time.should_do_tick() {
           self.time.tick();
           Lifecycle::FixedUpdate { message }
@@ -116,11 +115,11 @@ impl App {
         }
       }
       Lifecycle::Update { message } => {
-        let message = message.take();
+        let message = mem::replace(message, WindowMessage::Empty);
         Lifecycle::EndFrame { message }
       }
       Lifecycle::EndFrame { message } => {
-        let message = message.take();
+        let message = mem::replace(message, WindowMessage::Empty);
         match self.game_sync_or_exit(&message) {
           Ok(value) => {
             if value {
@@ -132,7 +131,7 @@ impl App {
                 self.window.next()
               };
               if let Some(message) = message {
-                Lifecycle::BeginFrame { message: Some(message) }
+                Lifecycle::BeginFrame { message }
               } else {
                 Lifecycle::Exiting
               }
@@ -154,9 +153,9 @@ impl App {
     Some(&self.current_state)
   }
 
-  fn game_sync_or_exit(&mut self, received_message: &Option<WindowMessage>) -> anyhow::Result<bool> {
+  fn game_sync_or_exit(&mut self, received_message: &WindowMessage) -> anyhow::Result<bool> {
     match received_message {
-      Some(WindowMessage::Closed) => {
+      WindowMessage::Closed => {
         self.game_mailbox.send_and_wait(GameLoopMessage::Exit)?;
         if let Err(error) = self
           .render_thread

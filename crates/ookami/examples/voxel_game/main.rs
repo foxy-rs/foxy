@@ -1,8 +1,7 @@
 #![cfg_attr(all(windows, not(debug_assertions)), windows_subsystem = "windows")]
-use std::time::Duration;
-
 use eztracing::prelude::*;
 use ookami::prelude::*;
+use std::time::Duration;
 use tracing::*;
 
 fn main() {
@@ -24,27 +23,20 @@ fn main() {
     .unwrap_or_else(|e| panic!("{e}"));
 
   let mut fps_timer = Timer::new(Duration::from_secs_f64(0.33));
-  let mut message_timer = Timer::new(Duration::from_secs_f64(0.5));
 
   while let Some(message) = app.poll() {
     match message {
-      Lifecycle::EarlyUpdate { .. } => {
-        if message_timer.is_elapsed() {
-          trace!("MESSAGE");
-        }
-      }
+      Lifecycle::EarlyUpdate { .. } => {}
       Lifecycle::FixedUpdate { .. } => {
         if fps_timer.is_elapsed() {
           let fps = 1.0 / app.time().average_delta_secs();
           app.window().set_title(&format!("{}: {:.2}", app.window().title(), fps));
         }
       }
-      Lifecycle::Update { message } => {
-        match message {
-          Some(WindowMessage::Empty | WindowMessage::Other { .. } | WindowMessage::Mouse(MouseMessage::Cursor)) | None => {}
-          Some(_) => debug!("UPDATE: {:?}", message),
-        }
-      }
+      Lifecycle::Update { message } => match message {
+        WindowMessage::Other { .. } | WindowMessage::Mouse(MouseMessage::Cursor) => {}
+        _ => debug!("UPDATE: {:?}", message),
+      },
       _ => {}
     }
   }
