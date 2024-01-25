@@ -124,13 +124,13 @@ impl ThreadLoop for WindowLoop {
                 _ => {}
               }
             }
-            Err(error) => match error {
-              TryRecvError::Empty => {
-                if self.next_message().is_none() {
-                  break;
-                }
+            Err(TryRecvError::Disconnected) => {
+              error!("window proc channel disconnected")
+            }
+            Err(TryRecvError::Empty) => {
+              if self.next_message().is_none() {
+                break;
               }
-              TryRecvError::Disconnected => Err(anyhow!(TryRecvError::Disconnected))?,
             },
           }
         }
