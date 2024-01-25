@@ -13,7 +13,9 @@ categories  = ["data-structures"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-tracing = "0.1"
-
 thiserror = "1.0"
 anyhow    = "1.0"
+tracing   = "0.1"
+
+quanta     = "0.12"
+arraydeque = "0.5"

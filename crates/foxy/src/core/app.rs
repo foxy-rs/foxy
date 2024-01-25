@@ -1,10 +1,10 @@
 use self::{
   builder::{AppBuilder, AppCreateInfo, HasSize, HasTitle, MissingSize, MissingTitle},
   lifecycle::Lifecycle,
-  time::Time,
 };
 use super::message::{GameLoopMessage, RenderLoopMessage};
 use foxy_renderer::renderer::{render_data::RenderData, Renderer};
+use foxy_util::time::{EngineTime, Time};
 use foxy_window::prelude::*;
 use messaging::Mailbox;
 use std::{mem, thread::JoinHandle};
@@ -12,10 +12,9 @@ use tracing::*;
 
 pub mod builder;
 pub mod lifecycle;
-pub mod time;
 
 pub struct App {
-  time: Time,
+  time: EngineTime,
   current_state: Lifecycle,
   window: Window,
   render_thread: Option<JoinHandle<anyhow::Result<()>>>,
@@ -30,7 +29,7 @@ impl App {
   }
 
   pub fn new(app_create_info: AppCreateInfo<HasTitle, HasSize>) -> anyhow::Result<Self> {
-    let time = Time::new(128.0, 1024);
+    let time = EngineTime::new(128.0, 1024);
     let current_state = Lifecycle::Entering;
 
     let mut window = Window::builder()
@@ -57,7 +56,7 @@ impl App {
   }
 
   pub fn time(&self) -> &Time {
-    &self.time
+    self.time.time()
   }
 
   pub fn window(&self) -> &Window {
