@@ -1,4 +1,3 @@
-use eztracing::prelude::*;
 use foxy::prelude::*;
 use tracing::debug;
 

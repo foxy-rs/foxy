@@ -87,9 +87,9 @@ impl LoggingSession {
 macro_rules! logging_session {
   () => {{
     const NAME: &str = env!("CARGO_PKG_NAME");
-    $crate::builder::LoggingSession::new().with_filter($crate::format::format_filter_slice(&[
+    $crate::log::builder::LoggingSession::new().with_filter($crate::log::format::format_filter_slice(&[
       ("RUST_LOG", None),
-      (NAME, Some($crate::level::LogLevel::Trace)),
+      (NAME, Some($crate::log::level::LogLevel::Trace)),
     ]))
   }};
 }
@@ -98,7 +98,7 @@ macro_rules! logging_session {
 macro_rules! logging_session_ex {
     ($($levels:expr),+) => {{
         const NAME: &str = env!("CARGO_PKG_NAME");
-        $crate::builder::LoggingSession::new()
-            .with_filter($crate::format::format_filter_slice(&[("RUST_LOG", None), (NAME, Some($crate::level::LogLevel::Trace)), $($levels),+]))
+        $crate::log::builder::LoggingSession::new()
+            .with_filter($crate::log::format::format_filter_slice(&[("RUST_LOG", None), (NAME, Some($crate::log::level::LogLevel::Trace)), $($levels),+]))
     }};
 }
