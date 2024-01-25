@@ -91,11 +91,7 @@ impl<Title, Size> AppBuilder<Title, Size> {
 }
 
 impl AppBuilder<HasTitle, HasSize> {
-  pub fn run<L: Lifecycle>(self) {
-    if let Some(lifecycle) = L::new() {
-      if let Ok(app) = App::new(self.create_info, lifecycle) {
-        app.run();
-      }
-    };
+  pub fn build(self) -> anyhow::Result<App> {
+    App::new(self.create_info)
   }
 }

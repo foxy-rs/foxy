@@ -17,7 +17,7 @@ use super::input::{
   mouse::MouseCode,
 };
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum WindowMessage {
   Empty,
   Ready {
@@ -37,7 +37,7 @@ pub enum WindowMessage {
   Exit,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum KeyboardMessage {
   Key {
     key_code: KeyCode,
@@ -50,7 +50,7 @@ pub enum KeyboardMessage {
   },
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum MouseMessage {
   Button {
     mouse_code: MouseCode,

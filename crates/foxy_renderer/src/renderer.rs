@@ -2,6 +2,8 @@ use self::render_data::RenderData;
 use foxy_vulkan::vulkan::Vulkan;
 use raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle};
 
+pub mod builder;
+pub mod message;
 pub mod render_data;
 
 pub struct Renderer {
@@ -13,7 +15,8 @@ impl Renderer {
   pub const MAX_FRAME_COUNT: u32 = 2;
 
   pub fn new(window: impl HasRawDisplayHandle + HasRawWindowHandle) -> anyhow::Result<Self> {
-    let vulkan = Vulkan::new(window)?;
+    let vulkan = Vulkan::new(&window)?;
+
     Ok(Self {
       vulkan,
       render_data: RenderData::default(),
@@ -24,7 +27,14 @@ impl Renderer {
     Ok(())
   }
 
-  pub fn update(&mut self, render_data: RenderData) -> anyhow::Result<()> {
+  pub fn update_render_data(&mut self, render_data: RenderData) -> anyhow::Result<()> {
     Ok(())
   }
 }
+
+// impl Iterator for Renderer {
+//   type Item = WindowMessage;
+//   fn next(&mut self) -> Option<Self::Item> {
+//     self.window.next()
+//   }
+// }

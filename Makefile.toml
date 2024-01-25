@@ -51,7 +51,7 @@ workspace = false
 condition = { files_exist = ["${ASSET_FOLDER_DESTINATION}/"] }
 script_runner = "@shell"
 windows.script = '''
-  rmdir "${ASSET_FOLDER_DESTINATION}" /S /Q 
+  rmdir "${ASSET_FOLDER_DESTINATION}" /s /q
 '''
 script = '''
   rm -rf ${ASSET_FOLDER_DESTINATION}

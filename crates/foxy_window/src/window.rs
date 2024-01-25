@@ -2,12 +2,18 @@
 //   * https://www.jendrikillner.com/post/rust-game-part-3/
 //   * https://github.com/jendrikillner/RustMatch3/blob/rust-game-part-3/
 
-use std::{os::raw::c_void, thread::JoinHandle};
-
+use self::{
+  builder::{CloseBehavior, HasSize, HasTitle, MissingSize, MissingTitle, Visibility, WindowBuilder, WindowCreateInfo},
+  input::Input,
+  message::{AppMessage, KeyboardMessage, MouseMessage, WindowMessage},
+  state::{WindowSize, WindowState},
+};
+use crate::{prelude::ValidationLayer, window::builder::ColorMode};
 use messaging::Mailbox;
 use raw_window_handle::{
   HasRawDisplayHandle, HasRawWindowHandle, RawDisplayHandle, RawWindowHandle, Win32WindowHandle, WindowsDisplayHandle,
 };
+use std::{os::raw::c_void, thread::JoinHandle};
 use tracing::*;
 use windows::{
   core::*,
@@ -17,15 +23,6 @@ use windows::{
     System::LibraryLoader::GetModuleHandleW,
     UI::WindowsAndMessaging::*,
   },
-};
-
-use crate::{prelude::ValidationLayer, window::builder::ColorMode};
-
-use self::{
-  builder::{CloseBehavior, HasSize, HasTitle, Visibility, WindowCreateInfo},
-  input::Input,
-  message::{AppMessage, KeyboardMessage, MouseMessage, WindowMessage},
-  state::{WindowSize, WindowState},
 };
 
 pub mod builder;
@@ -52,9 +49,12 @@ impl Drop for Window {
 
 impl Window {
   pub const WINDOW_THREAD_ID: &'static str = "window";
-  pub const WINDOW_STATE_PTR_ID: usize = 0;
   pub const WINDOW_SUBCLASS_ID: usize = 0;
   pub const APP_MESSAGE: u32 = WM_USER + 11;
+
+  pub fn builder() -> WindowBuilder<MissingTitle, MissingSize> {
+    Default::default()
+  }
 
   pub fn new(create_info: WindowCreateInfo<HasTitle, HasSize>) -> anyhow::Result<Self> {
     ValidationLayer::instance().init();
@@ -80,7 +80,11 @@ impl Window {
           input,
         };
 
-        let mut window = Self { app_mailbox, state, window_thread };
+        let mut window = Self {
+          app_mailbox,
+          state,
+          window_thread,
+        };
 
         window.set_color_mode(window.state.color_mode);
         window.set_visibility(window.state.visibility);
@@ -153,7 +157,8 @@ impl Window {
         while let Some(_message) = Self::next_message() {}
 
         Ok(())
-      }).map_err(anyhow::Error::from)
+      })
+      .map_err(anyhow::Error::from)
   }
 
   fn next_message() -> Option<WindowMessage> {
@@ -232,11 +237,16 @@ impl Window {
   fn message_handler(&mut self, message: WindowMessage) -> Option<WindowMessage> {
     match message {
       WindowMessage::Exit => {
-        if let Err(error) = self.window_thread.take().expect("window_thread handle should not be None").join() {
+        if let Err(error) = self
+          .window_thread
+          .take()
+          .expect("window_thread handle should not be None")
+          .join()
+        {
           error!("{error:?}");
         }
-        return None
-      },
+        return None;
+      }
       WindowMessage::Closed => {
         if let Err(error) = self.send_message_to_window(AppMessage::Closed) {
           error!("{error}");
