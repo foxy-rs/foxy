@@ -7,6 +7,7 @@ This repository contains a few crates as they each naturally evolved and split a
 * **foxy_vulkan:** a simplified, Rust-y API for using Vulkan.
 * **foxy_renderer:** a simplified, Rust-y API for drawing to a canvas.
 * **foxy_util:** a small utilties library.
+* **foxy_types:** a placeholder library.
 
 # Foxy
 
