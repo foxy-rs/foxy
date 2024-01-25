@@ -48,3 +48,8 @@ There are **3** primary threads in `foxy`:
 * **render:** where the rendering happens
 
 This layout was chosen to allow for the window messages not to block the application, and to allow rendering not to block on the application code.
+
+## Thanks to:
+* Piston: for the idea of how a simple, Rust-y API for an engine might look light.
+* Winit: as a reference on events and how to best structure them.
+* GetIntoGameDev: for his outstanding Vulkan tutorials in C++.
