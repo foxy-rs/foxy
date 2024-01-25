@@ -95,7 +95,7 @@ impl FoxyBuilder<HasTitle, HasSize> {
     Foxy::new(self.create_info)
   }
 
-  pub fn build_or_panic(self) -> Foxy {
+  pub fn build_unwrap(self) -> Foxy {
     self.build().unwrap_or_else(|e| panic!("{e}"))
   }
 }
