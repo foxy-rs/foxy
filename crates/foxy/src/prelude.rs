@@ -1,5 +1,5 @@
-pub use crate::core::engine::lifecycle::Lifecycle;
-pub use crate::core::engine::Foxy;
+pub use crate::core::lifecycle::Lifecycle;
+pub use crate::core::Foxy;
 pub use foxy_util::{log::prelude::*, stopwatch::Stopwatch, time::Time, timer::Timer};
 
 pub use foxy_window::prelude::*;
