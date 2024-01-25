@@ -29,7 +29,7 @@ dependencies = ["copy-resources"]
 [tasks.build-release]
 workspace    = false
 command      = "cargo"
-args         = ["build"]
+args         = ["build", "--release"]
 dependencies = ["copy-resources"]
 
 ### OTHER ###
