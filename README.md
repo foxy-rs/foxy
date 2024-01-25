@@ -25,7 +25,6 @@ This layout was chosen to allow for the window messages not to block the applica
 
 ### Sample:
 ```rust
-use eztracing::prelude::*;
 use foxy::prelude::*;
 use tracing::debug;
 
