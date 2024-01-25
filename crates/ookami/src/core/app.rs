@@ -57,46 +57,102 @@ impl App {
     })
   }
 
-  // fn run_internal(mut self) -> anyhow::Result<()> {
-  //   let (renderer_mailbox, game_mailbox) = Mailbox::new_entangled_pair();
+  pub fn time(&self) -> &Time {
+    &self.time
+  }
 
-  //   // to allow double mutable borrow
-  //   if let Some(renderer) = self.renderer.take() {
-  //     self.render_thread = Some(Self::render_loop(renderer, renderer_mailbox)?);
-  //     self.game_loop(game_mailbox)?;
-  //   };
+  pub fn window(&self) -> &Window {
+    &self.window
+  }
 
-  //   Ok(())
-  // }
+  pub fn poll(&mut self) -> Option<&Lifecycle> {
+    self.next_state(false)
+  }
 
-  // fn game_loop(&mut self, mut messenger: Mailbox<GameLoopMessage, RenderLoopMessage>) -> anyhow::Result<()> {
-  //   self.lifecycle.start(&self.time, window);
+  pub fn wait(&mut self) -> Option<&Lifecycle> {
+    self.next_state(true)
+  }
 
-  //   while let Some(message) = window.next() {
-  //     // TODO: Rewrite so that Renderer owns Window again. App will just own a WindowState lightweight wrapper
-  //     //       that will be updated on sync. Also, it'll be able to make requests to change Window through the
-  //     //       Command enum that will be created later.
-  //     //  MAKE LIFECYCLE AS EVENTS SENT FROM CANVAS
-  //     messenger.send_and_wait(GameLoopMessage::SyncWithRenderer)?;
+  pub fn next_state(&mut self, should_wait: bool) -> Option<&Lifecycle> {
+    let new_state = match &mut self.current_state {
+      Lifecycle::Entering => {
+        let message = if should_wait {
+          self.window.wait()
+        } else {
+          self.window.next()
+        };
+        if let Some(message) = message {
+          Lifecycle::BeginFrame { message: Some(message) }
+        } else {
+          Lifecycle::Exiting
+        }
+      }
+      Lifecycle::BeginFrame { message } => {
+        let message = message.take();
+        if let Err(error) = self.game_mailbox.send_and_wait(GameLoopMessage::SyncWithRenderer) {
+          error!("{error}");
+          Lifecycle::Exiting
+        } else {
+          Lifecycle::EarlyUpdate { message }
+        }
+      }
+      Lifecycle::EarlyUpdate { message } => {
+        let message = message.take();
+        self.time.update();
+        if self.time.should_do_tick() {
+          self.time.tick();
+          Lifecycle::FixedUpdate { message }
+        } else {
+          Lifecycle::Update { message }
+        }
+      }
+      Lifecycle::FixedUpdate { message } => {
+        let message = message.take();
+        if self.time.should_do_tick() {
+          self.time.tick();
+          Lifecycle::FixedUpdate { message }
+        } else {
+          Lifecycle::Update { message }
+        }
+      }
+      Lifecycle::Update { message } => {
+        let message = message.take();
+        Lifecycle::EndFrame { message }
+      }
+      Lifecycle::EndFrame { message } => {
+        let message = message.take();
+        match self.game_sync_or_exit(&message) {
+          Ok(value) => {
+            if value {
+              Lifecycle::Exiting
+            } else {
+              let message = if should_wait {
+                self.window.wait()
+              } else {
+                self.window.next()
+              };
+              if let Some(message) = message {
+                Lifecycle::BeginFrame { message: Some(message) }
+              } else {
+                Lifecycle::Exiting
+              }
+            }
+          }
+          Err(error) => {
+            error!("{error}");
+            Lifecycle::Exiting
+          }
+        }
+      }
+      Lifecycle::Exiting => Lifecycle::ExitLoop,
+      Lifecycle::ExitLoop => return None,
+    };
 
-  //     // Main lifecycle
-  //     self.time.update();
-  //     self.lifecycle.early_update(&self.time, window, &message);
-  //     while self.time.should_do_tick() {
-  //       self.time.tick();
-  //       self.lifecycle.fixed_update(&self.time, window);
-  //     }
-  //     self.lifecycle.update(&self.time, window, &message);
+    self.current_state = new_state;
 
-  //     if self.game_sync_or_exit(window, &mut messenger, message)? {
-  //       break;
-  //     }
-  //   }
-
-  //   self.lifecycle.stop(&self.time, window);
-
-  //   Ok(())
-  // }
+    // debug!("{:?}", self.current_state);
+    Some(&self.current_state)
+  }
 
   fn game_sync_or_exit(&mut self, received_message: &Option<WindowMessage>) -> anyhow::Result<bool> {
     match received_message {
@@ -162,123 +218,4 @@ impl App {
       GameLoopMessage::Exit => Ok(true),
     }
   }
-
-  pub fn time(&self) -> &Time {
-    &self.time
-  }
-
-  pub fn window(&self) -> &Window {
-    &self.window
-  }
-
-  // pub fn run(self) {
-  //   trace!("uchi uchi, uchi da yo");
-  //   if let Err(error) = self.run_internal() {
-  //     error!("{error}");
-  //   }
-  //   trace!("otsu mion");
-  // }
-
-  pub fn poll(&mut self) -> Option<&Lifecycle> {
-    let new_state = match &mut self.current_state {
-      Lifecycle::Entering => {
-        if let Some(message) = self.window.next() {
-          Lifecycle::BeginFrame { message: Some(message) }
-        } else {
-          Lifecycle::ExitLoop
-        }
-      }
-      Lifecycle::BeginFrame { message } => {
-        let message = message.take();
-        if let Err(error) = self.game_mailbox.send_and_wait(GameLoopMessage::SyncWithRenderer) {
-          error!("{error}");
-          Lifecycle::ExitLoop
-        } else {
-          Lifecycle::EarlyUpdate { message }
-        }
-      }
-      Lifecycle::EarlyUpdate { message } => {
-        let message = message.take();
-        self.time.update();
-        if self.time.should_do_tick() {
-          self.time.tick();
-          Lifecycle::FixedUpdate { message }
-        } else {
-          Lifecycle::Update { message }
-        }
-      },
-      Lifecycle::FixedUpdate { message } => {
-        let message = message.take();
-        if self.time.should_do_tick() {
-          self.time.tick();
-          Lifecycle::FixedUpdate { message }
-        } else {
-          Lifecycle::Update { message }
-        }
-      },
-      Lifecycle::Update { message } => {
-        let message = message.take();
-        Lifecycle::EndFrame { message }
-      },
-      Lifecycle::EndFrame { message } => {
-        let message = message.take();
-        match self.game_sync_or_exit(&message) {
-          Ok(value) => {
-            if value {
-              Lifecycle::ExitLoop
-            } else if let Some(message) = self.window.next() {
-              Lifecycle::BeginFrame { message: Some(message) }
-            } else {
-              Lifecycle::ExitLoop
-            }
-          }
-          Err(error) => {
-            error!("{error}");
-            Lifecycle::ExitLoop
-          }
-        }
-      },
-      Lifecycle::Exiting => Lifecycle::ExitLoop,
-      Lifecycle::ExitLoop => return None,
-    };
-
-    self.current_state = new_state;
-
-    Some(&self.current_state)
-  }
 }
-
-// impl<'a> Iterator for App<'a> {
-//   type Item = Lifecycle<'a>;
-
-//   fn next(&mut self) -> Option<Self::Item> {
-//     match &self.current_state {
-//       Lifecycle::Entering => {
-//         if let Some(message) = self.window.next() {
-//           self.current_message = message;
-//           self.current_state = Lifecycle::BeginFrame { time: &self.time, window: &self.window, message: &self.current_message };
-//         } else {
-//           self.current_state = Lifecycle::ExitLoop;
-//         }
-//       },
-//       Lifecycle::BeginFrame { time, window, message } => {}
-//       Lifecycle::EarlyUpdate { time, window, message } => {}
-//       Lifecycle::FixedUpdate { time, window } => {}
-//       Lifecycle::Update { time, window, message } => {}
-//       Lifecycle::EndFrame { time, window, message } => {
-//         if let Some(message) = self.window.next() {
-//           self.current_message = message;
-//           self.current_state = Lifecycle::BeginFrame { time: &self.time, window: &self.window, message: &self.current_message };
-//         } else {
-//           self.current_state = Lifecycle::ExitLoop;
-//         }
-//       }
-//       Lifecycle::Exiting => {
-//         self.current_state = Lifecycle::ExitLoop;
-//       }
-//       Lifecycle::ExitLoop => return None,
-//     };
-
-//     Some(self.current_state.clone())
-//   }
-// }

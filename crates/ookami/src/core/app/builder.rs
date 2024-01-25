@@ -1,5 +1,5 @@
 use foxy_window::prelude::*;
-use super::{lifecycle::Lifecycle, App};
+use super::App;
 
 pub struct HasTitle(pub &'static str);
 pub struct MissingTitle;

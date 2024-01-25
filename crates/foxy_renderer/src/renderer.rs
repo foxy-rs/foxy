@@ -31,10 +31,3 @@ impl Renderer {
     Ok(())
   }
 }
-
-// impl Iterator for Renderer {
-//   type Item = WindowMessage;
-//   fn next(&mut self) -> Option<Self::Item> {
-//     self.window.next()
-//   }
-// }

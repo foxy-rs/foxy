@@ -5,8 +5,6 @@ use eztracing::prelude::*;
 use ookami::prelude::*;
 use tracing::*;
 
-mod state;
-
 fn main() {
   if cfg!(debug_assertions) {
     logging_session_ex!(
