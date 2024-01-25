@@ -118,7 +118,9 @@ impl ThreadLoop for WindowLoop {
                 }
                 Err(MessagingError::PollError {
                   error: TryRecvError::Disconnected,
-                }) => {error!("window loop mailbox disconnected")},
+                }) => {
+                  error!("window loop mailbox disconnected")
+                }
                 _ => {}
               }
             }

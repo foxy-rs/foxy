@@ -1,2 +1,2 @@
-pub mod window;
 pub mod thread;
+pub mod window;

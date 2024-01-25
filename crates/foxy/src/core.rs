@@ -5,7 +5,10 @@ use self::{
 };
 use foxy_renderer::renderer::{render_data::RenderData, Renderer};
 use foxy_types::thread::EngineThread;
-use foxy_util::{log::LogErr, time::{EngineTime, Time}};
+use foxy_util::{
+  log::LogErr,
+  time::{EngineTime, Time},
+};
 use foxy_window::prelude::*;
 use message::{GameLoopMessage, RenderLoopMessage};
 use messaging::Mailbox;
@@ -86,7 +89,7 @@ impl Foxy {
   pub fn wait(&mut self) -> Option<&Lifecycle> {
     self.next_state(true)
   }
-  
+
   fn next_window_message(&mut self, should_wait: bool) -> Option<WindowMessage> {
     if should_wait {
       self.window.wait()
@@ -139,7 +142,10 @@ impl Foxy {
         Lifecycle::EndFrame { message }
       }
       Lifecycle::EndFrame { .. } => {
-        let _ = self.game_mailbox.send(GameLoopMessage::RenderData(RenderData {})).log_error();
+        let _ = self
+          .game_mailbox
+          .send(GameLoopMessage::RenderData(RenderData {}))
+          .log_error();
         self.sync_barrier.wait();
 
         let message = self.next_window_message(should_wait);
