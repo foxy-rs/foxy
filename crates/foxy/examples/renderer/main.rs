@@ -17,7 +17,7 @@ fn main() {
   }
 
   let mut app = App::builder()
-    .with_title("Foxy")
+    .with_title("Foxy Renderer")
     .with_size(800, 450)
     .build()
     .unwrap_or_else(|e| panic!("{e}"));
