@@ -8,9 +8,11 @@ This repository contains a few crates as they each naturally evolved and split a
 * **foxy_renderer:** a simplified, Rust-y API for drawing to a canvas.
 * **eztracing:** a small, lightweight wrapper around `tracing` which just makes it easier for me to enable or disable logging as I usually do in most of my projects.
 
-# Foxy [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/R6R8PGIU6)
+# Foxy
 
 `foxy` is a simple renderer which is a WIP. Still deciding on OpenGL or Vulkan. OpenGL has benefits with quick development, but Vulkan would allow for hardware raytracing. The window uses `foxy_window` to create a Win32 desktop window. 
+
+ [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/R6R8PGIU6)
 
 There are **3** primary threads in `foxy`:
 
