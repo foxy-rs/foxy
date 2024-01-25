@@ -8,7 +8,7 @@ fn main() {
   }
 
   let mut app = App::builder()
-    .with_title("Ookami Renderer")
+    .with_title("Simple")
     .with_size(800, 450)
     .build()
     .unwrap_or_else(|e| panic!("{e}"));
