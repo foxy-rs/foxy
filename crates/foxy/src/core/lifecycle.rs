@@ -2,7 +2,8 @@ use foxy_window::prelude::*;
 
 #[derive(Debug)]
 pub enum Lifecycle {
-  Entering,
+  Initializing,
+  Start,
   BeginFrame { message: WindowMessage },
   EarlyUpdate { message: WindowMessage },
   FixedUpdate { message: WindowMessage },

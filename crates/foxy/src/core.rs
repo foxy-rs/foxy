@@ -1,5 +1,5 @@
 use self::{
-  builder::{FoxyBuilder, FoxyCreateInfo, HasSize, HasTitle, MissingSize, MissingTitle}, lifecycle::Lifecycle, render_loop::{RenderLoop, RenderThread}
+  builder::{FoxyBuilder, FoxyCreateInfo, HasSize, HasTitle, MissingSize, MissingTitle}, lifecycle::Lifecycle, render_loop::RenderThread
 };
 use foxy_renderer::renderer::{render_data::RenderData, Renderer};
 use foxy_util::time::{EngineTime, Time};
@@ -50,7 +50,7 @@ impl Foxy {
     let (renderer_mailbox, game_mailbox) = Mailbox::new_entangled_pair();
     let render_thread = RenderThread::new(renderer, renderer_mailbox, sync_barrier.clone());
 
-    let current_state = Lifecycle::Entering;
+    let current_state = Lifecycle::Initializing;
 
     Ok(Self {
       time,
@@ -88,9 +88,12 @@ impl Foxy {
     }
 
     let new_state = match &mut self.current_state {
-      Lifecycle::Entering => {
-        let message = poll_window_or_wait(self, should_wait);
+      Lifecycle::Initializing => {
         self.render_thread.run();
+        Lifecycle::Start
+      }
+      Lifecycle::Start => {
+        let message = poll_window_or_wait(self, should_wait);
         if let Some(message) = message {
           Lifecycle::BeginFrame { message }
         } else {

@@ -13,8 +13,8 @@ fn main() {
 
   while let Some(message) = app.wait() {
     match message {
-      Lifecycle::Entering => debug!("Entering"),
-      Lifecycle::Update { .. } => debug!("Update"),
+      Lifecycle::Start => debug!("Start"),
+      // Lifecycle::Update { .. } => debug!("Update"),
       Lifecycle::Exiting => debug!("Exiting"),
       _ => {}
     }
