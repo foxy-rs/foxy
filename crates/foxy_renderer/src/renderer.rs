@@ -2,7 +2,6 @@ use self::render_data::RenderData;
 use foxy_vulkan::vulkan::Vulkan;
 use raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle};
 
-pub mod builder;
 pub mod message;
 pub mod render_data;
 
