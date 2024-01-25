@@ -1,6 +1,4 @@
-# Foxy
-
- [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/R6R8PGIU6)
+[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/R6R8PGIU6)
 
 ```rust
 use foxy::prelude::*;
@@ -27,8 +25,8 @@ fn main() {
   }
 }
 ```
-
-`foxy` is a simple renderer which is a WIP. Still deciding on OpenGL or Vulkan. OpenGL has benefits with quick development, but Vulkan would allow for hardware raytracing. The window uses `foxy_window` to create a Win32 desktop window. 
+## `foxy` is a simple graphics renderer.
+This project is still very much a WIP. I am still deciding on OpenGL or Vulkan. OpenGL has benefits with quick development, but Vulkan would allow for hardware raytracing. The window uses `foxy_window` to create a Win32 desktop window. 
 
 There are **3** primary threads in `foxy`:
 
