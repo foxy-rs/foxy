@@ -18,8 +18,7 @@ fn main() {
   let mut foxy = Foxy::builder()
     .with_title("Foxy Renderer")
     .with_size(800, 450)
-    .build()
-    .unwrap_or_else(|e| panic!("{e}"));
+    .build_or_panic();
 
   let mut fps_timer = Timer::new(Duration::from_secs_f64(0.33));
 

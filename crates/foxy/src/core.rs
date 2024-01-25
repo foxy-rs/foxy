@@ -31,7 +31,6 @@ impl Foxy {
 
   pub fn new(foxy_create_info: FoxyCreateInfo<HasTitle, HasSize>) -> anyhow::Result<Self> {
     let time = EngineTime::new(128.0, 1024);
-    let current_state = Lifecycle::Entering;
 
     let mut window = Window::builder()
       .with_title(foxy_create_info.title.0)
@@ -45,7 +44,11 @@ impl Foxy {
     window.set_visibility(Visibility::Shown);
 
     let (renderer_mailbox, game_mailbox) = Mailbox::new_entangled_pair();
-    let render_thread = Some(Self::render_loop(renderer, renderer_mailbox)?);
+    let render_thread = Self::render_loop(renderer, renderer_mailbox)
+      .inspect_err(|e| error!("{e}"))
+      .ok();
+
+    let current_state = Lifecycle::Entering;
 
     Ok(Self {
       time,
@@ -157,13 +160,10 @@ impl Foxy {
     match received_message {
       WindowMessage::Closed => {
         self.game_mailbox.send_and_wait(GameLoopMessage::Exit)?;
-        if let Err(error) = self
-          .render_thread
-          .take()
-          .expect("render_thread handle should not be None")
-          .join()
-        {
-          error!("{error:?}");
+        if let Some(thread_handle) = self.render_thread.take() {
+          if let Err(error) = thread_handle.join() {
+            error!("{error:?}");
+          }
         }
         Ok(true)
       }
