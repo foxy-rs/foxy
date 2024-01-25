@@ -34,7 +34,7 @@ fn main() {
         }
       }
       Lifecycle::Update { message } => match message {
-        WindowMessage::Other { .. } | WindowMessage::Mouse(MouseMessage::Cursor) => {}
+        WindowMessage::Empty | WindowMessage::Other { .. } | WindowMessage::Mouse(MouseMessage::Cursor) => {}
         _ => debug!("UPDATE: {:?}", message),
       },
       _ => {}
