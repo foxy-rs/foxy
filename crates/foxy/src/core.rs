@@ -1,30 +1,32 @@
 use self::{
-  builder::{FoxyBuilder, FoxyCreateInfo, HasSize, HasTitle, MissingSize, MissingTitle},
-  lifecycle::Lifecycle,
+  builder::{FoxyBuilder, FoxyCreateInfo, HasSize, HasTitle, MissingSize, MissingTitle}, lifecycle::Lifecycle, render_loop::{RenderLoop, RenderThread}
 };
 use foxy_renderer::renderer::{render_data::RenderData, Renderer};
 use foxy_util::time::{EngineTime, Time};
 use foxy_window::prelude::*;
 use message::{GameLoopMessage, RenderLoopMessage};
 use messaging::Mailbox;
-use std::{mem, thread::JoinHandle};
+use std::{
+  mem,
+  sync::{Arc, Barrier},
+};
 use tracing::*;
 
 pub mod builder;
 pub mod lifecycle;
 mod message;
+mod render_loop;
 
 pub struct Foxy {
   time: EngineTime,
   current_state: Lifecycle,
   window: Window,
-  render_thread: Option<JoinHandle<anyhow::Result<()>>>,
+  render_thread: RenderThread,
   game_mailbox: Mailbox<GameLoopMessage, RenderLoopMessage>,
+  sync_barrier: Arc<Barrier>,
 }
 
 impl Foxy {
-  pub const RENDER_THREAD_ID: &'static str = "render";
-
   pub fn builder() -> FoxyBuilder<MissingTitle, MissingSize> {
     Default::default()
   }
@@ -43,10 +45,10 @@ impl Foxy {
     let renderer = Renderer::new(&window)?;
     window.set_visibility(Visibility::Shown);
 
+    let sync_barrier = Arc::new(Barrier::new(2));
+
     let (renderer_mailbox, game_mailbox) = Mailbox::new_entangled_pair();
-    let render_thread = Self::render_loop(renderer, renderer_mailbox)
-      .inspect_err(|e| error!("{e}"))
-      .ok();
+    let render_thread = RenderThread::new(renderer, renderer_mailbox, sync_barrier.clone());
 
     let current_state = Lifecycle::Entering;
 
@@ -56,6 +58,7 @@ impl Foxy {
       window,
       render_thread,
       game_mailbox,
+      sync_barrier,
     })
   }
 
@@ -76,13 +79,18 @@ impl Foxy {
   }
 
   fn next_state(&mut self, should_wait: bool) -> Option<&Lifecycle> {
+    fn poll_window_or_wait(foxy: &mut Foxy, should_wait: bool) -> Option<WindowMessage> {
+      if should_wait {
+        foxy.window.wait()
+      } else {
+        foxy.window.next()
+      }
+    }
+
     let new_state = match &mut self.current_state {
       Lifecycle::Entering => {
-        let message = if should_wait {
-          self.window.wait()
-        } else {
-          self.window.next()
-        };
+        let message = poll_window_or_wait(self, should_wait);
+        self.render_thread.run();
         if let Some(message) = message {
           Lifecycle::BeginFrame { message }
         } else {
@@ -90,13 +98,10 @@ impl Foxy {
         }
       }
       Lifecycle::BeginFrame { message } => {
+        self.sync_barrier.wait();
+
         let message = mem::take(message);
-        if let Err(error) = self.game_mailbox.send_and_wait(GameLoopMessage::SyncWithRenderer) {
-          error!("{error}");
-          Lifecycle::Exiting
-        } else {
-          Lifecycle::EarlyUpdate { message }
-        }
+        Lifecycle::EarlyUpdate { message }
       }
       Lifecycle::EarlyUpdate { message } => {
         let message = mem::take(message);
@@ -123,16 +128,12 @@ impl Foxy {
       }
       Lifecycle::EndFrame { message } => {
         let message = mem::take(message);
-        match self.game_sync_or_exit(&message) {
+        match self.render_or_exit(&message) {
           Ok(value) => {
             if value {
               Lifecycle::Exiting
             } else {
-              let message = if should_wait {
-                self.window.wait()
-              } else {
-                self.window.next()
-              };
+              let message = poll_window_or_wait(self, should_wait);
               if let Some(message) = message {
                 Lifecycle::BeginFrame { message }
               } else {
@@ -156,65 +157,21 @@ impl Foxy {
     Some(&self.current_state)
   }
 
-  fn game_sync_or_exit(&mut self, received_message: &WindowMessage) -> anyhow::Result<bool> {
+  fn render_or_exit(&mut self, received_message: &WindowMessage) -> anyhow::Result<bool> {
     match received_message {
       WindowMessage::Closed => {
-        self.game_mailbox.send_and_wait(GameLoopMessage::Exit)?;
-        if let Some(thread_handle) = self.render_thread.take() {
-          if let Err(error) = thread_handle.join() {
-            error!("{error:?}");
-          }
-        }
+        self.game_mailbox.send(GameLoopMessage::Exit)?;
+        self.sync_barrier.wait();
+
+        self.render_thread.join();
         Ok(true)
       }
       _ => {
-        self
-          .game_mailbox
-          .send_and_wait(GameLoopMessage::RenderData(RenderData {}))?;
+        self.game_mailbox.send(GameLoopMessage::RenderData(RenderData {}))?;
+        self.sync_barrier.wait();
+        
         Ok(false)
       }
-    }
-  }
-
-  fn render_loop(
-    mut renderer: Renderer,
-    mut messenger: Mailbox<RenderLoopMessage, GameLoopMessage>,
-  ) -> anyhow::Result<JoinHandle<anyhow::Result<()>>> {
-    std::thread::Builder::new()
-      .name(Self::RENDER_THREAD_ID.into())
-      .spawn(move || -> anyhow::Result<()> {
-        trace!("Beginning render");
-
-        loop {
-          if Self::renderer_sync_or_exit(&mut renderer, &mut messenger)? {
-            break;
-          }
-
-          renderer.render()?;
-
-          if Self::renderer_sync_or_exit(&mut renderer, &mut messenger)? {
-            break;
-          }
-        }
-
-        trace!("Ending render");
-
-        Ok(())
-      })
-      .map_err(anyhow::Error::from)
-  }
-
-  fn renderer_sync_or_exit(
-    renderer: &mut Renderer,
-    messenger: &mut Mailbox<RenderLoopMessage, GameLoopMessage>,
-  ) -> anyhow::Result<bool> {
-    match messenger.send_and_wait(RenderLoopMessage::SyncWithGame)? {
-      GameLoopMessage::SyncWithRenderer => Ok(false),
-      GameLoopMessage::RenderData(data) => {
-        renderer.update_render_data(data)?;
-        Ok(false)
-      }
-      GameLoopMessage::Exit => Ok(true),
     }
   }
 }
