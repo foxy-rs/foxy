@@ -17,8 +17,9 @@ use super::input::{
   mouse::MouseCode,
 };
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, Default, PartialEq, Eq, Clone)]
 pub enum WindowMessage {
+  #[default]
   Empty,
   Ready {
     hwnd: HWND,

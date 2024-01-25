@@ -10,7 +10,7 @@ fn main() {
       ("foxy_window", Some(LogLevel::Trace)),
       ("foxy_vulkan", Some(LogLevel::Trace)),
       ("foxy_renderer", Some(LogLevel::Trace)),
-      ("voxel_game", Some(LogLevel::Trace))
+      ("renderer", Some(LogLevel::Trace))
     )
     .start();
     log_lib_info!();

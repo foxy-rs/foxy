@@ -87,7 +87,7 @@ impl App {
         }
       }
       Lifecycle::BeginFrame { message } => {
-        let message = mem::replace(message, WindowMessage::Empty);
+        let message = mem::take(message);
         if let Err(error) = self.game_mailbox.send_and_wait(GameLoopMessage::SyncWithRenderer) {
           error!("{error}");
           Lifecycle::Exiting
@@ -96,7 +96,7 @@ impl App {
         }
       }
       Lifecycle::EarlyUpdate { message } => {
-        let message = mem::replace(message, WindowMessage::Empty);
+        let message = mem::take(message);
         self.time.update();
         if self.time.should_do_tick() {
           self.time.tick();
@@ -106,7 +106,7 @@ impl App {
         }
       }
       Lifecycle::FixedUpdate { message } => {
-        let message = mem::replace(message, WindowMessage::Empty);
+        let message = mem::take(message);
         if self.time.should_do_tick() {
           self.time.tick();
           Lifecycle::FixedUpdate { message }
@@ -115,11 +115,11 @@ impl App {
         }
       }
       Lifecycle::Update { message } => {
-        let message = mem::replace(message, WindowMessage::Empty);
+        let message = mem::take(message);
         Lifecycle::EndFrame { message }
       }
       Lifecycle::EndFrame { message } => {
-        let message = mem::replace(message, WindowMessage::Empty);
+        let message = mem::take(message);
         match self.game_sync_or_exit(&message) {
           Ok(value) => {
             if value {
