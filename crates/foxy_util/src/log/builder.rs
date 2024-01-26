@@ -104,6 +104,28 @@ macro_rules! logging_session_ex {
 }
 
 #[macro_export]
+macro_rules! debug_logging_session {
+  () => {{
+    if cfg!(debug_assertions) {
+      Some($crate::logging_session!())
+    } else {
+      None
+    }
+  }};
+}
+
+#[macro_export]
+macro_rules! debug_logging_session_ex {
+  ($($levels:expr),+) => {{
+    if cfg!(debug_assertions) {
+      $crate::logging_session_ex!($($levels),+).start();
+    } else {
+      None
+    }
+  }};
+}
+
+#[macro_export]
 macro_rules! start_debug_logging_session {
   () => {{
     #[cfg(debug_assertions)]

@@ -23,24 +23,6 @@ macro_rules! log_lib_info {
   }};
 }
 
-// #[macro_export]
-// macro_rules! log_error {
-//   ($value:expr) => {{
-//     if let Err(error) = $value {
-//       tracing::error!("{error}");
-//     }
-//   }};
-// }
-
-// #[macro_export]
-// macro_rules! log_warn {
-//   ($value:expr) => {{
-//     if let Err(error) = $value {
-//       tracing::warn!("{error}");
-//     }
-//   }};
-// }
-
 pub trait LogErr {
   fn log_error(self) -> Self
   where
