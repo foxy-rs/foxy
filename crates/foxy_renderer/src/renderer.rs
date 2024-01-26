@@ -1,8 +1,8 @@
 use self::render_data::RenderData;
-use foxy_vulkan::{builder::ValidationStatus, vulkan::Vulkan};
+use foxy_vulkan::vulkan::{builder::ValidationStatus, Vulkan};
 use raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle};
 
-pub mod message;
+pub mod command;
 pub mod render_data;
 
 pub struct Renderer {

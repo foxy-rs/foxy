@@ -130,7 +130,7 @@ impl ThreadLoop for WindowLoop {
               if self.next_message().is_none() {
                 break;
               }
-            },
+            }
           }
         }
 

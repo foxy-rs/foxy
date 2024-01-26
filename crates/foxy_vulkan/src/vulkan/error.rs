@@ -14,10 +14,10 @@ pub enum VulkanError {
 #[macro_export]
 macro_rules! vkUnsupported {
   () => {
-    $crate::error::VulkanError::Unsupported(format!("attempted action unsupported by the device running Vulkan"))
+    $crate::vulkan::error::VulkanError::Unsupported(format!("attempted action unsupported by the device running Vulkan"))
   };
   ($($arg:tt)*) => {{
-    $crate::error::VulkanError::Unsupported(format!($($arg)*))
+    $crate::vulkan::error::VulkanError::Unsupported(format!($($arg)*))
   }}
 }
 
@@ -30,7 +30,9 @@ impl Drop for Debug {
   fn drop(&mut self) {
     if let Some(debug_utils) = self.debug_utils.take() {
       if let Some(debug_messenger) = self.debug_messenger.take() {
-        unsafe { debug_utils.destroy_debug_utils_messenger(debug_messenger, None); }
+        unsafe {
+          debug_utils.destroy_debug_utils_messenger(debug_messenger, None);
+        }
       }
     }
   }
@@ -63,7 +65,7 @@ impl Debug {
       })
     }
   }
-  
+
   // pub fn delete(&mut self) {
   //   if let Some(debug_utils) = self.debug_utils.take() {
   //     if let Some(debug_messenger) = self.debug_messenger.take() {

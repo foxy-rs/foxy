@@ -1,4 +1,4 @@
-use foxy_types::window::Polling;
+use foxy_types::behavior::Polling;
 use foxy_window::prelude::*;
 
 use super::lifecycle::Lifecycle;

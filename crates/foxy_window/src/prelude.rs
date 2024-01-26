@@ -7,4 +7,4 @@ pub use crate::{
   },
 };
 
-pub use foxy_types::window::{CloseBehavior, ColorMode, Visibility};
+pub use foxy_types::behavior::{CloseBehavior, ColorMode, Visibility};

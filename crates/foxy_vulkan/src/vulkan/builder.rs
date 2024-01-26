@@ -1,6 +1,6 @@
 use raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle};
 
-use crate::{error::VulkanError, vulkan::Vulkan};
+use super::{error::VulkanError, Vulkan};
 
 pub struct MissingWindow;
 pub struct HasWindow<W: HasRawDisplayHandle + HasRawWindowHandle>(W);

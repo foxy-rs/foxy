@@ -20,19 +20,10 @@ fn main() {
     .with_size(800, 450)
     .build_unwrap();
 
-  let mut fps_timer = Timer::new(Duration::from_secs_f64(0.33));
-
   for stage in lifecycle {
     match stage {
-      Stage::FixedUpdate { foxy, message } => {
-        if fps_timer.is_elapsed() {
-          let fps = 1.0 / foxy.time.average_delta_secs();
-          foxy.window.set_title(&format!("{}: {:.2}", foxy.window.title(), fps));
-        }
-        match message {
-          WindowMessage::None | WindowMessage::Other { .. } | WindowMessage::Mouse(MouseMessage::Cursor) => {}
-          _ => debug!("FIXEDUPDATE: {:?}", message),
-        }
+      Stage::FixedUpdate { foxy } => {
+        foxy.append_fps_every(Duration::from_millis(300));
       }
       Stage::Update { message, .. } => match message {
         WindowMessage::None | WindowMessage::Other { .. } | WindowMessage::Mouse(MouseMessage::Cursor) => {}

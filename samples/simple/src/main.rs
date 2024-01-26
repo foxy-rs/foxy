@@ -18,10 +18,10 @@ fn main() {
       Stage::FixedUpdate { .. } => {
         x = x.wrapping_add(1);
         debug!("FixedUpdate")
-      },
+      }
       Stage::Update { .. } => {
         debug!("Update {x}")
-      },
+      }
       _ => {}
     }
   }

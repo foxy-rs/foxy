@@ -11,8 +11,8 @@ use crate::{
   },
 };
 use foxy_types::{
+  behavior::{CloseBehavior, ColorMode, Visibility},
   thread::EngineThread,
-  window::{CloseBehavior, ColorMode, Visibility},
 };
 use messaging::Mailbox;
 use raw_window_handle::{

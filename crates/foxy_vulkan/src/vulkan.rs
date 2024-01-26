@@ -10,17 +10,24 @@ use std::{
 };
 use tracing::*;
 
-use crate::{
+use crate::vkUnsupported;
+
+use self::{
   builder::{MissingWindow, ValidationStatus, VulkanBuilder, VulkanCreateInfo},
+  device::Device,
   error::{Debug, VulkanError},
-  vkUnsupported,
 };
+
+pub mod builder;
+pub mod device;
+pub mod error;
 
 pub struct Vulkan {
   _entry: ash::Entry,
 
   instance: ManuallyDrop<ash::Instance>,
   debug: ManuallyDrop<Debug>,
+  device: ManuallyDrop<Device>,
 }
 
 impl Drop for Vulkan {
@@ -58,13 +65,15 @@ impl Vulkan {
     let display_handle = create_info.window.raw_display_handle();
 
     let entry = ash::Entry::linked();
-    let instance = ManuallyDrop::new(Self::create_instance(&entry, display_handle, create_info.validation_status)?);
+    let instance = ManuallyDrop::new(Self::new_instance(&entry, display_handle, create_info.validation_status)?);
     let debug = ManuallyDrop::new(Debug::new(&entry, &instance)?);
+    let device = ManuallyDrop::new(Device::new(&instance)?);
 
     Ok(Self {
       _entry: entry,
       instance,
       debug,
+      device,
     })
   }
 
@@ -175,7 +184,7 @@ impl Vulkan {
     Ok((layers, extensions))
   }
 
-  fn create_instance(
+  fn new_instance(
     entry: &ash::Entry,
     display_handle: RawDisplayHandle,
     validation_status: ValidationStatus,

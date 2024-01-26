@@ -6,7 +6,7 @@ use crate::core::{
   time::Time,
 };
 use foxy_renderer::renderer::{render_data::RenderData, Renderer};
-use foxy_types::{thread::EngineThread, window::Polling};
+use foxy_types::{behavior::Polling, thread::EngineThread};
 use foxy_util::log::LogErr;
 use foxy_window::prelude::*;
 use messaging::Mailbox;
@@ -16,7 +16,7 @@ use std::{
 };
 use tracing::*;
 
-use super::framework::FoxyFramework;
+use super::{framework::FoxyFramework, stage::StageDiscriminants};
 
 pub struct Lifecycle<'a> {
   polling_strategy: Polling,
@@ -24,8 +24,9 @@ pub struct Lifecycle<'a> {
   game_mailbox: Mailbox<GameLoopMessage, RenderLoopMessage>,
   sync_barrier: Arc<Barrier>,
 
-  current_stage: Option<Stage>,
-  foxy: Option<FoxyFramework>,
+  current_stage: StageDiscriminants,
+  current_message: WindowMessage,
+  foxy: FoxyFramework,
   _phantom: PhantomData<&'a ()>,
 }
 
@@ -59,7 +60,8 @@ impl Lifecycle<'_> {
       sync_barrier: sync_barrier.clone(),
     });
 
-    let current_stage = Some(Stage::Initializing);
+    let current_stage = StageDiscriminants::Initializing;
+    let foxy = FoxyFramework::new(time, window);
 
     Ok(Self {
       current_stage,
@@ -67,97 +69,111 @@ impl Lifecycle<'_> {
       game_mailbox,
       sync_barrier,
       polling_strategy: create_info.polling_strategy,
-      foxy: Some(FoxyFramework { time, window }),
+      foxy,
+      current_message: WindowMessage::None,
       _phantom: PhantomData,
     })
   }
 
-  fn next_window_message(&mut self, window: &mut Window) -> Option<WindowMessage> {
+  fn next_window_message(&mut self) -> Option<WindowMessage> {
     if let Polling::Wait = self.polling_strategy {
-      window.wait()
+      self.foxy.window.wait()
     } else {
-      window.next()
+      self.foxy.window.next()
     }
   }
 
-  fn next_state(&mut self) -> Option<&Stage> {
-    let old_stage = self.current_stage.take().expect("stage cannot be None");
-    let new_state = match old_stage {
-      Stage::Initializing => {
+  fn next_state(&mut self) -> Option<Stage<'_>> {
+    let new_state = match self.current_stage {
+      StageDiscriminants::Initializing => {
         self.render_thread.run(());
-        Stage::Start {
-          foxy: self.foxy.take().expect("foxy cannot be None"),
-        }
+        Stage::Start { foxy: &mut self.foxy }
       }
-      Stage::Start { mut foxy } => {
+      StageDiscriminants::Start => {
         info!("KON KON KITSUNE!");
-        let message = self.next_window_message(&mut foxy.window);
-        if let Some(message) = message {
-          Stage::BeginFrame { foxy, message }
+        if let Some(message) = self.next_window_message() {
+          self.current_message = message;
+          Stage::BeginFrame {
+            foxy: &mut self.foxy,
+            message: &mut self.current_message,
+          }
         } else {
-          Stage::Exiting { foxy }
+          Stage::Exiting { foxy: &mut self.foxy }
         }
       }
-      Stage::BeginFrame { foxy, message } => {
+      StageDiscriminants::BeginFrame => {
         self.sync_barrier.wait();
 
-        Stage::EarlyUpdate { foxy, message }
-      }
-      Stage::EarlyUpdate { mut foxy, message } => {
-        foxy.time.update();
-        if foxy.time.should_do_tick() {
-          foxy.time.tick();
-          Stage::FixedUpdate { foxy, message }
-        } else {
-          Stage::Update { foxy, message }
+        Stage::EarlyUpdate {
+          foxy: &mut self.foxy,
+          message: &mut self.current_message,
         }
       }
-      Stage::FixedUpdate { mut foxy, message } => {
-        if foxy.time.should_do_tick() {
-          foxy.time.tick();
-          Stage::FixedUpdate { foxy, message }
+      StageDiscriminants::EarlyUpdate => {
+        self.foxy.time.update();
+        if self.foxy.time.should_do_tick() {
+          self.foxy.time.tick();
+          Stage::FixedUpdate { foxy: &mut self.foxy }
         } else {
-          Stage::Update { foxy, message }
+          Stage::Update {
+            foxy: &mut self.foxy,
+            message: &mut self.current_message,
+          }
         }
       }
-      Stage::Update { foxy, message } => Stage::EndFrame { foxy, message },
-      Stage::EndFrame { mut foxy, .. } => {
+      StageDiscriminants::FixedUpdate => {
+        if self.foxy.time.should_do_tick() {
+          self.foxy.time.tick();
+          Stage::FixedUpdate { foxy: &mut self.foxy }
+        } else {
+          Stage::Update {
+            foxy: &mut self.foxy,
+            message: &mut self.current_message,
+          }
+        }
+      }
+      StageDiscriminants::Update => Stage::EndFrame {
+        foxy: &mut self.foxy,
+        message: &mut self.current_message,
+      },
+      StageDiscriminants::EndFrame => {
         let _ = self
           .game_mailbox
           .send(GameLoopMessage::RenderData(RenderData {}))
           .log_error();
         self.sync_barrier.wait();
-
-        let message = self.next_window_message(&mut foxy.window);
-        if let Some(message) = message {
-          Stage::BeginFrame { foxy, message }
+        if let Some(message) = self.next_window_message() {
+          self.current_message = message;
+          Stage::BeginFrame {
+            foxy: &mut self.foxy,
+            message: &mut self.current_message,
+          }
         } else {
-          Stage::Exiting { foxy }
+          Stage::Exiting { foxy: &mut self.foxy }
         }
       }
-      Stage::Exiting { .. } => {
+      StageDiscriminants::Exiting => {
         let _ = self.game_mailbox.send(GameLoopMessage::Exit).log_error();
         self.sync_barrier.wait();
 
         self.render_thread.join();
         Stage::ExitLoop
       }
-      Stage::ExitLoop => {
+      StageDiscriminants::ExitLoop => {
         info!("OTSU KON DESHITA!");
         // self.window.exit();
         return None;
       }
     };
 
-    self.current_stage = Some(new_state);
+    self.current_stage = StageDiscriminants::from(&new_state);
 
-    // debug!("{:?}", self.current_state);
-    self.current_stage.as_ref()
+    Some(new_state)
   }
 }
 
 impl<'a> Iterator for Lifecycle<'a> {
-  type Item = &'a Stage;
+  type Item = Stage<'a>;
 
   fn next(&mut self) -> Option<Self::Item> {
     // it is irrefutable that the reference not outlive Foxy

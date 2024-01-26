@@ -1,5 +1,5 @@
 use super::input::Input;
-use foxy_types::window::{CloseBehavior, ColorMode, Visibility};
+use foxy_types::behavior::{CloseBehavior, ColorMode, Visibility};
 use windows::Win32::Foundation::{HINSTANCE, HWND};
 
 #[derive(Debug)]

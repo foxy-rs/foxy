@@ -1,37 +1,36 @@
 use foxy_window::prelude::*;
-use strum::Display;
+use strum::{Display, EnumDiscriminants};
 
 use super::framework::FoxyFramework;
 
 // KEEP THESE SMALL since you need to clone them for each iteration
-#[derive(Display)]
-pub enum Stage {
+#[derive(Display, EnumDiscriminants)]
+pub enum Stage<'s> {
   Initializing,
   Start {
-    foxy: FoxyFramework,
+    foxy: &'s mut FoxyFramework,
   },
   BeginFrame {
-    foxy: FoxyFramework,
-    message: WindowMessage,
+    foxy: &'s mut FoxyFramework,
+    message: &'s mut WindowMessage,
   },
   EarlyUpdate {
-    foxy: FoxyFramework,
-    message: WindowMessage,
+    foxy: &'s mut FoxyFramework,
+    message: &'s mut WindowMessage,
   },
   FixedUpdate {
-    foxy: FoxyFramework,
-    message: WindowMessage,
+    foxy: &'s mut FoxyFramework,
   },
   Update {
-    foxy: FoxyFramework,
-    message: WindowMessage,
+    foxy: &'s mut FoxyFramework,
+    message: &'s mut WindowMessage,
   },
   EndFrame {
-    foxy: FoxyFramework,
-    message: WindowMessage,
+    foxy: &'s mut FoxyFramework,
+    message: &'s mut WindowMessage,
   },
   Exiting {
-    foxy: FoxyFramework,
+    foxy: &'s mut FoxyFramework,
   },
   ExitLoop,
 }
