@@ -18,7 +18,7 @@ use tracing::*;
 
 use super::framework::FoxyFramework;
 
-pub struct FoxyLifecycle<'a> {
+pub struct Lifecycle<'a> {
   polling_strategy: Polling,
   render_thread: EngineThread<RenderLoop>,
   game_mailbox: Mailbox<GameLoopMessage, RenderLoopMessage>,
@@ -29,7 +29,7 @@ pub struct FoxyLifecycle<'a> {
   _phantom: PhantomData<&'a ()>,
 }
 
-impl FoxyLifecycle<'_> {
+impl Lifecycle<'_> {
   pub fn builder() -> FoxyBuilder<MissingTitle, MissingSize> {
     Default::default()
   }
@@ -156,7 +156,7 @@ impl FoxyLifecycle<'_> {
   }
 }
 
-impl<'a> Iterator for FoxyLifecycle<'a> {
+impl<'a> Iterator for Lifecycle<'a> {
   type Item = &'a Stage;
 
   fn next(&mut self) -> Option<Self::Item> {

@@ -15,7 +15,7 @@ fn main() {
     ("ookami", Some(LogLevel::Trace))
   );
 
-  let lifecycle = FoxyLifecycle::builder()
+  let lifecycle = Lifecycle::builder()
     .with_title("Foxy Renderer")
     .with_size(800, 450)
     .build_unwrap();

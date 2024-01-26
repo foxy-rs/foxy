@@ -7,7 +7,7 @@ use tracing::*;
 fn main() {
   start_debug_logging_session!();
 
-  let lifecycle = FoxyLifecycle::builder()
+  let lifecycle = Lifecycle::builder()
     .with_title("Simple")
     .with_size(800, 450)
     .build_unwrap();
