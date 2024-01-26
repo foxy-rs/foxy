@@ -16,17 +16,20 @@ use self::{
   builder::{MissingWindow, ValidationStatus, VulkanBuilder, VulkanCreateInfo},
   device::Device,
   error::{Debug, VulkanError},
+  surface::Surface,
 };
 
 pub mod builder;
 pub mod device;
 pub mod error;
+pub mod surface;
 
 pub struct Vulkan {
   _entry: ash::Entry,
 
   instance: ManuallyDrop<ash::Instance>,
   debug: ManuallyDrop<Debug>,
+  surface: ManuallyDrop<Surface>,
   device: ManuallyDrop<Device>,
 }
 
@@ -34,6 +37,8 @@ impl Drop for Vulkan {
   fn drop(&mut self) {
     trace!("Dropping Vulkan");
     unsafe {
+      ManuallyDrop::drop(&mut self.device);
+      ManuallyDrop::drop(&mut self.surface);
       ManuallyDrop::drop(&mut self.debug);
 
       self.instance.destroy_instance(None);
@@ -48,7 +53,7 @@ impl Vulkan {
     c"VK_LAYER_KHRONOS_validation",
   ];
 
-  const EXTENSIONS: &'static [&'static CStr] = &[
+  const INSTANCE_EXTENSIONS: &'static [&'static CStr] = &[
     khr::Surface::NAME,
     #[cfg(debug_assertions)]
     ext::DebugUtils::NAME,
@@ -67,12 +72,14 @@ impl Vulkan {
     let entry = ash::Entry::linked();
     let instance = ManuallyDrop::new(Self::new_instance(&entry, display_handle, create_info.validation_status)?);
     let debug = ManuallyDrop::new(Debug::new(&entry, &instance)?);
-    let device = ManuallyDrop::new(Device::new(&instance)?);
+    let surface = ManuallyDrop::new(Surface::new(&create_info.window, &entry, &instance)?);
+    let device = ManuallyDrop::new(Device::new(&surface, &instance)?);
 
     Ok(Self {
       _entry: entry,
       instance,
       debug,
+      surface,
       device,
     })
   }
@@ -156,7 +163,7 @@ impl Vulkan {
       .iter()
       .map(|c| unsafe { CStr::from_ptr(*c) })
       .collect_vec();
-    requested_extensions.extend_from_slice(Self::EXTENSIONS);
+    requested_extensions.extend_from_slice(Self::INSTANCE_EXTENSIONS);
 
     let mut missing_extensions: Vec<&CStr> = Vec::new();
     for extension in &requested_extensions {

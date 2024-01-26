@@ -5,7 +5,7 @@ use super::{error::VulkanError, Vulkan};
 pub struct MissingWindow;
 pub struct HasWindow<W: HasRawDisplayHandle + HasRawWindowHandle>(W);
 
-#[derive(Default, PartialEq, Eq)]
+#[derive(Default, PartialEq, Eq, Clone, Copy)]
 pub enum ValidationStatus {
   Enabled,
   #[default]

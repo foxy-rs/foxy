@@ -16,6 +16,7 @@ categories  = ["data-structures"]
 thiserror = "1.0"
 anyhow    = "1.0"
 tracing   = "0.1"
+tracing-error = "0.2"
 
 raw-window-handle = "0.5"
 ash-window        = { git = "https://github.com/ash-rs/ash.git" }

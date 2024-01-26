@@ -8,7 +8,7 @@ pub enum VulkanError {
   #[error("{0}")]
   Unsupported(String),
   #[error("{0}")]
-  Other(String),
+  Other(#[from] anyhow::Error),
 }
 
 #[macro_export]
