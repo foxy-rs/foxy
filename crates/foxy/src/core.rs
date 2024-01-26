@@ -38,7 +38,7 @@ impl Foxy {
   }
 
   pub(crate) fn new(foxy_create_info: FoxyCreateInfo<HasTitle, HasSize>) -> anyhow::Result<Self> {
-    info!("kon kon kitsune!");
+    info!("Firing up engine");
 
     let time = EngineTime::new(128.0, 1024);
 
@@ -105,6 +105,7 @@ impl Foxy {
         Lifecycle::Start
       }
       Lifecycle::Start => {
+        info!("kon kon kitsune!");
         let message = self.next_window_message(should_wait);
         if let Some(message) = message {
           Lifecycle::BeginFrame { message }
@@ -163,6 +164,7 @@ impl Foxy {
         Lifecycle::ExitLoop
       }
       Lifecycle::ExitLoop => {
+        info!("otsu kon deshita!");
         // self.window.exit();
         return None;
       }
