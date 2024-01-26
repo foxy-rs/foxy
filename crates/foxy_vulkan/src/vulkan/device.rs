@@ -109,29 +109,6 @@ impl Device {
     Ok(device)
   }
 
-  // fn new_logical(instance: &ash::Instance) -> Result<ash::Device, VulkanError> {
-  //   Ok(  )
-  // }
-
-  fn create_command_pool(
-    surface: &Surface,
-    instance: &ash::Instance,
-    device: &ash::Device,
-    physical_device: vk::PhysicalDevice,
-  ) -> Result<vk::CommandPool, VulkanError> {
-    let indices = Self::find_queue_families(surface, instance, physical_device)?;
-
-    let create_info = vk::CommandPoolCreateInfo {
-      queue_family_index: indices.graphics_family,
-      flags: vk::CommandPoolCreateFlags::TRANSIENT | vk::CommandPoolCreateFlags::RESET_COMMAND_BUFFER,
-      ..Default::default()
-    };
-
-    unsafe { device.create_command_pool(&create_info, None) }
-      .context("Failed to create command pool")
-      .map_err(VulkanError::from)
-  }
-
   fn device_extensions_supported(
     instance: &ash::Instance,
     physical_device: vk::PhysicalDevice,
