@@ -1,6 +1,7 @@
 use std::{
   collections::HashSet,
   ffi::{CStr, CString},
+  mem::ManuallyDrop,
   sync::Arc,
 };
 
@@ -14,14 +15,20 @@ use crate::vkUnsupported;
 use super::{error::VulkanError, surface::Surface};
 
 pub struct Device {
-  _physical: vk::PhysicalDevice,
-  logical: ash::Device,
+  physical: ManuallyDrop<vk::PhysicalDevice>,
+  logical: ManuallyDrop<ash::Device>,
+  command_pool: ManuallyDrop<vk::CommandPool>,
 }
 
 impl Drop for Device {
   fn drop(&mut self) {
     unsafe {
+      self.logical.destroy_command_pool(*self.command_pool, None);
+      ManuallyDrop::drop(&mut self.command_pool);
+
       self.logical.destroy_device(None);
+      ManuallyDrop::drop(&mut self.logical);
+      ManuallyDrop::drop(&mut self.physical);
     }
   }
 }
@@ -30,12 +37,14 @@ impl Device {
   const DEVICE_EXTENSIONS: &'static [&'static CStr] = &[khr::Swapchain::NAME];
 
   pub fn new(surface: &Surface, instance: &ash::Instance) -> Result<Self, VulkanError> {
-    let physical = Self::pick_physical_device(surface, instance)?;
-    let logical = Self::new_logical_device(surface, instance, physical)?;
+    let physical = ManuallyDrop::new(Self::pick_physical_device(surface, instance)?);
+    let logical = ManuallyDrop::new(Self::new_logical_device(surface, instance, *physical)?);
+    let command_pool = ManuallyDrop::new(Self::create_command_pool(&surface, &instance, &*logical, *physical)?);
 
     Ok(Self {
-      _physical: physical,
+      physical,
       logical,
+      command_pool,
     })
   }
 
@@ -161,6 +170,27 @@ impl Device {
     indices.is_ok() && extensions_supported && swapchain_adequate && supported_features.sampler_anisotropy == vk::TRUE
   }
 
+  #[allow(unused)]
+  fn find_supported_format(
+    instance: &ash::Instance,
+    physical_device: vk::PhysicalDevice,
+    candidates: Arc<[vk::Format]>,
+    tiling: vk::ImageTiling,
+    features: vk::FormatFeatureFlags,
+  ) -> vk::Format {
+    for format in candidates.iter() {
+      let props = unsafe { instance.get_physical_device_format_properties(physical_device, *format) };
+
+      if (tiling == vk::ImageTiling::LINEAR && props.linear_tiling_features.contains(features))
+        || (tiling == vk::ImageTiling::OPTIMAL && props.optimal_tiling_features.contains(features))
+      {
+        return *format;
+      }
+    }
+    error!("Failed to find supported format.");
+    vk::Format::B8G8R8_UNORM
+  }
+
   fn find_queue_families(
     surface: &Surface,
     instance: &ash::Instance,
@@ -196,25 +226,29 @@ impl Device {
     Err(vkUnsupported!("Failed to find suitable queue families"))
   }
 
-  #[allow(unused)]
-  fn find_supported_format(
+  fn create_command_pool(
+    surface: &Surface,
     instance: &ash::Instance,
-    physical_device: vk::PhysicalDevice,
-    candidates: Arc<[vk::Format]>,
-    tiling: vk::ImageTiling,
-    features: vk::FormatFeatureFlags,
-  ) -> vk::Format {
-    for format in candidates.iter() {
-      let props = unsafe { instance.get_physical_device_format_properties(physical_device, *format) };
+    logical: &ash::Device,
+    physical: vk::PhysicalDevice,
+  ) -> Result<vk::CommandPool, VulkanError> {
+    let indices = Self::find_queue_families(surface, instance, physical)?;
 
-      if (tiling == vk::ImageTiling::LINEAR && props.linear_tiling_features.contains(features))
-        || (tiling == vk::ImageTiling::OPTIMAL && props.optimal_tiling_features.contains(features))
-      {
-        return *format;
-      }
-    }
-    error!("Failed to find supported format.");
-    vk::Format::B8G8R8_UNORM
+    let create_info = vk::CommandPoolCreateInfo {
+      queue_family_index: indices.graphics_family,
+      flags: vk::CommandPoolCreateFlags::TRANSIENT | vk::CommandPoolCreateFlags::RESET_COMMAND_BUFFER,
+      ..Default::default()
+    };
+
+    unsafe { logical.create_command_pool(&create_info, None) }.map_err(VulkanError::from)
+  }
+
+  pub fn physical(&self) -> &vk::PhysicalDevice {
+    &self.physical
+  }
+
+  pub fn logical(&self) -> &ash::Device {
+    &self.logical
   }
 }
 
