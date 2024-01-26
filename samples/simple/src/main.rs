@@ -6,12 +6,12 @@ use tracing::*;
 fn main() {
   start_debug_logging_session!();
 
-  let foxy = FoxyLifecycle::builder()
+  let lifecycle = FoxyLifecycle::builder()
     .with_title("Simple")
     .with_size(800, 450)
     .build_unwrap();
 
-  for stage in foxy {
+  for stage in lifecycle {
     match stage {
       Stage::FixedUpdate { .. } => debug!("FixedUpdate"),
       Stage::Update { .. } => debug!("Update"),

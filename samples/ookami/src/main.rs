@@ -15,14 +15,14 @@ fn main() {
     ("ookami", Some(LogLevel::Trace))
   );
 
-  let foxy = FoxyLifecycle::builder()
+  let lifecycle = FoxyLifecycle::builder()
     .with_title("Foxy Renderer")
     .with_size(800, 450)
     .build_unwrap();
 
   let mut fps_timer = Timer::new(Duration::from_secs_f64(0.33));
 
-  for stage in foxy {
+  for stage in lifecycle {
     match stage {
       Stage::FixedUpdate { foxy, message } => {
         if fps_timer.is_elapsed() {
