@@ -6,14 +6,14 @@ use tracing::*;
 fn main() {
   start_debug_logging_session!();
 
-  let lifecycle = Lifecycle::builder()
-    .with_title("Simple")
+  let mut x: u32 = 0;
+
+  let foxy = Framework::builder()
+    .with_title("Simple Foxy App")
     .with_size(800, 450)
     .build_unwrap();
 
-  let mut x: u32 = 0;
-
-  for stage in lifecycle {
+  for stage in foxy {
     match stage {
       Stage::FixedUpdate { .. } => {
         x = x.wrapping_add(1);

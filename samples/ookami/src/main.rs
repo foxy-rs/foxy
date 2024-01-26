@@ -15,12 +15,12 @@ fn main() {
     ("ookami", Some(LogLevel::Trace))
   );
 
-  let lifecycle = Lifecycle::builder()
+  let framework = Framework::builder()
     .with_title("Foxy Renderer")
     .with_size(800, 450)
     .build_unwrap();
 
-  for stage in lifecycle {
+  for stage in framework {
     match stage {
       Stage::FixedUpdate { foxy } => {
         foxy.append_fps_every(Duration::from_millis(300));

@@ -1,4 +1,4 @@
-pub use crate::core::{lifecycle::Lifecycle, stage::Stage};
+pub use crate::core::{engine_loop::Framework, stage::Stage};
 
 pub use foxy_types::behavior::*;
 pub use foxy_util::prelude::*;

@@ -1,6 +1,6 @@
 pub mod builder;
-pub mod framework;
-pub mod lifecycle;
+pub mod engine_loop;
+pub mod engine_state;
 mod message;
 mod render_loop;
 pub mod stage;

@@ -16,9 +16,9 @@ use std::{
 };
 use tracing::*;
 
-use super::{framework::FoxyFramework, stage::StageDiscriminants};
+use super::{engine_state::Foxy, stage::StageDiscriminants};
 
-pub struct Lifecycle<'a> {
+pub struct Framework<'a> {
   polling_strategy: Polling,
   render_thread: EngineThread<RenderLoop>,
   game_mailbox: Mailbox<GameLoopMessage, RenderLoopMessage>,
@@ -26,11 +26,13 @@ pub struct Lifecycle<'a> {
 
   current_stage: StageDiscriminants,
   current_message: WindowMessage,
-  foxy: FoxyFramework,
+
+  foxy: Foxy,
+
   _phantom: PhantomData<&'a ()>,
 }
 
-impl Lifecycle<'_> {
+impl Framework<'_> {
   pub fn builder() -> FoxyBuilder<MissingTitle, MissingSize> {
     Default::default()
   }
@@ -61,7 +63,7 @@ impl Lifecycle<'_> {
     });
 
     let current_stage = StageDiscriminants::Initializing;
-    let foxy = FoxyFramework::new(time, window);
+    let foxy = Foxy::new(time, window);
 
     Ok(Self {
       current_stage,
@@ -75,6 +77,10 @@ impl Lifecycle<'_> {
     })
   }
 
+  pub fn foxy(&mut self) -> &mut Foxy {
+    &mut self.foxy
+  }
+
   fn next_window_message(&mut self) -> Option<WindowMessage> {
     if let Polling::Wait = self.polling_strategy {
       self.foxy.window.wait()
@@ -86,11 +92,11 @@ impl Lifecycle<'_> {
   fn next_state(&mut self) -> Option<Stage<'_>> {
     let new_state = match self.current_stage {
       StageDiscriminants::Initializing => {
+        info!("KON KON KITSUNE!");
         self.render_thread.run(());
         Stage::Start { foxy: &mut self.foxy }
       }
       StageDiscriminants::Start => {
-        info!("KON KON KITSUNE!");
         if let Some(message) = self.next_window_message() {
           self.current_message = message;
           Stage::BeginFrame {
@@ -172,7 +178,7 @@ impl Lifecycle<'_> {
   }
 }
 
-impl<'a> Iterator for Lifecycle<'a> {
+impl<'a> Iterator for Framework<'a> {
   type Item = Stage<'a>;
 
   fn next(&mut self) -> Option<Self::Item> {

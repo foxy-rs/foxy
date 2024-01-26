@@ -6,13 +6,13 @@ use tracing::info;
 
 use super::time::Time;
 
-pub struct FoxyFramework {
+pub struct Foxy {
   pub time: Time,
   pub window: Window,
   fps_timer: Timer,
 }
 
-impl FoxyFramework {
+impl Foxy {
   pub fn new(time: Time, window: Window) -> Self {
     Self {
       time,
@@ -30,7 +30,9 @@ impl FoxyFramework {
 
   pub fn append_ft_every(&mut self, duration: Duration) {
     if self.fps_timer.has_elapsed(duration) {
-      self.window.set_title(&format!("{}: {:.6}", self.window.title(), self.time.average_delta_secs()));
+      self
+        .window
+        .set_title(&format!("{}: {:.6}", self.window.title(), self.time.average_delta_secs()));
     }
   }
 

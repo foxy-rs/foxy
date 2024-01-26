@@ -1,7 +1,7 @@
 use foxy_types::behavior::Polling;
 use foxy_window::prelude::*;
 
-use super::lifecycle::Lifecycle;
+use super::engine_loop::Framework;
 
 pub struct HasTitle(pub &'static str);
 pub struct MissingTitle;
@@ -111,11 +111,11 @@ impl<Title, Size> FoxyBuilder<Title, Size> {
 }
 
 impl FoxyBuilder<HasTitle, HasSize> {
-  pub fn build<'a>(self) -> anyhow::Result<Lifecycle<'a>> {
-    Lifecycle::new(self.create_info)
+  pub fn build<'a>(self) -> anyhow::Result<Framework<'a>> {
+    Framework::new(self.create_info)
   }
 
-  pub fn build_unwrap<'a>(self) -> Lifecycle<'a> {
+  pub fn build_unwrap<'a>(self) -> Framework<'a> {
     self.build().unwrap_or_else(|e| panic!("{e}"))
   }
 }
