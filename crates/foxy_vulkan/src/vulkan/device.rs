@@ -54,11 +54,11 @@ impl Device {
 
   fn pick_physical_device(surface: &Surface, instance: &ash::Instance) -> Result<vk::PhysicalDevice, VulkanError> {
     let physical_devices = unsafe { instance.enumerate_physical_devices() }?;
-    debug!("Physical device count: {}", physical_devices.len());
+    info!("Physical device count: {}", physical_devices.len());
 
     let physical_device = physical_devices
       .iter()
-      .filter(|p| Self::device_suitable(surface, instance, **p))
+      .filter(|p| Self::is_suitable(surface, instance, **p))
       .min_by_key(|p| unsafe {
         // lower score for preferred device types
         match instance.get_physical_device_properties(**p).device_type {
@@ -74,8 +74,8 @@ impl Device {
 
     let props = unsafe { instance.get_physical_device_properties(*physical_device) };
 
-    let device_name = unsafe { CStr::from_ptr(props.device_name.as_ptr()).to_str().unwrap() };
-    debug!("Chosen device: [{}]", device_name);
+    let device_name = unsafe { CStr::from_ptr(props.device_name.as_ptr()) };
+    info!("Chosen device: [{:?}]", device_name);
 
     Ok(*physical_device)
   }
@@ -125,22 +125,32 @@ impl Device {
   fn device_extensions_supported(
     instance: &ash::Instance,
     physical_device: vk::PhysicalDevice,
-  ) -> Result<bool, VulkanError> {
-    let available_extensions = unsafe { instance.enumerate_device_extension_properties(physical_device) }
-      .context("Failed to enumerate device extension properties")?;
+  ) -> Result<(), VulkanError> {
+    let supported_extensions = unsafe { instance.enumerate_device_extension_properties(physical_device) }?;
+    let supported_extensions = supported_extensions
+      .iter()
+      .map(|e| e.extension_name_as_c_str().unwrap())
+      .collect_vec();
 
-    let mut requested_extensions: HashSet<CString> = Default::default();
-    for str in Self::DEVICE_EXTENSIONS {
-      requested_extensions.insert(CString::from(*str));
-    }
-    for ext in available_extensions {
-      requested_extensions.remove(unsafe { CStr::from_ptr(ext.extension_name.as_ptr()) });
+    debug!("Supported device extensions:\n{:#?}", supported_extensions);
+
+    let mut missing_extensions: Vec<&CStr> = Vec::new();
+    for extension in Self::DEVICE_EXTENSIONS {
+      if !supported_extensions.contains(extension) {
+        missing_extensions.push(extension);
+      }
     }
 
-    Ok(requested_extensions.is_empty())
+    if !missing_extensions.is_empty() {
+      return Err(vkUnsupported!(
+        "not all requested device extensions are supported on this device:\nMissing: {missing_extensions:?}"
+      ));
+    }
+
+    Ok(())
   }
 
-  fn device_suitable(surface: &Surface, instance: &ash::Instance, physical_device: vk::PhysicalDevice) -> bool {
+  fn is_suitable(surface: &Surface, instance: &ash::Instance, physical_device: vk::PhysicalDevice) -> bool {
     let indices = Self::find_queue_families(surface, instance, physical_device);
     let props = unsafe { instance.get_physical_device_properties(physical_device) };
     let device_name = unsafe { CStr::from_ptr(props.device_name.as_ptr()) };
@@ -149,7 +159,7 @@ impl Device {
     // debug!("Checking if suitable: [{}]", unsafe { std::str::from_utf8_unchecked(std::mem::transmute(&props.device_name as &[i8])) });
 
     let extensions_supported = match Self::device_extensions_supported(instance, physical_device) {
-      Ok(value) => value,
+      Ok(_) => true,
       Err(e) => {
         error!("{e}");
         false

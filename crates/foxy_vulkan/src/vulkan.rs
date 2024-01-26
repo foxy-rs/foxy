@@ -130,8 +130,8 @@ impl Vulkan {
       .map(|e| e.extension_name_as_c_str().unwrap())
       .collect_vec();
 
-    // supported_layers.iter().for_each(|l| info!("{l:?}"));
-    // supported_extensions.iter().for_each(|e| info!("{e:?}"));
+    debug!("Supported layers:\n{:#?}", supported_layers);
+    debug!("Supported instance extensions:\n{:#?}", supported_extensions);
 
     // Layers ----------------------
 
@@ -174,7 +174,7 @@ impl Vulkan {
 
     if !missing_extensions.is_empty() {
       return Err(vkUnsupported!(
-        "not all requested extensions are supported on this device:\nMissing: {missing_extensions:?}"
+        "not all requested instance extensions are supported on this device:\nMissing: {missing_extensions:?}"
       ));
     }
 
