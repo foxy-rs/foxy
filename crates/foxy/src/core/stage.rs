@@ -6,7 +6,7 @@ use super::engine_state::Foxy;
 // KEEP THESE SMALL since you need to clone them for each iteration
 #[derive(Display, EnumDiscriminants)]
 pub enum Stage<'s> {
-  Initializing,
+  Initialization,
   Start {
     foxy: &'s mut Foxy,
   },

@@ -62,7 +62,7 @@ impl Framework<'_> {
       sync_barrier: sync_barrier.clone(),
     });
 
-    let current_stage = StageDiscriminants::Initializing;
+    let current_stage = StageDiscriminants::Initialization;
     let foxy = Foxy::new(time, window);
 
     Ok(Self {
@@ -91,7 +91,7 @@ impl Framework<'_> {
 
   fn next_state(&mut self) -> Option<Stage<'_>> {
     let new_state = match self.current_stage {
-      StageDiscriminants::Initializing => {
+      StageDiscriminants::Initialization => {
         info!("KON KON KITSUNE!");
         self.render_thread.run(());
         Stage::Start { foxy: &mut self.foxy }
