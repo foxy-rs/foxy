@@ -16,7 +16,6 @@ fn main() {
       ("ookami", Some(LogLevel::Trace))
     )
     .start();
-    log_lib_info!();
   }
 
   let mut foxy = Foxy::builder()
