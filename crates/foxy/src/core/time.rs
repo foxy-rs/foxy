@@ -5,10 +5,6 @@ use std::{
 };
 use tracing::*;
 
-pub mod game_loop;
-pub mod stopwatch;
-pub mod timer;
-
 #[derive(Debug)]
 pub struct Time {
   tick_rate: f64,
@@ -83,6 +79,45 @@ impl Time {
   pub fn now(&self) -> Instant {
     Instant::now()
   }
+
+  pub(crate) fn next_tick(&mut self) -> bool {
+    self.update();
+    self.should_do_tick() && {
+      self.tick();
+      true
+    }
+  }
+
+  pub(crate) fn update(&mut self) {
+    self.current_frame = Instant::now();
+    self.delta_time = self.current_frame - self.previous_frame;
+    self.previous_frame = self.current_frame;
+    self.lag_time += self.delta_time;
+    self.step_count = 0;
+    if let Err(arraydeque::CapacityError { element }) = self.past_delta_times.push_back(self.delta_time) {
+      self.past_delta_times.pop_front();
+      let _ = self.past_delta_times.push_back(element);
+    }
+    self.average_delta_time = {
+      let sum: Duration = self.past_delta_times.iter().sum();
+      sum.div_f64(self.past_delta_times.len() as f64)
+    }
+  }
+
+  pub(crate) fn tick(&mut self) {
+    self.tick_current_frame = Instant::now();
+    self.tick_delta_time = self.tick_current_frame - self.tick_previous_frame;
+    self.tick_previous_frame = self.tick_current_frame;
+    self.lag_time -= self.tick_time;
+    self.step_count += 1;
+  }
+
+  pub(crate) fn should_do_tick(&self) -> bool {
+    if self.step_count >= self.bail_threshold {
+      warn!("Struggling to catch up with tick rate.");
+    }
+    self.lag_time >= self.tick_time && self.step_count < self.bail_threshold
+  }
 }
 
 impl Default for Time {
@@ -102,60 +137,5 @@ impl Display for Time {
       self.now().duration_since(self.start_time),
       self.now(),
     )
-  }
-}
-
-pub struct EngineTime {
-  time: Time,
-}
-
-impl EngineTime {
-  pub fn new(tick_rate: f64, bail_threshold: u32) -> Self {
-    Self {
-      time: Time::new(tick_rate, bail_threshold),
-    }
-  }
-
-  pub fn time(&self) -> &Time {
-    &self.time
-  }
-
-  pub fn next_tick(&mut self) -> bool {
-    self.update();
-    self.should_do_tick() && {
-      self.tick();
-      true
-    }
-  }
-
-  pub fn update(&mut self) {
-    self.time.current_frame = Instant::now();
-    self.time.delta_time = self.time.current_frame - self.time.previous_frame;
-    self.time.previous_frame = self.time.current_frame;
-    self.time.lag_time += self.time.delta_time;
-    self.time.step_count = 0;
-    if let Err(arraydeque::CapacityError { element }) = self.time.past_delta_times.push_back(self.time.delta_time) {
-      self.time.past_delta_times.pop_front();
-      let _ = self.time.past_delta_times.push_back(element);
-    }
-    self.time.average_delta_time = {
-      let sum: Duration = self.time.past_delta_times.iter().sum();
-      sum.div_f64(self.time.past_delta_times.len() as f64)
-    }
-  }
-
-  pub fn tick(&mut self) {
-    self.time.tick_current_frame = Instant::now();
-    self.time.tick_delta_time = self.time.tick_current_frame - self.time.tick_previous_frame;
-    self.time.tick_previous_frame = self.time.tick_current_frame;
-    self.time.lag_time -= self.time.tick_time;
-    self.time.step_count += 1;
-  }
-
-  pub fn should_do_tick(&self) -> bool {
-    if self.time.step_count >= self.time.bail_threshold {
-      warn!("Struggling to catch up with tick rate.");
-    }
-    self.time.lag_time >= self.time.tick_time && self.time.step_count < self.time.bail_threshold
   }
 }

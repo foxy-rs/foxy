@@ -2,18 +2,18 @@ use self::{
   builder::{FoxyBuilder, FoxyCreateInfo, HasSize, HasTitle, MissingSize, MissingTitle},
   lifecycle::Stage,
   render_loop::RenderLoop,
+  time::Time,
 };
 use foxy_renderer::renderer::{render_data::RenderData, Renderer};
 use foxy_types::{thread::EngineThread, window::Polling};
-use foxy_util::{
-  log::LogErr,
-  time::{EngineTime, Time},
-};
+use foxy_util::log::LogErr;
 use foxy_window::prelude::*;
 use message::{GameLoopMessage, RenderLoopMessage};
 use messaging::Mailbox;
 use std::{
-  marker::PhantomData, mem, sync::{Arc, Barrier}
+  marker::PhantomData,
+  mem,
+  sync::{Arc, Barrier},
 };
 use tracing::*;
 
@@ -21,6 +21,12 @@ pub mod builder;
 pub mod lifecycle;
 mod message;
 mod render_loop;
+pub mod time;
+
+pub struct FoxyFramework {
+  pub time: Time,
+  pub window: Window,
+}
 
 pub struct Foxy<'a> {
   polling_strategy: Polling,
@@ -28,10 +34,9 @@ pub struct Foxy<'a> {
   game_mailbox: Mailbox<GameLoopMessage, RenderLoopMessage>,
   sync_barrier: Arc<Barrier>,
 
-  current_stage: Stage,
-  time: EngineTime,
-  window: Window,
-  _phantom: PhantomData<&'a()>
+  current_stage: Option<Stage>,
+  foxy: Option<FoxyFramework>,
+  _phantom: PhantomData<&'a ()>,
 }
 
 impl Foxy<'_> {
@@ -42,7 +47,7 @@ impl Foxy<'_> {
   pub(crate) fn new(create_info: FoxyCreateInfo<HasTitle, HasSize>) -> anyhow::Result<Self> {
     trace!("Firing up Foxy");
 
-    let time = EngineTime::new(128.0, 1024);
+    let time = Time::new(128.0, 1024);
 
     let mut window = Window::builder()
       .with_title(create_info.title.0)
@@ -64,27 +69,26 @@ impl Foxy<'_> {
       sync_barrier: sync_barrier.clone(),
     });
 
-    let current_state = Stage::Initializing;
+    let current_stage = Some(Stage::Initializing);
 
     Ok(Self {
-      time,
-      current_stage: current_state,
-      window,
+      current_stage,
       render_thread,
       game_mailbox,
       sync_barrier,
       polling_strategy: create_info.polling_strategy,
-      _phantom: PhantomData
+      foxy: Some(FoxyFramework { time, window }),
+      _phantom: PhantomData,
     })
   }
 
-  pub fn time(&self) -> &Time {
-    self.time.time()
-  }
+  // pub fn time(&self) -> &Time {
+  //   &self.time
+  // }
 
-  pub fn window(&self) -> &Window {
-    &self.window
-  }
+  // pub fn window(&self) -> &Window {
+  //   &self.window
+  // }
 
   // pub fn poll(&mut self) -> Option<Lifecycle> {
   //   self.next_state(false)
@@ -94,73 +98,70 @@ impl Foxy<'_> {
   //   self.next_state(true)
   // }
 
-  fn next_window_message(&mut self) -> Option<WindowMessage> {
+  fn next_window_message(&mut self, window: &mut Window) -> Option<WindowMessage> {
     if let Polling::Wait = self.polling_strategy {
-      self.window.wait()
+      window.wait()
     } else {
-      self.window.next()
+      window.next()
     }
   }
 
   fn next_state(&mut self) -> Option<&Stage> {
-    let new_state = match &mut self.current_stage {
+    let old_stage = self.current_stage.take().expect("stage cannot be None");
+    let new_state = match old_stage {
       Stage::Initializing => {
         self.render_thread.run(());
-        Stage::Start
+        Stage::Start { foxy: self.foxy.take().expect("foxy cannot be None") }
       }
-      Stage::Start => {
+      Stage::Start { mut foxy } => {
         info!("KON KON KITSUNE!");
-        let message = self.next_window_message();
+        let message = self.next_window_message(&mut foxy.window);
         if let Some(message) = message {
-          Stage::BeginFrame { message }
+          Stage::BeginFrame { foxy, message }
         } else {
-          Stage::Exiting
+          Stage::Exiting { foxy }
         }
       }
-      Stage::BeginFrame { message } => {
+      Stage::BeginFrame { foxy, message } => {
         self.sync_barrier.wait();
 
-        let message = mem::take(message);
-        Stage::EarlyUpdate { message }
+        Stage::EarlyUpdate { foxy, message }
       }
-      Stage::EarlyUpdate { message } => {
-        let message = mem::take(message);
-        self.time.update();
-        if self.time.should_do_tick() {
-          self.time.tick();
-          Stage::FixedUpdate { message }
+      Stage::EarlyUpdate { mut foxy, message } => {
+        foxy.time.update();
+        if foxy.time.should_do_tick() {
+          foxy.time.tick();
+          Stage::FixedUpdate { foxy, message }
         } else {
-          Stage::Update { message }
+          Stage::Update { foxy, message }
         }
       }
-      Stage::FixedUpdate { message } => {
-        let message = mem::take(message);
-        if self.time.should_do_tick() {
-          self.time.tick();
-          Stage::FixedUpdate { message }
+      Stage::FixedUpdate { mut foxy, message } => {
+        if foxy.time.should_do_tick() {
+          foxy.time.tick();
+          Stage::FixedUpdate { foxy, message }
         } else {
-          Stage::Update { message }
+          Stage::Update { foxy, message }
         }
       }
-      Stage::Update { message } => {
-        let message = mem::take(message);
-        Stage::EndFrame { message }
+      Stage::Update { foxy, message } => {
+        Stage::EndFrame { foxy, message }
       }
-      Stage::EndFrame { .. } => {
+      Stage::EndFrame { mut foxy, .. } => {
         let _ = self
           .game_mailbox
           .send(GameLoopMessage::RenderData(RenderData {}))
           .log_error();
         self.sync_barrier.wait();
 
-        let message = self.next_window_message();
+        let message = self.next_window_message(&mut foxy.window);
         if let Some(message) = message {
-          Stage::BeginFrame { message }
+          Stage::BeginFrame { foxy, message }
         } else {
-          Stage::Exiting
+          Stage::Exiting { foxy }
         }
       }
-      Stage::Exiting => {
+      Stage::Exiting { foxy } => {
         let _ = self.game_mailbox.send(GameLoopMessage::Exit).log_error();
         self.sync_barrier.wait();
 
@@ -174,10 +175,10 @@ impl Foxy<'_> {
       }
     };
 
-    self.current_stage = new_state;
+    self.current_stage = Some(new_state);
 
     // debug!("{:?}", self.current_state);
-    Some(&self.current_stage)
+    self.current_stage.as_ref()
   }
 }
 

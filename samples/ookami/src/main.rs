@@ -15,28 +15,26 @@ fn main() {
     ("ookami", Some(LogLevel::Trace))
   );
 
-  let mut foxy = Foxy::builder()
+  let foxy = Foxy::builder()
     .with_title("Foxy Renderer")
     .with_size(800, 450)
     .build_unwrap();
 
   let mut fps_timer = Timer::new(Duration::from_secs_f64(0.33));
 
-  while let Some(stage) = foxy.next() {
+  for stage in foxy {
     match stage {
-      Stage::FixedUpdate { message } => {
+      Stage::FixedUpdate { foxy, message } => {
         if fps_timer.is_elapsed() {
-          let fps = 1.0 / foxy.time().average_delta_secs();
-          foxy
-            .window()
-            .set_title(&format!("{}: {:.2}", foxy.window().title(), fps));
+          let fps = 1.0 / foxy.time.average_delta_secs();
+          foxy.window.set_title(&format!("{}: {:.2}", foxy.window.title(), fps));
         }
         match message {
           WindowMessage::None | WindowMessage::Other { .. } | WindowMessage::Mouse(MouseMessage::Cursor) => {}
           _ => debug!("FIXEDUPDATE: {:?}", message),
         }
       }
-      Stage::Update { message } => match message {
+      Stage::Update { message, .. } => match message {
         WindowMessage::None | WindowMessage::Other { .. } | WindowMessage::Mouse(MouseMessage::Cursor) => {}
         _ => debug!("UPDATE: {:?}", message),
       },
