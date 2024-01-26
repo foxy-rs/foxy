@@ -7,12 +7,12 @@ use tracing::*;
 fn main() {
   start_debug_logging_session!();
 
-  let lifecycle = Lifecycle::builder()
-    .with_title("Simple")
+  let framework = Framework::builder()
+    .with_title("Simple Foxy App")
     .with_size(800, 450)
     .build_unwrap();
 
-  for stage in lifecycle {
+  for stage in framework {
     match stage {
       Stage::FixedUpdate { .. } => debug!("FixedUpdate"),
       Stage::Update { .. } => debug!("Update"),
