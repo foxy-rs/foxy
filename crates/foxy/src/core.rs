@@ -24,13 +24,14 @@ mod message;
 mod render_loop;
 
 pub struct Foxy {
-  time: EngineTime,
-  current_state: Lifecycle,
-  window: Window,
+  polling_strategy: Polling,
   render_thread: EngineThread<RenderLoop>,
   game_mailbox: Mailbox<GameLoopMessage, RenderLoopMessage>,
   sync_barrier: Arc<Barrier>,
-  should_wait: bool,
+
+  current_stage: Lifecycle,
+  time: EngineTime,
+  window: Window,
 }
 
 impl Foxy {
@@ -67,12 +68,12 @@ impl Foxy {
 
     Ok(Self {
       time,
-      current_state,
+      current_stage: current_state,
       window,
       render_thread,
       game_mailbox,
       sync_barrier,
-      should_wait: create_info.message_behavior == Polling::Wait,
+      polling_strategy: create_info.polling_strategy,
     })
   }
 
@@ -93,7 +94,7 @@ impl Foxy {
   // }
 
   fn next_window_message(&mut self) -> Option<WindowMessage> {
-    if self.should_wait {
+    if let Polling::Wait = self.polling_strategy {
       self.window.wait()
     } else {
       self.window.next()
@@ -101,7 +102,7 @@ impl Foxy {
   }
 
   fn next_state(&mut self) -> Option<Lifecycle> {
-    let new_state = match &mut self.current_state {
+    let new_state = match &mut self.current_stage {
       Lifecycle::Initializing => {
         self.render_thread.run(());
         Lifecycle::Start
@@ -172,10 +173,10 @@ impl Foxy {
       }
     };
 
-    self.current_state = new_state;
+    self.current_stage = new_state;
 
     // debug!("{:?}", self.current_state);
-    Some(self.current_state.clone())
+    Some(self.current_stage.clone())
   }
 }
 

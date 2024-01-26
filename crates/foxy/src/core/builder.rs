@@ -16,7 +16,7 @@ pub struct FoxyCreateInfo<Title, Size> {
   pub size: Size,
   pub color_mode: ColorMode,
   pub close_behavior: CloseBehavior,
-  pub message_behavior: Polling,
+  pub polling_strategy: Polling,
 }
 
 pub struct FoxyBuilder<Title, Size> {
@@ -37,7 +37,7 @@ impl Default for FoxyBuilder<MissingTitle, MissingSize> {
         size: MissingSize,
         color_mode: ColorMode::Dark,
         close_behavior: CloseBehavior::Default,
-        message_behavior: Polling::Poll,
+        polling_strategy: Polling::Poll,
       },
     }
   }
@@ -51,7 +51,7 @@ impl<Size> FoxyBuilder<MissingTitle, Size> {
         size: self.create_info.size,
         color_mode: self.create_info.color_mode,
         close_behavior: self.create_info.close_behavior,
-        message_behavior: self.create_info.message_behavior,
+        polling_strategy: self.create_info.polling_strategy,
       },
     }
   }
@@ -65,7 +65,7 @@ impl<Title> FoxyBuilder<Title, MissingSize> {
         size: HasSize { width, height },
         color_mode: self.create_info.color_mode,
         close_behavior: self.create_info.close_behavior,
-        message_behavior: self.create_info.message_behavior,
+        polling_strategy: self.create_info.polling_strategy,
       },
     }
   }
@@ -79,7 +79,7 @@ impl<Title, Size> FoxyBuilder<Title, Size> {
         size: self.create_info.size,
         color_mode,
         close_behavior: self.create_info.close_behavior,
-        message_behavior: self.create_info.message_behavior,
+        polling_strategy: self.create_info.polling_strategy,
       },
     }
   }
@@ -91,7 +91,7 @@ impl<Title, Size> FoxyBuilder<Title, Size> {
         size: self.create_info.size,
         color_mode: self.create_info.color_mode,
         close_behavior,
-        message_behavior: self.create_info.message_behavior,
+        polling_strategy: self.create_info.polling_strategy,
       },
     }
   }
@@ -103,7 +103,7 @@ impl<Title, Size> FoxyBuilder<Title, Size> {
         size: self.create_info.size,
         color_mode: self.create_info.color_mode,
         close_behavior: self.create_info.close_behavior,
-        message_behavior,
+        polling_strategy: message_behavior,
       },
     }
   }

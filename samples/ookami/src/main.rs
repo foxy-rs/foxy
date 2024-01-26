@@ -24,12 +24,16 @@ fn main() {
 
   while let Some(stage) = foxy.next() {
     match stage {
-      Lifecycle::FixedUpdate { .. } => {
+      Lifecycle::FixedUpdate { message } => {
         if fps_timer.is_elapsed() {
           let fps = 1.0 / foxy.time().average_delta_secs();
           foxy
             .window()
             .set_title(&format!("{}: {:.2}", foxy.window().title(), fps));
+        }
+        match message {
+          WindowMessage::None | WindowMessage::Other { .. } | WindowMessage::Mouse(MouseMessage::Cursor) => {}
+          _ => debug!("FIXEDUPDATE: {:?}", message),
         }
       }
       Lifecycle::Update { message } => match message {
