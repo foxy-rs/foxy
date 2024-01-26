@@ -6,7 +6,6 @@ pub mod builder;
 pub mod format;
 pub mod init;
 pub mod level;
-pub mod prelude;
 
 #[allow(unused)]
 pub fn session() -> SubscriberBuilder {

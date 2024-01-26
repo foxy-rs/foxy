@@ -3,6 +3,7 @@
 // pub use tracing_subscriber;
 
 pub use crate::{
+  time::{EngineTime, Time}, timer::Timer, stopwatch::Stopwatch,
   log::level::LogLevel, log_filter, log_filter_max, log_filter_multiple, log_filter_with_others, log_init,
   log_init_max, log_init_multiple, log_init_with_others, log_lib_info, logging_session, logging_session_ex,
 };

@@ -1,4 +1,4 @@
-use crate::log::prelude::LogLevel;
+use crate::log::level::LogLevel;
 
 #[allow(unused)]
 pub fn format_filter_slice(crate_logging_levels: &[(&str, Option<LogLevel>)]) -> String {
