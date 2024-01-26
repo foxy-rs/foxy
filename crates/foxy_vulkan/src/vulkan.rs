@@ -111,8 +111,8 @@ impl Vulkan {
       .map(|e| e.extension_name_as_c_str().unwrap())
       .collect_vec();
 
-    supported_layers.iter().for_each(|l| info!("{l:?}"));
-    supported_extensions.iter().for_each(|e| info!("{e:?}"));
+    // supported_layers.iter().for_each(|l| info!("{l:?}"));
+    // supported_extensions.iter().for_each(|e| info!("{e:?}"));
 
     // Layers ----------------------
 
