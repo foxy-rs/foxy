@@ -4,7 +4,10 @@ use ash::{
 };
 use itertools::Itertools;
 use raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle, RawDisplayHandle};
-use std::{ffi::{c_char, CStr}, mem::ManuallyDrop};
+use std::{
+  ffi::{c_char, CStr},
+  mem::ManuallyDrop,
+};
 use tracing::*;
 
 use crate::{
@@ -181,9 +184,9 @@ impl Vulkan {
 
     let app_info = vk::ApplicationInfo::default()
       .api_version(version)
-      .engine_name(c"Ookami")
+      .engine_name(c"Foxy Framework")
       .engine_version(vk::make_api_version(0, 1, 0, 0))
-      .application_name(c"Ookami App")
+      .application_name(c"Foxy Framework Application")
       .application_version(vk::make_api_version(0, 1, 0, 0));
 
     let (requested_layers, requested_extensions) =
