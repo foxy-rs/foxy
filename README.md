@@ -11,8 +11,8 @@ fn main() {
 
   for stage in foxy {
     match stage {
-      Lifecycle::FixedUpdate { .. } => debug!("FixedUpdate"),
-      Lifecycle::Update { .. } => debug!("Update"),
+      Stage::FixedUpdate { .. } => debug!("FixedUpdate"),
+      Stage::Update { .. } => debug!("Update"),
       _ => {}
     }
   }
