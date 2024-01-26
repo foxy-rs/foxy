@@ -1,7 +1,7 @@
 use foxy_window::prelude::*;
 
 // KEEP THESE SMALL since you need to clone them for each iteration
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub enum Stage {
   Initializing,
   Start,
