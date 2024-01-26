@@ -18,6 +18,8 @@ pub struct Device {
   physical: ManuallyDrop<vk::PhysicalDevice>,
   logical: ManuallyDrop<ash::Device>,
   command_pool: ManuallyDrop<vk::CommandPool>,
+  graphics_queue: vk::Queue,
+  present_queue: vk::Queue,
 }
 
 impl Drop for Device {
@@ -39,12 +41,14 @@ impl Device {
   pub fn new(surface: &Surface, instance: &ash::Instance) -> Result<Self, VulkanError> {
     let physical = ManuallyDrop::new(Self::pick_physical_device(surface, instance)?);
     let logical = ManuallyDrop::new(Self::new_logical_device(surface, instance, *physical)?);
-    let command_pool = ManuallyDrop::new(Self::create_command_pool(&surface, &instance, &*logical, *physical)?);
+    let command_pool = ManuallyDrop::new(Self::create_command_pool(surface, instance, &logical, *physical)?);
 
     Ok(Self {
       physical,
       logical,
       command_pool,
+      graphics_queue: Default::default(),
+      present_queue: Default::default(),
     })
   }
 
@@ -249,6 +253,64 @@ impl Device {
 
   pub fn logical(&self) -> &ash::Device {
     &self.logical
+  }
+
+  pub fn begin_single_time_commands(&self) -> Result<vk::CommandBuffer, VulkanError> {
+    let allocate_info = vk::CommandBufferAllocateInfo {
+      level: vk::CommandBufferLevel::PRIMARY,
+      command_pool: *self.command_pool,
+      command_buffer_count: 1,
+      ..Default::default()
+    };
+
+    let command_buffer =
+      unsafe { self.logical.allocate_command_buffers(&allocate_info) }.context("Failed to allocate command buffers")?;
+
+    let begin_info = vk::CommandBufferBeginInfo {
+      flags: vk::CommandBufferUsageFlags::ONE_TIME_SUBMIT,
+      ..Default::default()
+    };
+
+    unsafe { self.logical.begin_command_buffer(command_buffer[0], &begin_info) }
+      .context("Failed to begin command buffer")?;
+
+    Ok(command_buffer[0])
+  }
+
+  pub fn end_single_time_commands(&self, command_buffer: vk::CommandBuffer) -> Result<(), VulkanError> {
+    unsafe { self.logical.end_command_buffer(command_buffer) }.context("Failed to end command buffer")?;
+
+    let submit_info = vk::SubmitInfo {
+      command_buffer_count: 1,
+      p_command_buffers: &command_buffer,
+      ..Default::default()
+    };
+
+    unsafe {
+      self
+        .logical
+        .queue_submit(self.graphics_queue, &[submit_info], vk::Fence::null())
+    }
+    .context("Failed to submit graphics queue")?;
+
+    unsafe { self.logical.queue_wait_idle(self.graphics_queue) }.context("Failed to process graphics queue")?;
+
+    unsafe { self.logical.free_command_buffers(*self.command_pool, &[command_buffer]) };
+
+    Ok(())
+  }
+
+  pub fn issue_single_time_commands<F: FnOnce(vk::CommandBuffer)>(&self, commands: F) {
+    match self.begin_single_time_commands() {
+      Ok(command_buffer) => {
+        commands(command_buffer);
+        match self.end_single_time_commands(command_buffer) {
+          Ok(_) => {}
+          Err(e) => error!("{e:#}"),
+        };
+      }
+      Err(e) => error!("{e:#}"),
+    }
   }
 }
 
