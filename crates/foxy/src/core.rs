@@ -13,8 +13,7 @@ use foxy_window::prelude::*;
 use message::{GameLoopMessage, RenderLoopMessage};
 use messaging::Mailbox;
 use std::{
-  mem,
-  sync::{Arc, Barrier},
+  marker::PhantomData, mem, sync::{Arc, Barrier}
 };
 use tracing::*;
 
@@ -23,7 +22,7 @@ pub mod lifecycle;
 mod message;
 mod render_loop;
 
-pub struct Foxy {
+pub struct Foxy<'a> {
   polling_strategy: Polling,
   render_thread: EngineThread<RenderLoop>,
   game_mailbox: Mailbox<GameLoopMessage, RenderLoopMessage>,
@@ -32,9 +31,10 @@ pub struct Foxy {
   current_stage: Stage,
   time: EngineTime,
   window: Window,
+  _phantom: PhantomData<&'a()>
 }
 
-impl Foxy {
+impl Foxy<'_> {
   pub fn builder() -> FoxyBuilder<MissingTitle, MissingSize> {
     Default::default()
   }
@@ -74,6 +74,7 @@ impl Foxy {
       game_mailbox,
       sync_barrier,
       polling_strategy: create_info.polling_strategy,
+      _phantom: PhantomData
     })
   }
 
@@ -101,7 +102,7 @@ impl Foxy {
     }
   }
 
-  fn next_state(&mut self) -> Option<Stage> {
+  fn next_state(&mut self) -> Option<&Stage> {
     let new_state = match &mut self.current_stage {
       Stage::Initializing => {
         self.render_thread.run(());
@@ -176,14 +177,15 @@ impl Foxy {
     self.current_stage = new_state;
 
     // debug!("{:?}", self.current_state);
-    Some(self.current_stage.clone())
+    Some(&self.current_stage)
   }
 }
 
-impl Iterator for Foxy {
-  type Item = Stage;
+impl<'a> Iterator for Foxy<'a> {
+  type Item = &'a Stage;
 
   fn next(&mut self) -> Option<Self::Item> {
-    self.next_state()
+    // it is irrefutable that the reference not outlive Foxy
+    unsafe { std::mem::transmute(self.next_state()) }
   }
 }

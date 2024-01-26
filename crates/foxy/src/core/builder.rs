@@ -110,11 +110,11 @@ impl<Title, Size> FoxyBuilder<Title, Size> {
 }
 
 impl FoxyBuilder<HasTitle, HasSize> {
-  pub fn build(self) -> anyhow::Result<Foxy> {
+  pub fn build<'a>(self) -> anyhow::Result<Foxy<'a>> {
     Foxy::new(self.create_info)
   }
 
-  pub fn build_unwrap(self) -> Foxy {
+  pub fn build_unwrap<'a>(self) -> Foxy<'a> {
     self.build().unwrap_or_else(|e| panic!("{e}"))
   }
 }

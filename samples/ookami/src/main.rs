@@ -24,7 +24,7 @@ fn main() {
 
   while let Some(stage) = foxy.next() {
     match stage {
-      Lifecycle::FixedUpdate { message } => {
+      Stage::FixedUpdate { message } => {
         if fps_timer.is_elapsed() {
           let fps = 1.0 / foxy.time().average_delta_secs();
           foxy
@@ -36,7 +36,7 @@ fn main() {
           _ => debug!("FIXEDUPDATE: {:?}", message),
         }
       }
-      Lifecycle::Update { message } => match message {
+      Stage::Update { message } => match message {
         WindowMessage::None | WindowMessage::Other { .. } | WindowMessage::Mouse(MouseMessage::Cursor) => {}
         _ => debug!("UPDATE: {:?}", message),
       },
