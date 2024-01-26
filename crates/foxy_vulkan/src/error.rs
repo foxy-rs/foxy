@@ -26,6 +26,16 @@ pub struct Debug {
   debug_messenger: Option<vk::DebugUtilsMessengerEXT>,
 }
 
+impl Drop for Debug {
+  fn drop(&mut self) {
+    if let Some(debug_utils) = self.debug_utils.take() {
+      if let Some(debug_messenger) = self.debug_messenger.take() {
+        unsafe { debug_utils.destroy_debug_utils_messenger(debug_messenger, None); }
+      }
+    }
+  }
+}
+
 impl Debug {
   pub fn new(entry: &ash::Entry, instance: &ash::Instance) -> Result<Self, VulkanError> {
     if cfg!(debug_assertions) {
@@ -54,13 +64,13 @@ impl Debug {
     }
   }
   
-  pub fn delete(&mut self) {
-    if let Some(debug_utils) = self.debug_utils.take() {
-      if let Some(debug_messenger) = self.debug_messenger.take() {
-        unsafe { debug_utils.destroy_debug_utils_messenger(debug_messenger, None); }
-      }
-    }
-  }
+  // pub fn delete(&mut self) {
+  //   if let Some(debug_utils) = self.debug_utils.take() {
+  //     if let Some(debug_messenger) = self.debug_messenger.take() {
+  //       unsafe { debug_utils.destroy_debug_utils_messenger(debug_messenger, None); }
+  //     }
+  //   }
+  // }
 }
 
 unsafe extern "system" fn debug_callback(

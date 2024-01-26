@@ -4,7 +4,7 @@ use ash::{
 };
 use itertools::Itertools;
 use raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle, RawDisplayHandle};
-use std::ffi::{c_char, CStr};
+use std::{ffi::{c_char, CStr}, mem::ManuallyDrop};
 use tracing::*;
 
 use crate::{
@@ -15,16 +15,19 @@ use crate::{
 
 pub struct Vulkan {
   entry: ash::Entry,
-  instance: ash::Instance,
-  debug: Debug,
+
+  instance: ManuallyDrop<ash::Instance>,
+  debug: ManuallyDrop<Debug>,
 }
 
 impl Drop for Vulkan {
   fn drop(&mut self) {
     trace!("Dropping Vulkan");
     unsafe {
-      self.debug.delete();
+      ManuallyDrop::drop(&mut self.debug);
+
       self.instance.destroy_instance(None);
+      ManuallyDrop::drop(&mut self.instance);
     }
   }
 }
@@ -52,8 +55,8 @@ impl Vulkan {
     let display_handle = create_info.window.raw_display_handle();
 
     let entry = ash::Entry::linked();
-    let instance = Self::create_instance(&entry, display_handle, create_info.validation_status)?;
-    let debug = Debug::new(&entry, &instance)?;
+    let instance = ManuallyDrop::new(Self::create_instance(&entry, display_handle, create_info.validation_status)?);
+    let debug = ManuallyDrop::new(Debug::new(&entry, &instance)?);
 
     Ok(Self {
       entry,
