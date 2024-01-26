@@ -2,7 +2,7 @@ use foxy_window::prelude::*;
 
 // KEEP THESE SMALL since you need to clone them for each iteration
 #[derive(Debug, Clone)]
-pub enum Lifecycle {
+pub enum Stage {
   Initializing,
   Start,
   BeginFrame { message: WindowMessage },

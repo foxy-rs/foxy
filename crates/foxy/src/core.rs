@@ -1,6 +1,6 @@
 use self::{
   builder::{FoxyBuilder, FoxyCreateInfo, HasSize, HasTitle, MissingSize, MissingTitle},
-  lifecycle::Lifecycle,
+  lifecycle::Stage,
   render_loop::RenderLoop,
 };
 use foxy_renderer::renderer::{render_data::RenderData, Renderer};
@@ -29,7 +29,7 @@ pub struct Foxy {
   game_mailbox: Mailbox<GameLoopMessage, RenderLoopMessage>,
   sync_barrier: Arc<Barrier>,
 
-  current_stage: Lifecycle,
+  current_stage: Stage,
   time: EngineTime,
   window: Window,
 }
@@ -64,7 +64,7 @@ impl Foxy {
       sync_barrier: sync_barrier.clone(),
     });
 
-    let current_state = Lifecycle::Initializing;
+    let current_state = Stage::Initializing;
 
     Ok(Self {
       time,
@@ -101,51 +101,51 @@ impl Foxy {
     }
   }
 
-  fn next_state(&mut self) -> Option<Lifecycle> {
+  fn next_state(&mut self) -> Option<Stage> {
     let new_state = match &mut self.current_stage {
-      Lifecycle::Initializing => {
+      Stage::Initializing => {
         self.render_thread.run(());
-        Lifecycle::Start
+        Stage::Start
       }
-      Lifecycle::Start => {
+      Stage::Start => {
         info!("KON KON KITSUNE!");
         let message = self.next_window_message();
         if let Some(message) = message {
-          Lifecycle::BeginFrame { message }
+          Stage::BeginFrame { message }
         } else {
-          Lifecycle::Exiting
+          Stage::Exiting
         }
       }
-      Lifecycle::BeginFrame { message } => {
+      Stage::BeginFrame { message } => {
         self.sync_barrier.wait();
 
         let message = mem::take(message);
-        Lifecycle::EarlyUpdate { message }
+        Stage::EarlyUpdate { message }
       }
-      Lifecycle::EarlyUpdate { message } => {
+      Stage::EarlyUpdate { message } => {
         let message = mem::take(message);
         self.time.update();
         if self.time.should_do_tick() {
           self.time.tick();
-          Lifecycle::FixedUpdate { message }
+          Stage::FixedUpdate { message }
         } else {
-          Lifecycle::Update { message }
+          Stage::Update { message }
         }
       }
-      Lifecycle::FixedUpdate { message } => {
+      Stage::FixedUpdate { message } => {
         let message = mem::take(message);
         if self.time.should_do_tick() {
           self.time.tick();
-          Lifecycle::FixedUpdate { message }
+          Stage::FixedUpdate { message }
         } else {
-          Lifecycle::Update { message }
+          Stage::Update { message }
         }
       }
-      Lifecycle::Update { message } => {
+      Stage::Update { message } => {
         let message = mem::take(message);
-        Lifecycle::EndFrame { message }
+        Stage::EndFrame { message }
       }
-      Lifecycle::EndFrame { .. } => {
+      Stage::EndFrame { .. } => {
         let _ = self
           .game_mailbox
           .send(GameLoopMessage::RenderData(RenderData {}))
@@ -154,19 +154,19 @@ impl Foxy {
 
         let message = self.next_window_message();
         if let Some(message) = message {
-          Lifecycle::BeginFrame { message }
+          Stage::BeginFrame { message }
         } else {
-          Lifecycle::Exiting
+          Stage::Exiting
         }
       }
-      Lifecycle::Exiting => {
+      Stage::Exiting => {
         let _ = self.game_mailbox.send(GameLoopMessage::Exit).log_error();
         self.sync_barrier.wait();
 
         self.render_thread.join();
-        Lifecycle::ExitLoop
+        Stage::ExitLoop
       }
-      Lifecycle::ExitLoop => {
+      Stage::ExitLoop => {
         info!("OTSU KON DESHITA!");
         // self.window.exit();
         return None;
@@ -181,7 +181,7 @@ impl Foxy {
 }
 
 impl Iterator for Foxy {
-  type Item = Lifecycle;
+  type Item = Stage;
 
   fn next(&mut self) -> Option<Self::Item> {
     self.next_state()
