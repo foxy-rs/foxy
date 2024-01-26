@@ -28,6 +28,12 @@ impl FoxyFramework {
     }
   }
 
+  pub fn append_ft_every(&mut self, duration: Duration) {
+    if self.fps_timer.has_elapsed(duration) {
+      self.window.set_title(&format!("{}: {:.6}", self.window.title(), self.time.average_delta_secs()));
+    }
+  }
+
   pub fn print_fps(&self) {
     let fps = 1.0 / self.time.average_delta_secs();
     info!("{}", format!("{}: {:.2}", self.window.title(), fps));
