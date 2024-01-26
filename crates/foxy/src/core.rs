@@ -4,7 +4,7 @@ use self::{
   render_loop::RenderLoop,
 };
 use foxy_renderer::renderer::{render_data::RenderData, Renderer};
-use foxy_types::thread::EngineThread;
+use foxy_types::{thread::EngineThread, window::Polling};
 use foxy_util::{
   log::LogErr,
   time::{EngineTime, Time},
@@ -30,6 +30,7 @@ pub struct Foxy {
   render_thread: EngineThread<RenderLoop>,
   game_mailbox: Mailbox<GameLoopMessage, RenderLoopMessage>,
   sync_barrier: Arc<Barrier>,
+  should_wait: bool,
 }
 
 impl Foxy {
@@ -37,16 +38,16 @@ impl Foxy {
     Default::default()
   }
 
-  pub(crate) fn new(foxy_create_info: FoxyCreateInfo<HasTitle, HasSize>) -> anyhow::Result<Self> {
+  pub(crate) fn new(create_info: FoxyCreateInfo<HasTitle, HasSize>) -> anyhow::Result<Self> {
     trace!("Firing up Foxy");
 
     let time = EngineTime::new(128.0, 1024);
 
     let mut window = Window::builder()
-      .with_title(foxy_create_info.title.0)
-      .with_size(foxy_create_info.size.width, foxy_create_info.size.height)
-      .with_color_mode(foxy_create_info.color_mode)
-      .with_close_behavior(foxy_create_info.close_behavior)
+      .with_title(create_info.title.0)
+      .with_size(create_info.size.width, create_info.size.height)
+      .with_color_mode(create_info.color_mode)
+      .with_close_behavior(create_info.close_behavior)
       .with_visibility(Visibility::Hidden)
       .build()?;
 
@@ -71,6 +72,7 @@ impl Foxy {
       render_thread,
       game_mailbox,
       sync_barrier,
+      should_wait: create_info.message_behavior == Polling::Wait,
     })
   }
 
@@ -82,23 +84,23 @@ impl Foxy {
     &self.window
   }
 
-  pub fn poll(&mut self) -> Option<&Lifecycle> {
-    self.next_state(false)
-  }
+  // pub fn poll(&mut self) -> Option<Lifecycle> {
+  //   self.next_state(false)
+  // }
 
-  pub fn wait(&mut self) -> Option<&Lifecycle> {
-    self.next_state(true)
-  }
+  // pub fn wait(&mut self) -> Option<Lifecycle> {
+  //   self.next_state(true)
+  // }
 
-  fn next_window_message(&mut self, should_wait: bool) -> Option<WindowMessage> {
-    if should_wait {
+  fn next_window_message(&mut self) -> Option<WindowMessage> {
+    if self.should_wait {
       self.window.wait()
     } else {
       self.window.next()
     }
   }
 
-  fn next_state(&mut self, should_wait: bool) -> Option<&Lifecycle> {
+  fn next_state(&mut self) -> Option<Lifecycle> {
     let new_state = match &mut self.current_state {
       Lifecycle::Initializing => {
         self.render_thread.run(());
@@ -106,7 +108,7 @@ impl Foxy {
       }
       Lifecycle::Start => {
         info!("KON KON KITSUNE!");
-        let message = self.next_window_message(should_wait);
+        let message = self.next_window_message();
         if let Some(message) = message {
           Lifecycle::BeginFrame { message }
         } else {
@@ -149,7 +151,7 @@ impl Foxy {
           .log_error();
         self.sync_barrier.wait();
 
-        let message = self.next_window_message(should_wait);
+        let message = self.next_window_message();
         if let Some(message) = message {
           Lifecycle::BeginFrame { message }
         } else {
@@ -173,6 +175,14 @@ impl Foxy {
     self.current_state = new_state;
 
     // debug!("{:?}", self.current_state);
-    Some(&self.current_state)
+    Some(self.current_state.clone())
+  }
+}
+
+impl Iterator for Foxy {
+  type Item = Lifecycle;
+
+  fn next(&mut self) -> Option<Self::Item> {
+    self.next_state()
   }
 }

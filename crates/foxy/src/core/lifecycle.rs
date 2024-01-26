@@ -1,6 +1,7 @@
 use foxy_window::prelude::*;
 
-#[derive(Debug)]
+// KEEP THESE SMALL since you need to clone them for each iteration
+#[derive(Debug, Clone)]
 pub enum Lifecycle {
   Initializing,
   Start,

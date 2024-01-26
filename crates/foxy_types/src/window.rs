@@ -18,3 +18,10 @@ pub enum CloseBehavior {
   Default,
   Custom,
 }
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[allow(unused)]
+pub enum Polling {
+  Poll,
+  Wait,
+}

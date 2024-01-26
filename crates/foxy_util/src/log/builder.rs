@@ -102,3 +102,19 @@ macro_rules! logging_session_ex {
             .with_filter($crate::log::format::format_filter_slice(&[("RUST_LOG", None), (NAME, Some($crate::log::level::LogLevel::Trace)), $($levels),+]))
     }};
 }
+
+#[macro_export]
+macro_rules! start_debug_logging_session {
+  () => {{
+    #[cfg(debug_assertions)]
+    $crate::logging_session!().start();
+  }};
+}
+
+#[macro_export]
+macro_rules! start_debug_logging_session_ex {
+  ($($levels:expr),+) => {{
+    #[cfg(debug_assertions)]
+    $crate::logging_session_ex!($($levels),+).start();
+  }};
+}

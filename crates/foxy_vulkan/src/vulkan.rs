@@ -25,7 +25,7 @@ impl Drop for Vulkan {
 
 impl Vulkan {
   #[cfg(not(debug_assertions))]
-  const VALIDATION_LAYERS: ValidationLayers = ValidationLayers(&[]);
+  const VALIDATION_LAYERS: &'static [&'static CStr] =&[];
   #[cfg(debug_assertions)]
   const VALIDATION_LAYERS: &'static [&'static CStr] = &[c"VK_LAYER_KHRONOS_validation"];
 

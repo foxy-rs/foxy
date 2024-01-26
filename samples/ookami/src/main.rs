@@ -5,18 +5,15 @@ use std::time::Duration;
 use tracing::*;
 
 fn main() {
-  if cfg!(debug_assertions) {
-    logging_session_ex!(
-      ("foxy", Some(LogLevel::Trace)),
-      ("foxy_window", Some(LogLevel::Trace)),
-      ("foxy_renderer", Some(LogLevel::Trace)),
-      ("foxy_vulkan", Some(LogLevel::Trace)),
-      ("foxy_types", Some(LogLevel::Trace)),
-      ("foxy_utils", Some(LogLevel::Trace)),
-      ("ookami", Some(LogLevel::Trace))
-    )
-    .start();
-  }
+  start_debug_logging_session_ex!(
+    ("foxy", Some(LogLevel::Trace)),
+    ("foxy_window", Some(LogLevel::Trace)),
+    ("foxy_renderer", Some(LogLevel::Trace)),
+    ("foxy_vulkan", Some(LogLevel::Trace)),
+    ("foxy_types", Some(LogLevel::Trace)),
+    ("foxy_utils", Some(LogLevel::Trace)),
+    ("ookami", Some(LogLevel::Trace))
+  );
 
   let mut foxy = Foxy::builder()
     .with_title("Foxy Renderer")
@@ -25,7 +22,7 @@ fn main() {
 
   let mut fps_timer = Timer::new(Duration::from_secs_f64(0.33));
 
-  while let Some(stage) = foxy.poll() {
+  while let Some(stage) = foxy.next() {
     match stage {
       Lifecycle::FixedUpdate { .. } => {
         if fps_timer.is_elapsed() {
