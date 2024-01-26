@@ -24,7 +24,7 @@ This project is still very much a WIP. It will be using Vulkan to allow for hard
 There are **3** primary threads in `foxy`:
 
 * **main:** where all the main application code is executed
-* **window:** where the Win32 message pump lives
+* **window:** where the window and window message pump live
 * **render:** where the rendering happens
 
 This layout was chosen to allow for the window messages not to block the application, and to allow rendering not to block on the application code.
