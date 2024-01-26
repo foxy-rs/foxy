@@ -14,7 +14,7 @@ impl Renderer {
   pub const MAX_FRAME_COUNT: u32 = 2;
 
   pub fn new(window: impl HasRawDisplayHandle + HasRawWindowHandle) -> anyhow::Result<Self> {
-    let vulkan = Vulkan::new(&window)?;
+    let vulkan = Vulkan::builder().with_window(&window).build()?;
 
     Ok(Self {
       vulkan,

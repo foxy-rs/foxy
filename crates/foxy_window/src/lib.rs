@@ -1,3 +1,5 @@
+#![cfg_attr(target_os, windows)] // for now, it only supports Win32
+
 pub mod debug;
 pub mod prelude;
 pub mod window;

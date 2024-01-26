@@ -7,7 +7,7 @@ pub enum WindowError {
   IOError(#[from] io::Error),
   #[error("{0}")]
   Other(String),
-  #[error("unspecified interpreter error")]
+  #[error("unspecified window error")]
   Unspecified,
   #[error("feature not implemented")]
   Unimplemented,

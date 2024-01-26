@@ -37,7 +37,7 @@ impl Foxy {
     Default::default()
   }
 
-  pub fn new(foxy_create_info: FoxyCreateInfo<HasTitle, HasSize>) -> anyhow::Result<Self> {
+  pub(crate) fn new(foxy_create_info: FoxyCreateInfo<HasTitle, HasSize>) -> anyhow::Result<Self> {
     info!("kon kon kitsune!");
 
     let time = EngineTime::new(128.0, 1024);
