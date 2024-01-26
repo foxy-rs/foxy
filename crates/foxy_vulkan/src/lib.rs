@@ -44,9 +44,11 @@ impl Drop for Vulkan {
   fn drop(&mut self) {
     trace!("Dropping Vulkan");
     unsafe {
+    trace!("> Destroying command pool");
       self.logical.destroy_command_pool(*self.command_pool, None);
       ManuallyDrop::drop(&mut self.command_pool);
 
+    trace!("> Destroying logical device");
       self.logical.destroy_device(None);
       ManuallyDrop::drop(&mut self.logical);
       ManuallyDrop::drop(&mut self.physical);
@@ -54,6 +56,7 @@ impl Drop for Vulkan {
       ManuallyDrop::drop(&mut self.surface);
       ManuallyDrop::drop(&mut self.debug);
 
+    trace!("> Destroying instance");
       self.instance.destroy_instance(None);
       ManuallyDrop::drop(&mut self.instance);
     }
