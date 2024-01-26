@@ -1,5 +1,5 @@
 use self::render_data::RenderData;
-use foxy_vulkan::vulkan::{builder::ValidationStatus, Vulkan};
+use foxy_vulkan::{builder::ValidationStatus, Vulkan};
 use raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle};
 
 pub mod command;

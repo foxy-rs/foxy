@@ -14,10 +14,10 @@ pub enum VulkanError {
 #[macro_export]
 macro_rules! vkUnsupported {
   () => {
-    $crate::vulkan::error::VulkanError::Unsupported(format!("attempted action unsupported by the device running Vulkan"))
+    $crate::error::VulkanError::Unsupported(format!("attempted action unsupported by the device running Vulkan"))
   };
   ($($arg:tt)*) => {{
-    $crate::vulkan::error::VulkanError::Unsupported(format!($($arg)*))
+    $crate::error::VulkanError::Unsupported(format!($($arg)*))
   }}
 }
 
