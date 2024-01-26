@@ -14,7 +14,7 @@ use crate::{
 };
 
 pub struct Vulkan {
-  entry: ash::Entry,
+  _entry: ash::Entry,
 
   instance: ManuallyDrop<ash::Instance>,
   debug: ManuallyDrop<Debug>,
@@ -59,7 +59,7 @@ impl Vulkan {
     let debug = ManuallyDrop::new(Debug::new(&entry, &instance)?);
 
     Ok(Self {
-      entry,
+      _entry: entry,
       instance,
       debug,
     })
