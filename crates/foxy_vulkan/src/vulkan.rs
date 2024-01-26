@@ -1,23 +1,29 @@
-use ash::{prelude::*, vk};
+use ash::{
+  extensions::{ext, khr},
+  vk,
+};
 use itertools::Itertools;
-// use ezwin::window::Window;
 use raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle, RawDisplayHandle};
 use std::ffi::{c_char, CStr};
 use tracing::*;
 
 use crate::{
   builder::{MissingWindow, ValidationStatus, VulkanBuilder, VulkanCreateInfo},
-  error::VulkanError,
+  error::{Debug, VulkanError},
+  vkUnsupported,
 };
 
 pub struct Vulkan {
+  entry: ash::Entry,
   instance: ash::Instance,
+  debug: Debug,
 }
 
 impl Drop for Vulkan {
   fn drop(&mut self) {
     trace!("Dropping Vulkan");
     unsafe {
+      self.debug.delete();
       self.instance.destroy_instance(None);
     }
   }
@@ -30,9 +36,9 @@ impl Vulkan {
   ];
 
   const EXTENSIONS: &'static [&'static CStr] = &[
-    c"VK_KHR_surface",
+    khr::Surface::NAME,
     #[cfg(debug_assertions)]
-    c"VK_EXT_debug_utils",
+    ext::DebugUtils::NAME,
   ];
 
   pub fn builder() -> VulkanBuilder<MissingWindow> {
@@ -42,10 +48,18 @@ impl Vulkan {
   pub(crate) fn new<W: HasRawDisplayHandle + HasRawWindowHandle>(
     create_info: VulkanCreateInfo<W>,
   ) -> Result<Self, VulkanError> {
-    let display_handle = create_info.window.raw_display_handle();
     trace!("Initializing Vulkan");
-    let instance = Self::create_instance(display_handle, create_info.validation_status)?;
-    Ok(Self { instance })
+    let display_handle = create_info.window.raw_display_handle();
+
+    let entry = ash::Entry::linked();
+    let instance = Self::create_instance(&entry, display_handle, create_info.validation_status)?;
+    let debug = Debug::new(&entry, &instance)?;
+
+    Ok(Self {
+      entry,
+      instance,
+      debug,
+    })
   }
 
   fn select_version(entry: &ash::Entry) -> u32 {
@@ -79,82 +93,72 @@ impl Vulkan {
     selected_version
   }
 
-  fn create_instance(
-    display_handle: RawDisplayHandle,
-    validation_status: ValidationStatus,
-  ) -> Result<ash::Instance, VulkanError> {
-    let entry = ash::Entry::linked();
-    let version = Self::select_version(&entry);
-
-    let app_info = vk::ApplicationInfo::default()
-      .api_version(version)
-      .engine_name(c"Ookami")
-      .engine_version(vk::make_api_version(0, 1, 0, 0))
-      .application_name(c"Ookami App")
-      .application_version(vk::make_api_version(0, 1, 0, 0));
-
-    // let layers: Vec<*const c_char> = Self::VALIDATION_LAYERS.iter().map(|name| name.as_ptr()).collect();
-    let extensions: Vec<*const c_char> = ash_window::enumerate_required_extensions(display_handle)?.to_vec();
-
-    let (requested_layers, requested_extensions) = Self::requested(&entry, validation_status)?;
-
-    let instance_create_info = vk::InstanceCreateInfo::default()
-      .application_info(&app_info)
-      .enabled_layer_names(&requested_layers)
-      .enabled_extension_names(&extensions);
-
-    let instance = unsafe { entry.create_instance(&instance_create_info, None)? };
-
-    Ok(instance)
-  }
-
-  fn requested(
+  fn request_layers_and_extensions(
     entry: &ash::Entry,
+    display_handle: RawDisplayHandle,
     validation_status: ValidationStatus,
   ) -> Result<(Vec<*const c_char>, Vec<*const c_char>), VulkanError> {
     let (supported_layers, supported_extensions) = Self::supported(entry)?;
-
-    let mut layers = supported_layers
+    let supported_layers = supported_layers
       .iter()
-      .cartesian_product(Self::VALIDATION_LAYERS)
-      .filter_map(|(supported_layer, &layer)| {
-        if supported_layer.layer_name_as_c_str().unwrap() == layer {
-          Some(layer.as_ptr())
-        } else {
-          None
-        }
-      })
+      .map(|l| l.layer_name_as_c_str().unwrap())
+      .collect_vec();
+    let supported_extensions = supported_extensions
+      .iter()
+      .map(|e| e.extension_name_as_c_str().unwrap())
       .collect_vec();
 
-    if layers.len() != Self::VALIDATION_LAYERS.len() {
-      return Err(VulkanError::Unsupported(
-        "not all requested layers are supported on this device",
+    supported_layers.iter().for_each(|l| info!("{l:?}"));
+    supported_extensions.iter().for_each(|e| info!("{e:?}"));
+
+    // Layers ----------------------
+
+    let mut requested_layers = Self::VALIDATION_LAYERS.iter().collect_vec();
+
+    let mut missing_layers = Vec::new();
+    for layer in Self::VALIDATION_LAYERS {
+      if !supported_layers.contains(layer) {
+        missing_layers.push(*layer);
+      }
+    }
+
+    if !missing_layers.is_empty() {
+      return Err(vkUnsupported!(
+        "not all requested layers are supported on this device:\nMissing: {missing_layers:?}"
       ));
     }
 
     if validation_status == ValidationStatus::Disabled {
-      layers.clear();
+      requested_layers.clear();
     }
 
-    let extensions = supported_extensions
-      .iter()
-      .cartesian_product(Self::EXTENSIONS)
-      .filter_map(|(supported_extension, &extension)| {
-        if supported_extension.extension_name_as_c_str().unwrap() == extension {
-          Some(extension.as_ptr())
-        } else {
-          None
-        }
-      })
-      .collect_vec();
+    let requested_layers = requested_layers.iter().map(|l| l.as_ptr()).collect_vec();
 
-    if extensions.len() != Self::EXTENSIONS.len() {
-      return Err(VulkanError::Unsupported(
-        "not all requested extensions are supported on this device",
+    // Extensions ------------------
+
+    let mut requested_extensions = ash_window::enumerate_required_extensions(display_handle)?
+      .to_vec()
+      .iter()
+      .map(|c| unsafe { CStr::from_ptr(*c) })
+      .collect_vec();
+    requested_extensions.extend_from_slice(Self::EXTENSIONS);
+
+    let mut missing_extensions: Vec<&CStr> = Vec::new();
+    for extension in &requested_extensions {
+      if !supported_extensions.contains(extension) {
+        missing_extensions.push(extension);
+      }
+    }
+
+    if !missing_extensions.is_empty() {
+      return Err(vkUnsupported!(
+        "not all requested extensions are supported on this device:\nMissing: {missing_extensions:?}"
       ));
     }
 
-    Ok((layers, extensions))
+    let requested_extensions = requested_extensions.iter().map(|l| l.as_ptr()).collect_vec();
+
+    Ok((requested_layers, requested_extensions))
   }
 
   fn supported(entry: &ash::Entry) -> Result<(Vec<vk::LayerProperties>, Vec<vk::ExtensionProperties>), VulkanError> {
@@ -163,5 +167,32 @@ impl Vulkan {
     let extensions = unsafe { entry.enumerate_instance_extension_properties(None) }?;
 
     Ok((layers, extensions))
+  }
+
+  fn create_instance(
+    entry: &ash::Entry,
+    display_handle: RawDisplayHandle,
+    validation_status: ValidationStatus,
+  ) -> Result<ash::Instance, VulkanError> {
+    let version = Self::select_version(entry);
+
+    let app_info = vk::ApplicationInfo::default()
+      .api_version(version)
+      .engine_name(c"Ookami")
+      .engine_version(vk::make_api_version(0, 1, 0, 0))
+      .application_name(c"Ookami App")
+      .application_version(vk::make_api_version(0, 1, 0, 0));
+
+    let (requested_layers, requested_extensions) =
+      Self::request_layers_and_extensions(entry, display_handle, validation_status)?;
+
+    let instance_create_info = vk::InstanceCreateInfo::default()
+      .application_info(&app_info)
+      .enabled_layer_names(&requested_layers)
+      .enabled_extension_names(&requested_extensions);
+
+    let instance = unsafe { entry.create_instance(&instance_create_info, None)? };
+
+    Ok(instance)
   }
 }
