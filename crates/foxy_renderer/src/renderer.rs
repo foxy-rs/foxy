@@ -1,5 +1,5 @@
 use self::render_data::RenderData;
-use foxy_vulkan::vulkan::Vulkan;
+use foxy_vulkan::{builder::ValidationStatus, vulkan::Vulkan};
 use raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle};
 
 pub mod message;
@@ -14,7 +14,10 @@ impl Renderer {
   pub const MAX_FRAME_COUNT: u32 = 2;
 
   pub fn new(window: impl HasRawDisplayHandle + HasRawWindowHandle) -> anyhow::Result<Self> {
-    let vulkan = Vulkan::builder().with_window(&window).build()?;
+    let vulkan = Vulkan::builder()
+      .with_window(&window)
+      .with_validation(ValidationStatus::Enabled)
+      .build()?;
 
     Ok(Self {
       vulkan,

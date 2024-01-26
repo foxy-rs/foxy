@@ -5,5 +5,7 @@ pub enum VulkanError {
   #[error("VkResult: `{0}`")]
   Vulkan(#[from] ash::vk::Result),
   #[error("{0}")]
+  Unsupported(&'static str),
+  #[error("{0}")]
   Other(String),
 }

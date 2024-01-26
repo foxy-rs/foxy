@@ -20,3 +20,5 @@ tracing   = "0.1"
 raw-window-handle = "0.5"
 ash-window        = { git = "https://github.com/ash-rs/ash.git" }
 ash               = { git = "https://github.com/ash-rs/ash.git", features = ["linked", "debug"] }
+
+itertools = "0.12"
