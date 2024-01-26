@@ -1,12 +1,12 @@
 [package]
 name        = "foxy_util"
-version     = "0.1.0"
+version     = "0.2.0"
 edition     = "2021"
 authors     = ["Gabriel Lugo <dev.gabriel.lugo@gmail.com>"]
 repository  = "https://github.com/GTLugo/foxy"
 license     = "MIT OR Apache-2.0"
 readme      = "README.md"
-description = "foxy"
+description = "Util for `foxy`"
 keywords    = ["foxy"]
 categories  = ["data-structures"]
 
