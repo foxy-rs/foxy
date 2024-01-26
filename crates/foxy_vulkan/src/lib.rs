@@ -20,7 +20,6 @@ use self::{
 
 pub mod buffer;
 pub mod builder;
-pub mod device;
 pub mod error;
 pub mod image;
 pub mod surface;
