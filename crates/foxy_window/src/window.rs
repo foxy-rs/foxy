@@ -163,7 +163,7 @@ impl Window {
   }
 
   /// Handles windows messages and then passes most onto the user
-  fn message_handler(&mut self, message: WindowMessage) -> Option<WindowMessage> {
+  fn intercept_message(&mut self, message: WindowMessage) -> Option<WindowMessage> {
     match message {
       WindowMessage::ExitLoop => {
         self.window_thread.join();
@@ -190,7 +190,7 @@ impl Window {
   #[allow(unused)]
   pub fn wait(&mut self) -> Option<WindowMessage> {
     if let Ok(message) = self.app_mailbox.wait() {
-      self.message_handler(message)
+      self.intercept_message(message)
     } else {
       None
     }
@@ -210,7 +210,7 @@ impl Iterator for Window {
   fn next(&mut self) -> Option<Self::Item> {
     if let Ok(message) = self.app_mailbox.poll() {
       // info!("{message:?}");
-      self.message_handler(message)
+      self.intercept_message(message)
     } else {
       Some(WindowMessage::None)
     }
