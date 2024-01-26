@@ -14,7 +14,7 @@ use crate::vkUnsupported;
 use super::{error::VulkanError, surface::Surface};
 
 pub struct Device {
-  physical: vk::PhysicalDevice,
+  _physical: vk::PhysicalDevice,
   logical: ash::Device,
 }
 
@@ -29,14 +29,14 @@ impl Drop for Device {
 impl Device {
   const DEVICE_EXTENSIONS: &'static [&'static CStr] = &[khr::Swapchain::NAME];
 
-  pub fn new(
-    surface: &Surface,
-    instance: &ash::Instance,
-  ) -> Result<Self, VulkanError> {
+  pub fn new(surface: &Surface, instance: &ash::Instance) -> Result<Self, VulkanError> {
     let physical = Self::pick_physical_device(surface, instance)?;
     let logical = Self::new_logical_device(surface, instance, physical)?;
 
-    Ok(Self { physical, logical })
+    Ok(Self {
+      _physical: physical,
+      logical,
+    })
   }
 
   fn pick_physical_device(surface: &Surface, instance: &ash::Instance) -> Result<vk::PhysicalDevice, VulkanError> {
@@ -132,7 +132,10 @@ impl Device {
       .map_err(VulkanError::from)
   }
 
-  fn device_extensions_supported(instance: &ash::Instance, physical_device: vk::PhysicalDevice) -> Result<bool, VulkanError> {
+  fn device_extensions_supported(
+    instance: &ash::Instance,
+    physical_device: vk::PhysicalDevice,
+  ) -> Result<bool, VulkanError> {
     let available_extensions = unsafe { instance.enumerate_device_extension_properties(physical_device) }
       .context("Failed to enumerate device extension properties")?;
 

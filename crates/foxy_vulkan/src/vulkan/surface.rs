@@ -45,14 +45,23 @@ impl Surface {
   pub fn swapchain_support(&self, physical_device: vk::PhysicalDevice) -> Result<SwapchainSupport, VulkanError> {
     Ok(SwapchainSupport {
       capabilities: unsafe {
-        self.surface_loader().get_physical_device_surface_capabilities(physical_device, *self.surface())
-      }.context("Failed to get physical device surface capabilities")?,
+        self
+          .surface_loader()
+          .get_physical_device_surface_capabilities(physical_device, *self.surface())
+      }
+      .context("Failed to get physical device surface capabilities")?,
       formats: unsafe {
-        self.surface_loader().get_physical_device_surface_formats(physical_device, *self.surface())
-      }.context("Failed to get physical device surface formats")?,
+        self
+          .surface_loader()
+          .get_physical_device_surface_formats(physical_device, *self.surface())
+      }
+      .context("Failed to get physical device surface formats")?,
       present_modes: unsafe {
-        self.surface_loader().get_physical_device_surface_present_modes(physical_device, *self.surface())
-      }.context("Failed to get physical device surface present modes")?,
+        self
+          .surface_loader()
+          .get_physical_device_surface_present_modes(physical_device, *self.surface())
+      }
+      .context("Failed to get physical device surface present modes")?,
     })
   }
 }
