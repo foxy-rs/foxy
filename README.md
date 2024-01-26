@@ -7,7 +7,10 @@ use tracing::*;
 fn main() {
   start_debug_logging_session!();
 
-  let foxy = Foxy::builder().with_title("Simple").with_size(800, 450).build_unwrap();
+  let foxy = FoxyLifecycle::builder()
+    .with_title("Simple")
+    .with_size(800, 450)
+    .build_unwrap();
 
   for stage in foxy {
     match stage {
