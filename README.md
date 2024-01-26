@@ -19,7 +19,7 @@ fn main() {
 }
 ```
 ## `foxy` is a simple engine backbone and graphics renderer.
-This project is still very much a WIP. I am still deciding on OpenGL or Vulkan. OpenGL has benefits with quick development, but Vulkan would allow for hardware raytracing. The window uses `foxy_window` to create a Win32 desktop window. 
+This project is still very much a WIP. It will be using Vulkan to allow for hardware raytracing. The window uses `foxy_window` to create a Win32 desktop window. 
 
 There are **3** primary threads in `foxy`:
 
