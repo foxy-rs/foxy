@@ -1,6 +1,6 @@
 use std::{
   collections::HashSet,
-  ffi::{CStr, CString},
+  ffi::CStr,
   mem::ManuallyDrop,
   sync::Arc,
 };
@@ -263,6 +263,18 @@ impl Device {
 
   pub fn logical(&self) -> &ash::Device {
     &self.logical
+  }
+
+  pub fn command_pool(&self) -> &vk::CommandPool {
+    &self.command_pool
+  }
+
+  pub fn graphics_queue(&self) -> &vk::Queue {
+    &self.graphics_queue
+  }
+
+  pub fn present_queue(&self) -> &vk::Queue {
+    &self.present_queue
   }
 
   pub fn begin_single_time_commands(&self) -> Result<vk::CommandBuffer, VulkanError> {
