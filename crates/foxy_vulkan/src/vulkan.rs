@@ -24,12 +24,16 @@ impl Drop for Vulkan {
 }
 
 impl Vulkan {
-  #[cfg(not(debug_assertions))]
-  const VALIDATION_LAYERS: &'static [&'static CStr] =&[];
-  #[cfg(debug_assertions)]
-  const VALIDATION_LAYERS: &'static [&'static CStr] = &[c"VK_LAYER_KHRONOS_validation"];
+  const VALIDATION_LAYERS: &'static [&'static CStr] = &[
+    #[cfg(debug_assertions)]
+    c"VK_LAYER_KHRONOS_validation",
+  ];
 
-  const EXTENSIONS: &'static [&'static CStr] = &[c"VK_KHR_surface"];
+  const EXTENSIONS: &'static [&'static CStr] = &[
+    c"VK_KHR_surface",
+    #[cfg(debug_assertions)]
+    c"VK_EXT_debug_utils",
+  ];
 
   pub fn builder() -> VulkanBuilder<MissingWindow> {
     Default::default()
