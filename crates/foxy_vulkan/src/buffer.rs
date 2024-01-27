@@ -1,6 +1,6 @@
-use std::sync::Arc;
-use ash::{self, vk};
 use anyhow::{Context, Result};
+use ash::{self, vk};
+use std::sync::Arc;
 
 use crate::{image::Image, Vulkan};
 
@@ -25,28 +25,27 @@ impl Buffer {
       ..Default::default()
     };
 
-    let buffer = unsafe {
-      vulkan.logical().create_buffer(&buffer_create_info, None)
-    }.context("Failed to create buffer")?;
+    let buffer =
+      unsafe { vulkan.logical().create_buffer(&buffer_create_info, None) }.context("Failed to create buffer")?;
 
-    let memory_reqs = unsafe {
-      vulkan.logical().get_buffer_memory_requirements(buffer)
-    };
+    let memory_reqs = unsafe { vulkan.logical().get_buffer_memory_requirements(buffer) };
 
     let memory_create_info = vk::MemoryAllocateInfo {
       allocation_size: memory_reqs.size,
-      memory_type_index: vulkan.find_memory_type(memory_reqs.memory_type_bits, properties).heap_index,
+      memory_type_index: vulkan
+        .find_memory_type(memory_reqs.memory_type_bits, properties)
+        .heap_index,
       ..Default::default()
     };
 
-    let memory = match unsafe {
-      vulkan.logical().allocate_memory(&memory_create_info, None)
-    }.context("Failed to allocate buffer memory") {
+    let memory = match unsafe { vulkan.logical().allocate_memory(&memory_create_info, None) }
+      .context("Failed to allocate buffer memory")
+    {
       Ok(value) => value,
       Err(err) => unsafe {
         vulkan.logical().destroy_buffer(buffer, None);
         Err(err)?
-      }
+      },
     };
 
     Ok(Self {
@@ -72,16 +71,14 @@ impl Buffer {
       };
 
       unsafe {
-        self.device.cmd_copy_buffer(command_buffer, self.buffer, dst.buffer, &[copy_region]);
+        self
+          .device
+          .cmd_copy_buffer(command_buffer, self.buffer, dst.buffer, &[copy_region]);
       }
     });
   }
 
-  pub fn copy_to_image(
-    &self,
-    vulkan: &Vulkan,
-    image: &Image,
-  ) {
+  pub fn copy_to_image(&self, vulkan: &Vulkan, image: &Image) {
     vulkan.issue_single_time_commands(|command_buffer| {
       let copy_region = vk::BufferImageCopy {
         image_subresource: vk::ImageSubresourceLayers {
