@@ -8,7 +8,10 @@ use ash::{
 use itertools::Itertools;
 use raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle, RawDisplayHandle};
 use std::{
-  collections::HashSet, ffi::{c_char, CStr}, mem::ManuallyDrop, sync::Arc
+  collections::HashSet,
+  ffi::{c_char, CStr},
+  mem::ManuallyDrop,
+  sync::Arc,
 };
 use tracing::*;
 
@@ -31,7 +34,7 @@ pub struct Vulkan {
   instance: ManuallyDrop<ash::Instance>,
   debug: ManuallyDrop<Debug>,
   surface: ManuallyDrop<Surface>,
-  
+
   physical: ManuallyDrop<vk::PhysicalDevice>,
   logical: ManuallyDrop<Arc<ash::Device>>,
 
@@ -44,11 +47,11 @@ impl Drop for Vulkan {
   fn drop(&mut self) {
     trace!("Dropping Vulkan");
     unsafe {
-    trace!("> Destroying command pool");
+      trace!("> Destroying command pool");
       self.logical.destroy_command_pool(*self.command_pool, None);
       ManuallyDrop::drop(&mut self.command_pool);
 
-    trace!("> Destroying logical device");
+      trace!("> Destroying logical device");
       self.logical.destroy_device(None);
       ManuallyDrop::drop(&mut self.logical);
       ManuallyDrop::drop(&mut self.physical);
@@ -56,7 +59,7 @@ impl Drop for Vulkan {
       ManuallyDrop::drop(&mut self.surface);
       ManuallyDrop::drop(&mut self.debug);
 
-    trace!("> Destroying instance");
+      trace!("> Destroying instance");
       self.instance.destroy_instance(None);
       ManuallyDrop::drop(&mut self.instance);
     }
@@ -218,11 +221,7 @@ impl Vulkan {
   }
 
   pub fn find_memory_type(&self, type_filter: u32, properties: vk::MemoryPropertyFlags) -> vk::MemoryType {
-    let props = unsafe {
-      self
-        .instance
-        .get_physical_device_memory_properties(*self.physical)
-    };
+    let props = unsafe { self.instance.get_physical_device_memory_properties(*self.physical) };
 
     for mem_type in props.memory_types {
       if (type_filter & (1 << mem_type.heap_index)) != 0 && mem_type.property_flags.contains(properties) {
