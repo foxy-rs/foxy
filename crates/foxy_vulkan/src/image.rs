@@ -54,18 +54,19 @@ impl Image {
     })
   }
 
-  unsafe fn free(&mut self) {
-    unsafe {
-      self.device.destroy_image(self.image, None);
-      self.device.free_memory(self.memory, None);
-    }
-  }
+  // unsafe fn delete(&mut self) {
+  //   unsafe {
+  //     self.device.destroy_image(self.image, None);
+  //     self.device.free_memory(self.memory, None);
+  //   }
+  // }
 }
 
 impl Drop for Image {
   fn drop(&mut self) {
     unsafe {
-      self.free();
+      self.device.destroy_image(self.image, None);
+      self.device.free_memory(self.memory, None);
     }
   }
 }

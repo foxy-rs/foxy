@@ -56,6 +56,7 @@ impl Drop for Vulkan {
       ManuallyDrop::drop(&mut self.logical);
       ManuallyDrop::drop(&mut self.physical);
 
+      trace!("> Destroying surface");
       ManuallyDrop::drop(&mut self.surface);
       ManuallyDrop::drop(&mut self.debug);
 

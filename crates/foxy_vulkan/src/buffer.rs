@@ -56,12 +56,12 @@ impl Buffer {
     })
   }
 
-  unsafe fn free(&mut self) {
-    unsafe {
-      self.device.destroy_buffer(self.buffer, None);
-      self.device.free_memory(self.memory, None);
-    }
-  }
+  // unsafe fn delete(&mut self) {
+  //   unsafe {
+  //     self.device.destroy_buffer(self.buffer, None);
+  //     self.device.free_memory(self.memory, None);
+  //   }
+  // }
 
   pub fn copy_to_buffer(&self, vulkan: &Vulkan, dst: &Buffer) {
     vulkan.issue_single_time_commands(|command_buffer| {
@@ -110,7 +110,8 @@ impl Buffer {
 impl Drop for Buffer {
   fn drop(&mut self) {
     unsafe {
-      self.free();
+      self.device.destroy_buffer(self.buffer, None);
+      self.device.free_memory(self.memory, None);
     }
   }
 }
