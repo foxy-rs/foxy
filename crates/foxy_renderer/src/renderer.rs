@@ -5,7 +5,7 @@ use foxy_vulkan::{
   error::VulkanError,
   pipeline::{RenderPipeline, RenderPipelineConfig},
   swapchain::{ImageFormat, Swapchain},
-  Vulkan,
+  device::Device,
 };
 use raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle};
 use tracing::trace;
@@ -16,7 +16,7 @@ pub mod command;
 pub mod render_data;
 
 pub struct Renderer {
-  vulkan: ManuallyDrop<Arc<Vulkan>>,
+  vulkan: ManuallyDrop<Arc<Device>>,
   swapchain: ManuallyDrop<Swapchain>,
   render_pipeline: ManuallyDrop<RenderPipeline>,
 
@@ -43,7 +43,7 @@ impl Renderer {
     window_size: (i32, i32),
   ) -> Result<Self, VulkanError> {
     let vulkan = ManuallyDrop::new(Arc::new(
-      Vulkan::builder()
+      Device::builder()
         .with_window(&window)
         .with_validation(ValidationStatus::Enabled)
         .build()?,

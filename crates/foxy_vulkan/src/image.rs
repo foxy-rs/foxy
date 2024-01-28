@@ -3,7 +3,7 @@ use std::{mem::ManuallyDrop, sync::Arc};
 use anyhow::Context;
 use ash::{self, vk};
 
-use crate::{error::VulkanError, Vulkan};
+use crate::{error::VulkanError, device::Device};
 
 pub struct Image {
   device: Arc<ash::Device>,
@@ -15,28 +15,30 @@ pub struct Image {
 
 impl Image {
   pub fn new(
-    vulkan: Arc<Vulkan>,
+    device: Arc<Device>,
     image_info: vk::ImageCreateInfo,
     properties: vk::MemoryPropertyFlags,
   ) -> Result<Self, VulkanError> {
     let mut image =
-      ManuallyDrop::new(unsafe { vulkan.logical().create_image(&image_info, None) }.context("Failed to create image")?);
+      ManuallyDrop::new(unsafe { device.logical().create_image(&image_info, None) }.context("Failed to create image")?);
 
-    let memory_reqs = unsafe { vulkan.logical().get_image_memory_requirements(*image) };
+    let memory_reqs = unsafe { device.logical().get_image_memory_requirements(*image) };
 
-    let allocation_info = vk::MemoryAllocateInfo::default().memory_type_index(
-      vulkan
+    let allocation_info = vk::MemoryAllocateInfo::default()
+    .memory_type_index(
+      device
         .find_memory_type(memory_reqs.memory_type_bits, properties)
         .heap_index,
-    );
+    )
+    .allocation_size(memory_reqs.size);
 
     let mut memory = ManuallyDrop::new(
-      match unsafe { vulkan.logical().allocate_memory(&allocation_info, None) }
+      match unsafe { device.logical().allocate_memory(&allocation_info, None) }
         .context("Failed to allocate memory for image")
       {
         Ok(value) => value,
         Err(err) => unsafe {
-          vulkan.logical().destroy_image(*image, None);
+          device.logical().destroy_image(*image, None);
           ManuallyDrop::drop(&mut image);
           Err(err)?
         },
@@ -44,19 +46,19 @@ impl Image {
     );
 
     if let Err(err) =
-      unsafe { vulkan.logical().bind_image_memory(*image, *memory, 0) }.context("Failed to bind image memory")
+      unsafe { device.logical().bind_image_memory(*image, *memory, 0) }.context("Failed to bind image memory")
     {
       unsafe {
-        vulkan.logical().destroy_image(*image, None);
+        device.logical().destroy_image(*image, None);
         ManuallyDrop::drop(&mut image);
-        vulkan.logical().free_memory(*memory, None);
+        device.logical().free_memory(*memory, None);
         ManuallyDrop::drop(&mut memory);
       }
       Err(err)?
     };
 
     Ok(Self {
-      device: vulkan.logical(),
+      device: device.logical(),
       image,
       memory,
       extent: image_info.extent,

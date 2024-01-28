@@ -4,7 +4,7 @@ use ash::{extensions::khr, vk};
 use foxy_util::log::LogErr;
 use itertools::Itertools;
 
-use crate::{error::VulkanError, image::Image, Vulkan};
+use crate::{device::Device, error::VulkanError, image::Image};
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub struct ImageFormat {
@@ -28,7 +28,7 @@ pub enum PresentMode {
 }
 
 pub struct Swapchain {
-  vulkan: Arc<Vulkan>,
+  device: Arc<Device>,
 
   current_frame_index: usize,
   images_in_flight: ManuallyDrop<Vec<vk::Fence>>,
@@ -57,7 +57,7 @@ impl Drop for Swapchain {
     unsafe {
       // image views
       for &image_view in self.image_views.iter() {
-        self.vulkan.logical().destroy_image_view(image_view, None);
+        self.device.logical().destroy_image_view(image_view, None);
       }
       self.image_views.clear();
       ManuallyDrop::drop(&mut self.image_views);
@@ -68,7 +68,7 @@ impl Drop for Swapchain {
 
       // depth images
       for &image_view in self.depth_image_views.iter() {
-        self.vulkan.logical().destroy_image_view(image_view, None);
+        self.device.logical().destroy_image_view(image_view, None);
       }
       self.depth_image_views.clear();
       ManuallyDrop::drop(&mut self.depth_image_views);
@@ -77,27 +77,27 @@ impl Drop for Swapchain {
 
       // framebuffer
       for &framebuffer in self.framebuffers.iter() {
-        self.vulkan.logical().destroy_framebuffer(framebuffer, None);
+        self.device.logical().destroy_framebuffer(framebuffer, None);
       }
       self.framebuffers.clear();
       ManuallyDrop::drop(&mut self.framebuffers);
 
       // render pass
-      self.vulkan.logical().destroy_render_pass(*self.render_pass, None);
+      self.device.logical().destroy_render_pass(*self.render_pass, None);
       ManuallyDrop::drop(&mut self.render_pass);
 
       // sync objects
       for i in 0..Self::MAX_FRAMES_IN_FLIGHT {
         self
-          .vulkan
+          .device
           .logical()
           .destroy_semaphore(self.render_finished_semaphores[i], None);
         self
-          .vulkan
+          .device
           .logical()
           .destroy_semaphore(self.image_avaiable_semaphores[i], None);
-        self.vulkan.logical().destroy_fence(self.fences_in_flight[i], None);
-        self.vulkan.logical().destroy_fence(self.images_in_flight[i], None);
+        self.device.logical().destroy_fence(self.fences_in_flight[i], None);
+        self.device.logical().destroy_fence(self.images_in_flight[i], None);
       }
       ManuallyDrop::drop(&mut self.render_finished_semaphores);
       ManuallyDrop::drop(&mut self.image_avaiable_semaphores);
@@ -119,7 +119,7 @@ impl Swapchain {
   const MAX_FRAMES_IN_FLIGHT: usize = 2;
 
   pub fn new(
-    vulkan: Arc<Vulkan>,
+    device: Arc<Device>,
     window_size: (i32, i32),
     preferred_image_format: ImageFormat,
   ) -> Result<Self, VulkanError> {
@@ -127,21 +127,21 @@ impl Swapchain {
       .width(window_size.0 as u32)
       .height(window_size.0 as u32);
 
-    let swapchain_loader = khr::Swapchain::new(vulkan.instance(), &vulkan.logical());
+    let swapchain_loader = khr::Swapchain::new(device.instance(), &device.logical());
     let (swapchain, images, image_format) =
-      Self::create_swap_chain(&swapchain_loader, vulkan.clone(), preferred_image_format, extent)?;
+      Self::create_swap_chain(device.clone(), &swapchain_loader, preferred_image_format, extent)?;
     let swapchain = ManuallyDrop::new(swapchain);
 
-    let image_views = ManuallyDrop::new(Self::create_image_views(vulkan.logical(), &images, image_format)?);
+    let image_views = ManuallyDrop::new(Self::create_image_views(device.clone(), &images, image_format)?);
 
-    let render_pass = ManuallyDrop::new(Self::create_render_pass(vulkan.clone(), image_format)?);
+    let render_pass = ManuallyDrop::new(Self::create_render_pass(device.clone(), image_format)?);
 
-    let (depth_image_views, depth_images) = Self::create_depth_resources(vulkan.clone(), extent, &images)?;
+    let (depth_image_views, depth_images) = Self::create_depth_resources(device.clone(), extent, &images)?;
     let depth_image_views = ManuallyDrop::new(depth_image_views);
     let depth_images = ManuallyDrop::new(depth_images);
 
     let framebuffers = ManuallyDrop::new(Self::create_framebuffers(
-      vulkan.logical(),
+      device.clone(),
       extent,
       *render_pass,
       &image_views,
@@ -149,14 +149,14 @@ impl Swapchain {
     )?);
 
     let (image_avaiable_semaphores, render_finished_semaphores, fences_in_flight, images_in_flight) =
-      Self::create_sync_objects(vulkan.clone(), &images)?;
+      Self::create_sync_objects(device.clone(), &images)?;
     let image_avaiable_semaphores = ManuallyDrop::new(image_avaiable_semaphores);
     let render_finished_semaphores = ManuallyDrop::new(render_finished_semaphores);
     let fences_in_flight = ManuallyDrop::new(fences_in_flight);
     let images_in_flight = ManuallyDrop::new(images_in_flight);
 
     Ok(Self {
-      vulkan,
+      device,
       swapchain,
       current_frame_index: 0,
       images_in_flight,
@@ -190,7 +190,7 @@ impl Swapchain {
   fn acquire_next_image(&mut self) -> Result<(u32, bool), VulkanError> {
     unsafe {
       self
-        .vulkan
+        .device
         .logical()
         .wait_for_fences(&[self.current_fence_in_flight()], true, u64::MAX)
     }?;
@@ -215,7 +215,7 @@ impl Swapchain {
     if self.images_in_flight[image_index] != vk::Fence::null() {
       unsafe {
         self
-          .vulkan
+          .device
           .logical()
           .wait_for_fences(&[self.images_in_flight[image_index]], true, u64::MAX)
       }?;
@@ -230,13 +230,13 @@ impl Swapchain {
       .wait_semaphores(wait_semaphores)
       .signal_semaphores(signal_semaphores);
 
-    unsafe { self.vulkan.logical().reset_fences(&[self.current_fence_in_flight()]) }?;
+    unsafe { self.device.logical().reset_fences(&[self.current_fence_in_flight()]) }?;
 
     unsafe {
       self
-        .vulkan
+        .device
         .logical()
-        .queue_submit(*self.vulkan.graphics_queue(), &[submit_info], self.current_fence_in_flight())
+        .queue_submit(*self.device.graphics_queue(), &[submit_info], self.current_fence_in_flight())
     }?;
 
     let swapchains = &[*self.swapchain];
@@ -249,7 +249,7 @@ impl Swapchain {
     let result = unsafe {
       self
         .swapchain_loader
-        .queue_present(*self.vulkan.present_queue(), &present_info)
+        .queue_present(*self.device.present_queue(), &present_info)
     };
 
     self.current_frame_index = (self.current_frame_index + 1) % Self::MAX_FRAMES_IN_FLIGHT;
@@ -290,12 +290,12 @@ impl Swapchain {
   }
 
   fn create_swap_chain(
+    device: Arc<Device>,
     swapchain_loader: &khr::Swapchain,
-    vulkan: Arc<Vulkan>,
     preferred_image_format: ImageFormat,
     window_extent: vk::Extent2D,
   ) -> Result<(vk::SwapchainKHR, Vec<vk::Image>, vk::Format), VulkanError> {
-    let swapchain_support = vulkan.swapchain_support()?;
+    let swapchain_support = device.swapchain_support()?;
 
     let surface_format =
       Self::choose_swap_surface_format(swapchain_support.formats, preferred_image_format.color_space);
@@ -306,12 +306,12 @@ impl Swapchain {
     let image_count =
       (swapchain_support.capabilities.min_image_count + 1).clamp(0, swapchain_support.capabilities.max_image_count);
 
-    let indices = vulkan.queue_families()?;
+    let indices = device.queue_families()?;
     let queue_family_indices = &[indices.graphics_family, indices.present_family];
 
     let create_info = vk::SwapchainCreateInfoKHR::default()
-      .surface(*vulkan.surface().surface())
-      .surface(*vulkan.surface().surface())
+      .surface(*device.surface().surface())
+      .surface(*device.surface().surface())
       .min_image_count(image_count)
       .image_format(surface_format.format)
       .image_color_space(surface_format.color_space)
@@ -341,7 +341,7 @@ impl Swapchain {
   }
 
   fn create_image_views(
-    device: Arc<ash::Device>,
+    device: Arc<Device>,
     images: &[vk::Image],
     image_format: vk::Format,
   ) -> Result<Vec<vk::ImageView>, VulkanError> {
@@ -361,7 +361,7 @@ impl Swapchain {
               .layer_count(1),
           );
 
-        unsafe { device.create_image_view(&view_info, None) }
+        unsafe { device.logical().create_image_view(&view_info, None) }
       })
       .collect::<Result<Vec<_>, _>>()?;
 
@@ -369,11 +369,25 @@ impl Swapchain {
   }
 
   fn create_render_pass(
-    vulkan: Arc<Vulkan>,
+    device: Arc<Device>,
     swapchain_image_format: vk::Format,
   ) -> Result<vk::RenderPass, VulkanError> {
+    let color_attachment = vk::AttachmentDescription::default()
+      .format(swapchain_image_format)
+      .samples(vk::SampleCountFlags::TYPE_1)
+      .load_op(vk::AttachmentLoadOp::CLEAR)
+      .store_op(vk::AttachmentStoreOp::DONT_CARE)
+      .stencil_load_op(vk::AttachmentLoadOp::DONT_CARE)
+      .stencil_store_op(vk::AttachmentStoreOp::DONT_CARE)
+      .initial_layout(vk::ImageLayout::UNDEFINED)
+      .final_layout(vk::ImageLayout::PRESENT_SRC_KHR);
+
+    let color_attachment_refs = &[vk::AttachmentReference::default()
+      .attachment(0)
+      .layout(vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL)];
+
     let depth_attachment = vk::AttachmentDescription::default()
-      .format(Self::find_depth_format(vulkan.clone()))
+      .format(Self::find_depth_format(device.clone()))
       .samples(vk::SampleCountFlags::TYPE_1)
       .load_op(vk::AttachmentLoadOp::CLEAR)
       .store_op(vk::AttachmentStoreOp::DONT_CARE)
@@ -386,20 +400,6 @@ impl Swapchain {
       .attachment(1)
       .layout(vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
 
-    let color_attachment = vk::AttachmentDescription::default()
-      .format(swapchain_image_format)
-      .samples(vk::SampleCountFlags::TYPE_1)
-      .load_op(vk::AttachmentLoadOp::CLEAR)
-      .store_op(vk::AttachmentStoreOp::DONT_CARE)
-      .stencil_load_op(vk::AttachmentLoadOp::DONT_CARE)
-      .stencil_store_op(vk::AttachmentStoreOp::DONT_CARE)
-      .initial_layout(vk::ImageLayout::UNDEFINED)
-      .final_layout(vk::ImageLayout::PRESENT_SRC_KHR);
-
-    let color_attachment_refs = &[vk::AttachmentReference::default()
-      .attachment(1)
-      .layout(vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL)];
-
     let subpasses = &[vk::SubpassDescription::default()
       .pipeline_bind_point(vk::PipelineBindPoint::GRAPHICS)
       .color_attachments(color_attachment_refs)
@@ -410,8 +410,8 @@ impl Swapchain {
       .src_access_mask(vk::AccessFlags::empty())
       .src_stage_mask(vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT | vk::PipelineStageFlags::EARLY_FRAGMENT_TESTS)
       .dst_subpass(0)
-      .src_access_mask(vk::AccessFlags::COLOR_ATTACHMENT_WRITE | vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_WRITE)
-      .src_stage_mask(vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT | vk::PipelineStageFlags::EARLY_FRAGMENT_TESTS)];
+      .dst_access_mask(vk::AccessFlags::COLOR_ATTACHMENT_WRITE | vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_WRITE)
+      .dst_stage_mask(vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT | vk::PipelineStageFlags::EARLY_FRAGMENT_TESTS)];
 
     let attachments = &[color_attachment, depth_attachment];
 
@@ -420,11 +420,11 @@ impl Swapchain {
       .subpasses(subpasses)
       .dependencies(dependencies);
 
-    unsafe { vulkan.logical().create_render_pass(&render_pass_info, None) }.map_err(VulkanError::from)
+    unsafe { device.logical().create_render_pass(&render_pass_info, None) }.map_err(VulkanError::from)
   }
 
   fn create_framebuffers(
-    device: Arc<ash::Device>,
+    device: Arc<Device>,
     swapchain_extent: vk::Extent2D,
     render_pass: vk::RenderPass,
     swapchain_image_views: &[vk::ImageView],
@@ -441,7 +441,7 @@ impl Swapchain {
           .height(swapchain_extent.height)
           .layers(1);
 
-        unsafe { device.create_framebuffer(&framebuffer_info, None) }
+        unsafe { device.logical().create_framebuffer(&framebuffer_info, None) }
       })
       .collect::<Result<Vec<_>, _>>()?;
 
@@ -449,11 +449,11 @@ impl Swapchain {
   }
 
   fn create_depth_resources(
-    vulkan: Arc<Vulkan>,
+    device: Arc<Device>,
     swapchain_extent: vk::Extent2D,
     images: &[vk::Image],
   ) -> Result<(Vec<vk::ImageView>, Vec<Image>), VulkanError> {
-    let depth_format = Self::find_depth_format(vulkan.clone());
+    let depth_format = Self::find_depth_format(device.clone());
 
     let (views, images) = images
       .iter()
@@ -475,7 +475,7 @@ impl Swapchain {
           .samples(vk::SampleCountFlags::TYPE_1)
           .sharing_mode(vk::SharingMode::EXCLUSIVE);
 
-        let image = Image::new(vulkan.clone(), image_info, vk::MemoryPropertyFlags::DEVICE_LOCAL)?;
+        let image = Image::new(device.clone(), image_info, vk::MemoryPropertyFlags::DEVICE_LOCAL)?;
 
         let view_info = vk::ImageViewCreateInfo::default()
           .image(image.image())
@@ -490,7 +490,7 @@ impl Swapchain {
               .layer_count(1),
           );
 
-        let view = unsafe { vulkan.logical().create_image_view(&view_info, None) }?;
+        let view = unsafe { device.logical().create_image_view(&view_info, None) }?;
 
         Ok((view, image))
       })
@@ -502,7 +502,7 @@ impl Swapchain {
   }
 
   fn create_sync_objects(
-    vulkan: Arc<Vulkan>,
+    device: Arc<Device>,
     images: &[vk::Image],
   ) -> Result<(Vec<vk::Semaphore>, Vec<vk::Semaphore>, Vec<vk::Fence>, Vec<vk::Fence>), VulkanError> {
     let sema_info = vk::SemaphoreCreateInfo::default();
@@ -510,17 +510,17 @@ impl Swapchain {
 
     let mut image_semaphores = vec![Default::default(); Self::MAX_FRAMES_IN_FLIGHT];
     for fence in &mut image_semaphores {
-      *fence = unsafe { vulkan.logical().create_semaphore(&sema_info, None) }?;
+      *fence = unsafe { device.logical().create_semaphore(&sema_info, None) }?;
     }
 
     let mut render_semaphores = vec![Default::default(); Self::MAX_FRAMES_IN_FLIGHT];
     for fence in &mut render_semaphores {
-      *fence = unsafe { vulkan.logical().create_semaphore(&sema_info, None) }?;
+      *fence = unsafe { device.logical().create_semaphore(&sema_info, None) }?;
     }
 
     let mut flight_fences = vec![Default::default(); Self::MAX_FRAMES_IN_FLIGHT];
     for fence in &mut flight_fences {
-      *fence = unsafe { vulkan.logical().create_fence(&fence_info, None) }?;
+      *fence = unsafe { device.logical().create_fence(&fence_info, None) }?;
     }
 
     let mut image_fences = vec![Default::default(); Self::MAX_FRAMES_IN_FLIGHT];
@@ -606,13 +606,13 @@ impl Swapchain {
     }
   }
 
-  pub fn find_depth_format(vulkan: Arc<Vulkan>) -> vk::Format {
+  pub fn find_depth_format(device: Arc<Device>) -> vk::Format {
     let candidates = &[
       vk::Format::D32_SFLOAT,
       vk::Format::D32_SFLOAT_S8_UINT,
       vk::Format::D24_UNORM_S8_UINT,
     ];
-    vulkan.find_supported_format(
+    device.find_supported_format(
       candidates,
       vk::ImageTiling::OPTIMAL,
       vk::FormatFeatureFlags::DEPTH_STENCIL_ATTACHMENT,

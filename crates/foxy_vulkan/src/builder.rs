@@ -1,6 +1,6 @@
 use raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle};
 
-use super::{error::VulkanError, Vulkan};
+use super::{error::VulkanError, device::Device};
 
 pub struct MissingWindow;
 pub struct HasWindow<W: HasRawDisplayHandle + HasRawWindowHandle>(W);
@@ -51,8 +51,8 @@ impl<W> VulkanBuilder<W> {
 }
 
 impl<W: HasRawDisplayHandle + HasRawWindowHandle> VulkanBuilder<HasWindow<W>> {
-  pub fn build(self) -> Result<Vulkan, VulkanError> {
-    Vulkan::new(VulkanCreateInfo {
+  pub fn build(self) -> Result<Device, VulkanError> {
+    Device::new(VulkanCreateInfo {
       window: self.window.0,
       validation_status: self.validation_status,
     })

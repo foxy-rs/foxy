@@ -4,12 +4,10 @@ use anyhow::{Context, Result};
 use ash::vk;
 
 use crate::{
-  error::VulkanError,
-  shader::{
+  device::Device, error::VulkanError, shader::{
     stage::{fragment::Fragment, vertex::Vertex},
     Shader,
-  },
-  unsupported_error, Vulkan,
+  }, unsupported_error
 };
 
 pub struct RenderPipeline {
@@ -30,21 +28,21 @@ impl Drop for RenderPipeline {
 
 impl RenderPipeline {
   pub fn builder<'v>(
-    vulkan: &'v Vulkan,
+    device: &'v Device,
   ) -> RenderPipelineBuilder<'v, VertexShaderMissing, FragmentShaderMissing, ConfigMissing> {
-    RenderPipelineBuilder::new(vulkan)
+    RenderPipelineBuilder::new(device)
   }
 
   fn new(
-    vulkan: &Vulkan,
+    device: &Device,
     config: RenderPipelineConfig,
     vertex_shader: Shader<Vertex>,
     fragment_shader: Shader<Fragment>,
   ) -> Result<Self> {
-    let pipeline = Self::create_graphics_pipeline(vulkan, vertex_shader.clone(), fragment_shader.clone(), &config)?;
+    let pipeline = Self::create_graphics_pipeline(device, vertex_shader.clone(), fragment_shader.clone(), &config)?;
 
     Ok(Self {
-      device: vulkan.logical(),
+      device: device.logical(),
       pipeline,
       vertex_shader,
       fragment_shader,
@@ -53,7 +51,7 @@ impl RenderPipeline {
   }
 
   fn create_graphics_pipeline(
-    vulkan: &Vulkan,
+    device: &Device,
     vertex_shader: Shader<Vertex>,
     fragment_shader: Shader<Fragment>,
     config: &RenderPipelineConfig,
@@ -93,7 +91,7 @@ impl RenderPipeline {
       .subpass(config.subpass);
 
     unsafe {
-      vulkan
+      device
         .logical()
         .create_graphics_pipelines(vk::PipelineCache::null(), &[pipeline_create_info], None)
         .map(|pipelines| pipelines[0])
@@ -199,14 +197,14 @@ pub struct ConfigMissing;
 pub struct ConfigSpecified(RenderPipelineConfig);
 
 pub struct RenderPipelineBuilder<'v, VS, FS, PC> {
-  vulkan: &'v Vulkan,
+  vulkan: &'v Device,
   vertex_shader: VS,
   fragment_shader: FS,
   config: PC,
 }
 
 impl<'v> RenderPipelineBuilder<'v, VertexShaderMissing, FragmentShaderMissing, ConfigMissing> {
-  pub fn new(vulkan: &'v Vulkan) -> Self {
+  pub fn new(vulkan: &'v Device) -> Self {
     Self {
       vulkan,
       vertex_shader: VertexShaderMissing,
