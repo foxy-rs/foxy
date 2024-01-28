@@ -9,7 +9,7 @@ BUILD_TYPE = "release"
 CARGO_MAKE_EXTEND_WORKSPACE_MAKEFILE = true
 CARGO_MAKE_RUN_TARGET                = "foxy"
 ASSET_FOLDER_LOCATION                = "./crates/foxy/assets"
-ASSET_FOLDER_DESTINATION             = "./target/${BUILD_TYPE}/examples/assets"
+ASSET_FOLDER_DESTINATION             = "./target/${BUILD_TYPE}/assets"
 
 [config]
 skip_core_tasks = true

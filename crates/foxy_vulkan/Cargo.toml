@@ -13,13 +13,19 @@ categories  = ["data-structures"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-thiserror = "1.0"
-anyhow    = "1.0"
-tracing   = "0.1"
+thiserror     = "1.0"
+anyhow        = "1.0"
+tracing       = "0.1"
 tracing-error = "0.2"
+
+byteorder = "1.5"
+bytemuck  = "1.13"
+itertools = "0.12"
+strum     = { version = "0.25", features = ["derive"] }
 
 raw-window-handle = "0.5"
 ash-window        = { git = "https://github.com/ash-rs/ash.git" }
 ash               = { git = "https://github.com/ash-rs/ash.git", features = ["linked", "debug"] }
+shaderc           = "0.8"
 
-itertools = "0.12"
+foxy_util = { version = "0.2", path = "../foxy_util" }

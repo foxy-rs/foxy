@@ -118,7 +118,7 @@ macro_rules! debug_logging_session {
 macro_rules! debug_logging_session_ex {
   ($($levels:expr),+) => {{
     if cfg!(debug_assertions) {
-      $crate::logging_session_ex!($($levels),+).start();
+      Some($crate::logging_session_ex!($($levels),+))
     } else {
       None
     }

@@ -5,7 +5,7 @@ use std::time::Duration;
 use tracing::*;
 
 fn main() {
-  start_debug_logging_session_ex!(
+  if let Some(session) = debug_logging_session_ex!(
     ("foxy", Some(LogLevel::Trace)),
     ("foxy_window", Some(LogLevel::Trace)),
     ("foxy_renderer", Some(LogLevel::Trace)),
@@ -13,7 +13,9 @@ fn main() {
     ("foxy_types", Some(LogLevel::Trace)),
     ("foxy_utils", Some(LogLevel::Trace)),
     ("ookami", Some(LogLevel::Trace))
-  );
+  ) {
+    session.with_line_numbers(true).with_file_names(true).start();
+  }
 
   let framework = Framework::builder()
     .with_title("Foxy Renderer")

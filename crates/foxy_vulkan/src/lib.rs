@@ -8,23 +8,24 @@ use ash::{
 use itertools::Itertools;
 use raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle, RawDisplayHandle};
 use std::{
-  collections::HashSet,
-  ffi::{c_char, CStr},
-  mem::ManuallyDrop,
-  sync::Arc,
+  collections::HashSet, ffi::{c_char, CStr}, mem::ManuallyDrop, sync::Arc
 };
 use tracing::*;
 
 use self::{
   builder::{MissingWindow, ValidationStatus, VulkanBuilder, VulkanCreateInfo},
   error::{Debug, VulkanError},
+  shader::storage::ShaderStore,
   surface::Surface,
+  swapchain::Swapchain,
 };
 
 pub mod buffer;
 pub mod builder;
 pub mod error;
 pub mod image;
+pub mod pipeline;
+pub mod shader;
 pub mod surface;
 pub mod swapchain;
 
@@ -41,12 +42,21 @@ pub struct Vulkan {
   command_pool: ManuallyDrop<vk::CommandPool>,
   graphics_queue: vk::Queue,
   present_queue: vk::Queue,
+
+  shader_store: ManuallyDrop<ShaderStore>,
+  swapchain: ManuallyDrop<Swapchain>,
 }
 
 impl Drop for Vulkan {
   fn drop(&mut self) {
     trace!("Dropping Vulkan");
     unsafe {
+      trace!("> Destroying swapchain");
+      ManuallyDrop::drop(&mut self.swapchain);
+
+      trace!("> Destroying shaders");
+      ManuallyDrop::drop(&mut self.shader_store);
+
       trace!("> Destroying command pool");
       self.logical.destroy_command_pool(*self.command_pool, None);
       ManuallyDrop::drop(&mut self.command_pool);
@@ -98,6 +108,8 @@ impl Vulkan {
     let physical = ManuallyDrop::new(Self::pick_physical_device(&surface, &instance)?);
     let logical = ManuallyDrop::new(Arc::new(Self::new_logical_device(&surface, &instance, *physical)?));
     let command_pool = ManuallyDrop::new(Self::create_command_pool(&surface, &instance, &logical, *physical)?);
+    let shader_store = ManuallyDrop::new(ShaderStore::new((*logical).clone()));
+    let swapchain = ManuallyDrop::new(Swapchain::new()?);
 
     Ok(Self {
       _entry: entry,
@@ -109,6 +121,8 @@ impl Vulkan {
       command_pool,
       graphics_queue: Default::default(),
       present_queue: Default::default(),
+      shader_store,
+      swapchain,
     })
   }
 
@@ -130,6 +144,10 @@ impl Vulkan {
 
   pub fn present_queue(&self) -> &vk::Queue {
     &self.present_queue
+  }
+
+  pub fn shaders(&self) -> &ShaderStore {
+    &self.shader_store
   }
 
   pub fn begin_single_time_commands(&self) -> Result<vk::CommandBuffer, VulkanError> {
@@ -268,7 +286,7 @@ impl Vulkan {
     }
 
     if !missing_layers.is_empty() {
-      return Err(vkUnsupported!(
+      return Err(unsupported_error!(
         "not all requested layers are supported on this device:\nMissing: {missing_layers:?}"
       ));
     }
@@ -296,7 +314,7 @@ impl Vulkan {
     }
 
     if !missing_extensions.is_empty() {
-      return Err(vkUnsupported!(
+      return Err(unsupported_error!(
         "not all requested instance extensions are supported on this device:\nMissing: {missing_extensions:?}"
       ));
     }
@@ -431,7 +449,7 @@ impl Vulkan {
     }
 
     if !missing_extensions.is_empty() {
-      return Err(vkUnsupported!(
+      return Err(unsupported_error!(
         "not all requested device extensions are supported on this device:\nMissing: {missing_extensions:?}"
       ));
     }
@@ -526,7 +544,7 @@ impl Vulkan {
       }
     }
 
-    Err(vkUnsupported!("Failed to find suitable queue families"))
+    Err(unsupported_error!("Failed to find suitable queue families"))
   }
 
   fn create_command_pool(

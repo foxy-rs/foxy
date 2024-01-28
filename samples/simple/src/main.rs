@@ -8,12 +8,12 @@ fn main() {
 
   let mut x: u32 = 0;
 
-  let foxy = Framework::builder()
+  let framework = Framework::builder()
     .with_title("Simple Foxy App")
     .with_size(800, 450)
     .build_unwrap();
 
-  for stage in foxy {
+  for stage in framework {
     match stage {
       Stage::FixedUpdate { .. } => {
         x = x.wrapping_add(1);

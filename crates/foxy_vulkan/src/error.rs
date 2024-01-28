@@ -6,13 +6,29 @@ pub enum VulkanError {
   #[error("VkResult: `{0}`")]
   Vulkan(#[from] ash::vk::Result),
   #[error("{0}")]
+  Shaderc(#[from] shaderc::Error),
+  #[error("{0}")]
   Unsupported(String),
   #[error("{0}")]
+  Shader(String),
+  #[error("{0}")]
   Other(#[from] anyhow::Error),
+  #[error("{0}")]
+  IO(#[from] std::io::Error),
 }
 
 #[macro_export]
-macro_rules! vkUnsupported {
+macro_rules! unsupported_error {
+  () => {
+    $crate::error::VulkanError::Unsupported(format!("attempted action unsupported by the device running Vulkan"))
+  };
+  ($($arg:tt)*) => {{
+    $crate::error::VulkanError::Unsupported(format!($($arg)*))
+  }}
+}
+
+#[macro_export]
+macro_rules! shader_error {
   () => {
     $crate::error::VulkanError::Unsupported(format!("attempted action unsupported by the device running Vulkan"))
   };

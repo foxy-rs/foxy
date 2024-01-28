@@ -1,6 +1,5 @@
 use crate::error::VulkanError;
 
-
 pub struct Swapchain {}
 
 impl Swapchain {
