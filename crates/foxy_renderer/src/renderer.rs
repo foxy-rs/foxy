@@ -68,7 +68,7 @@ impl Renderer {
     })
   }
 
-  pub fn render(&mut self) -> Result<(), VulkanError> {
+  pub fn draw_frame(&mut self) -> Result<(), VulkanError> {
     Ok(())
   }
 

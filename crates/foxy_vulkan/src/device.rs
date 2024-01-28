@@ -34,7 +34,7 @@ pub struct Device {
   command_pool: ManuallyDrop<vk::CommandPool>,
 
   logical: ManuallyDrop<Arc<ash::Device>>,
-  physical: ManuallyDrop<vk::PhysicalDevice>,
+  physical: vk::PhysicalDevice,
 
   surface: ManuallyDrop<Surface>,
 
@@ -57,7 +57,6 @@ impl Drop for Device {
       trace!("> Destroying logical device");
       self.logical.destroy_device(None);
       ManuallyDrop::drop(&mut self.logical);
-      ManuallyDrop::drop(&mut self.physical);
 
       trace!("> Destroying surface");
       ManuallyDrop::drop(&mut self.surface);
@@ -96,10 +95,10 @@ impl Device {
     let instance = ManuallyDrop::new(Self::new_instance(&entry, display_handle, create_info.validation_status)?);
     let debug = ManuallyDrop::new(Debug::new(&entry, &instance)?);
     let surface = ManuallyDrop::new(Surface::new(&create_info.window, &entry, &instance)?);
-    let physical = ManuallyDrop::new(Self::pick_physical_device(&surface, &instance)?);
-    let (logical, graphics_queue, present_queue) = Self::new_logical_device(&surface, &instance, *physical)?;
+    let physical = Self::pick_physical_device(&surface, &instance)?;
+    let (logical, graphics_queue, present_queue) = Self::new_logical_device(&surface, &instance, physical)?;
     let logical = ManuallyDrop::new(Arc::new(logical));
-    let command_pool = ManuallyDrop::new(Self::create_command_pool(&surface, &instance, &logical, *physical)?);
+    let command_pool = ManuallyDrop::new(Self::create_command_pool(&surface, &instance, &logical, physical)?);
     let shader_store = ManuallyDrop::new(ShaderStore::new((*logical).clone()));
 
     Ok(Self {
@@ -207,7 +206,7 @@ impl Device {
   }
 
   pub fn swapchain_support(&self) -> Result<SwapchainSupport, VulkanError> {
-    self.surface.swapchain_support(*self.physical)
+    self.surface.swapchain_support(self.physical)
   }
 
   fn select_version(entry: &ash::Entry) -> u32 {
@@ -242,7 +241,7 @@ impl Device {
   }
 
   pub fn find_memory_type(&self, type_filter: u32, properties: vk::MemoryPropertyFlags) -> vk::MemoryType {
-    let props = unsafe { self.instance.get_physical_device_memory_properties(*self.physical) };
+    let props = unsafe { self.instance.get_physical_device_memory_properties(self.physical) };
 
     for mem_type in props.memory_types {
       if (type_filter & (1 << mem_type.heap_index)) != 0 && mem_type.property_flags.contains(properties) {
@@ -463,6 +462,49 @@ impl Device {
     Ok(())
   }
 
+  fn device_features_supported(
+    instance: &ash::Instance,
+    physical_device: vk::PhysicalDevice,
+  ) -> Result<(), VulkanError> {
+    let mut physical_device_features = vk::PhysicalDeviceFeatures2::default();
+    unsafe { instance.get_physical_device_features2(physical_device, &mut physical_device_features) };
+
+    // 1.0 features
+    let supported_features = physical_device_features.features;
+
+    macro_rules! supported_feature {
+      ($features:tt, $feature:tt) => {{
+        if $features.$feature != true.into() {
+          return Err(unsupported_error!(
+            "not all requested device features are supported on this device: missing {}",
+            stringify!($token)
+          ));
+        }
+      }};
+    }
+
+    supported_feature!(supported_features, sampler_anisotropy);
+
+    // 1.1 features
+    let supported_features = physical_device_features.p_next as *const vk::PhysicalDeviceVulkan11Features;
+    if let Some(_supported_features) = unsafe { supported_features.as_ref() } {
+      // 1.2 features
+      let supported_features = physical_device_features.p_next as *const vk::PhysicalDeviceVulkan12Features;
+      if let Some(supported_features) = unsafe { supported_features.as_ref() } {
+        supported_feature!(supported_features, buffer_device_address);
+        supported_feature!(supported_features, descriptor_indexing);
+        // 1.3 features
+        let supported_features = physical_device_features.p_next as *const vk::PhysicalDeviceVulkan13Features;
+        if let Some(supported_features) = unsafe { supported_features.as_ref() } {
+          supported_feature!(supported_features, dynamic_rendering);
+          supported_feature!(supported_features, synchronization2);
+        }
+      }
+    }
+
+    Ok(())
+  }
+
   fn is_suitable(surface: &Surface, instance: &ash::Instance, physical_device: vk::PhysicalDevice) -> bool {
     let indices = Self::find_queue_families(surface, instance, physical_device);
     let props = unsafe { instance.get_physical_device_properties(physical_device) };
@@ -494,9 +536,15 @@ impl Device {
       false
     };
 
-    let supported_features = unsafe { instance.get_physical_device_features(physical_device) };
+    let features_supported = match Self::device_features_supported(instance, physical_device) {
+      Ok(_) => true,
+      Err(e) => {
+        error!("{e}");
+        false
+      }
+    };
 
-    indices.is_ok() && extensions_supported && swapchain_adequate && supported_features.sampler_anisotropy == vk::TRUE
+    indices.is_ok() && extensions_supported && swapchain_adequate && features_supported
   }
 
   #[allow(unused)]
@@ -510,7 +558,7 @@ impl Device {
       let props = unsafe {
         self
           .instance
-          .get_physical_device_format_properties(*self.physical, *format)
+          .get_physical_device_format_properties(self.physical, *format)
       };
 
       if (tiling == vk::ImageTiling::LINEAR && props.linear_tiling_features.contains(features))
@@ -524,7 +572,7 @@ impl Device {
   }
 
   pub fn queue_families(&self) -> Result<QueueFamilyIndices, VulkanError> {
-    Self::find_queue_families(self.surface.deref(), self.instance.deref(), *self.physical.deref())
+    Self::find_queue_families(self.surface.deref(), self.instance.deref(), self.physical)
   }
 
   fn find_queue_families(

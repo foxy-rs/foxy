@@ -22,6 +22,9 @@ fn main() {
 }
 ```
 ## `foxy` is a simple engine backbone and graphics renderer.
+
+The main goal of `foxy` is to be a simple, easy-to-use API. While high-performance is obviously a secondary goal, ease of implementation, with regards to the internal framework and the external API, are primary. I am only one student, after all.
+
 This project is still very much a WIP. It will be using Vulkan to allow for hardware raytracing. The window uses `foxy_window` to create a Win32 desktop window. 
 
 There are **3** primary threads in `foxy`:
@@ -46,4 +49,6 @@ This repository contains a few crates as they each naturally evolved and split a
 ## Thanks to:
 * Piston: for the idea of how a simple, Rust-y API for an engine might look light.
 * Winit: as a reference on events and how to best structure them.
+* Vulkan Guide (https://vkguide.dev/): for being a wealth of knowledge on architecturing a vulkan application.
+* Brenden Galea: for his amazing Vulkan tutorial series (which I would love for him to continue!).
 * GetIntoGameDev: for his outstanding Vulkan tutorials in C++.

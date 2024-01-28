@@ -4,7 +4,7 @@ use anyhow::{Context, Result};
 use ash::vk;
 
 use crate::{
-  device::Device, error::VulkanError, shader::{
+  device::Device, error::VulkanError, pipeline_layout::PipelineLayout, shader::{
     stage::{fragment::Fragment, vertex::Vertex},
     Shader,
   }, unsupported_error
@@ -56,14 +56,12 @@ impl RenderPipeline {
     fragment_shader: Shader<Fragment>,
     config: &RenderPipelineConfig,
   ) -> Result<vk::Pipeline, VulkanError> {
-    if config.pipeline_layout == vk::PipelineLayout::null() {
-      return Err(unsupported_error!("pipeline layout is null")); // TODO: Add to
-                                                                 // builder
+    if config.pipeline_layout.layout() == vk::PipelineLayout::null() {
+      return Err(unsupported_error!("pipeline layout is null"));
     }
 
     if config.render_pass == vk::RenderPass::null() {
-      return Err(unsupported_error!("render pass is null")); // TODO: Add to
-                                                             // builder
+      return Err(unsupported_error!("render pass is null"));
     }
 
     // TODO: Overhaul pipeline creation to make it more type-driven
@@ -86,7 +84,7 @@ impl RenderPipeline {
       .multisample_state(&multisample_info)
       .depth_stencil_state(&depth_stencil_info)
       .color_blend_state(&color_blend_info)
-      .layout(config.pipeline_layout)
+      .layout(config.pipeline_layout.layout())
       .render_pass(config.render_pass)
       .subpass(config.subpass);
 
@@ -105,7 +103,7 @@ pub struct RenderPipelineConfig {
   pub viewports: Vec<vk::Viewport>,
   pub scissors: Vec<vk::Rect2D>,
   pub color_blend_attachments: Vec<vk::PipelineColorBlendAttachmentState>,
-  pub pipeline_layout: vk::PipelineLayout,
+  pub pipeline_layout: PipelineLayout,
   pub render_pass: vk::RenderPass,
   pub subpass: u32,
 }
@@ -134,7 +132,7 @@ impl RenderPipelineConfig {
       .alpha_blend_op(vk::BlendOp::ADD)
       .color_write_mask(vk::ColorComponentFlags::RGBA)];
 
-    let pipeline_layout = vk::PipelineLayout::null();
+    let pipeline_layout = PipelineLayout::default();
 
     let render_pass = vk::RenderPass::null();
 

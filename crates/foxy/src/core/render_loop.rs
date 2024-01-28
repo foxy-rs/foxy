@@ -33,7 +33,7 @@ impl ThreadLoop for RenderLoop {
             break;
           }
 
-          self.renderer.render()?;
+          self.renderer.draw_frame()?;
 
           if self.renderer_sync_or_exit()? {
             break;
