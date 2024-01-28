@@ -2,10 +2,11 @@ use std::{mem::ManuallyDrop, ops::Deref, sync::Arc};
 
 use foxy_vulkan::{
   builder::ValidationStatus,
-  error::VulkanError,
-  pipeline::{RenderPipeline, RenderPipelineConfig},
-  swapchain::{ImageFormat, Swapchain},
   device::Device,
+  error::VulkanError,
+  image_format::ImageFormat,
+  pipeline::{RenderPipeline, RenderPipelineConfig},
+  swapchain::Swapchain,
 };
 use raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle};
 use tracing::trace;

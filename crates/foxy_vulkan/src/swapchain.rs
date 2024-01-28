@@ -1,40 +1,22 @@
-use std::{mem::ManuallyDrop, ops::Deref, sync::Arc};
+use std::{mem::ManuallyDrop, sync::Arc};
 
 use ash::{extensions::khr, vk};
 use foxy_util::log::LogErr;
-use itertools::Itertools;
 
-use crate::{device::Device, error::VulkanError, image::Image};
-
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
-pub struct ImageFormat {
-  pub present_mode: PresentMode,
-  pub color_space: ColorSpace,
-}
-
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
-pub enum ColorSpace {
-  Unorm,
-  #[default]
-  SRGB,
-}
-
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
-pub enum PresentMode {
-  AutoAdaptive,
-  AutoImmediate,
-  #[default]
-  AutoVsync,
-}
+use crate::{
+  device::Device,
+  error::VulkanError,
+  image::Image,
+  image_format::{ColorSpace, ImageFormat, PresentMode},
+  sync_objects::SyncObjects,
+};
 
 pub struct Swapchain {
   device: Arc<Device>,
 
   current_frame_index: usize,
-  images_in_flight: ManuallyDrop<Vec<vk::Fence>>,
-  fences_in_flight: ManuallyDrop<Vec<vk::Fence>>,
-  image_avaiable_semaphores: ManuallyDrop<Vec<vk::Semaphore>>,
-  render_finished_semaphores: ManuallyDrop<Vec<vk::Semaphore>>,
+
+  sync_objects: ManuallyDrop<SyncObjects>,
 
   image_views: ManuallyDrop<Vec<vk::ImageView>>,
   images: Vec<vk::Image>,
@@ -87,22 +69,7 @@ impl Drop for Swapchain {
       ManuallyDrop::drop(&mut self.render_pass);
 
       // sync objects
-      for i in 0..Self::MAX_FRAMES_IN_FLIGHT {
-        self
-          .device
-          .logical()
-          .destroy_semaphore(self.render_finished_semaphores[i], None);
-        self
-          .device
-          .logical()
-          .destroy_semaphore(self.image_avaiable_semaphores[i], None);
-        self.device.logical().destroy_fence(self.fences_in_flight[i], None);
-        self.device.logical().destroy_fence(self.images_in_flight[i], None);
-      }
-      ManuallyDrop::drop(&mut self.render_finished_semaphores);
-      ManuallyDrop::drop(&mut self.image_avaiable_semaphores);
-      ManuallyDrop::drop(&mut self.fences_in_flight);
-      ManuallyDrop::drop(&mut self.images_in_flight);
+      ManuallyDrop::drop(&mut self.sync_objects);
     }
   }
 }
@@ -116,7 +83,7 @@ impl Iterator for Swapchain {
 }
 
 impl Swapchain {
-  const MAX_FRAMES_IN_FLIGHT: usize = 2;
+  pub const MAX_FRAMES_IN_FLIGHT: usize = 2;
 
   pub fn new(
     device: Arc<Device>,
@@ -148,21 +115,13 @@ impl Swapchain {
       &depth_image_views,
     )?);
 
-    let (image_avaiable_semaphores, render_finished_semaphores, fences_in_flight, images_in_flight) =
-      Self::create_sync_objects(device.clone(), &images)?;
-    let image_avaiable_semaphores = ManuallyDrop::new(image_avaiable_semaphores);
-    let render_finished_semaphores = ManuallyDrop::new(render_finished_semaphores);
-    let fences_in_flight = ManuallyDrop::new(fences_in_flight);
-    let images_in_flight = ManuallyDrop::new(images_in_flight);
+    let sync_objects = ManuallyDrop::new(SyncObjects::new(device.clone())?);
 
     Ok(Self {
       device,
       swapchain,
       current_frame_index: 0,
-      images_in_flight,
-      fences_in_flight,
-      image_avaiable_semaphores,
-      render_finished_semaphores,
+      sync_objects,
       image_views,
       images,
       depth_image_views,
@@ -176,15 +135,15 @@ impl Swapchain {
   }
 
   fn current_fence_in_flight(&self) -> vk::Fence {
-    self.fences_in_flight[self.current_frame_index]
+    self.sync_objects.fences_in_flight[self.current_frame_index]
   }
 
   fn current_image_available_semaphore(&self) -> vk::Semaphore {
-    self.image_avaiable_semaphores[self.current_frame_index]
+    self.sync_objects.image_avaiable_semaphores[self.current_frame_index]
   }
 
   fn current_render_finished_semaphore(&self) -> vk::Semaphore {
-    self.render_finished_semaphores[self.current_frame_index]
+    self.sync_objects.render_finished_semaphores[self.current_frame_index]
   }
 
   fn acquire_next_image(&mut self) -> Result<(u32, bool), VulkanError> {
@@ -212,16 +171,16 @@ impl Swapchain {
     buffers: &[vk::CommandBuffer],
     image_index: usize,
   ) -> Result<bool, VulkanError> {
-    if self.images_in_flight[image_index] != vk::Fence::null() {
+    if self.sync_objects.images_in_flight[image_index] != vk::Fence::null() {
       unsafe {
         self
           .device
           .logical()
-          .wait_for_fences(&[self.images_in_flight[image_index]], true, u64::MAX)
+          .wait_for_fences(&[self.sync_objects.images_in_flight[image_index]], true, u64::MAX)
       }?;
     }
 
-    self.images_in_flight[image_index] = self.images_in_flight[self.current_frame_index];
+    self.sync_objects.images_in_flight[image_index] = self.sync_objects.images_in_flight[self.current_frame_index];
 
     let wait_semaphores = &[self.current_image_available_semaphore()];
     let signal_semaphores = &[self.current_render_finished_semaphore()];
@@ -501,33 +460,6 @@ impl Swapchain {
     Ok((views, images))
   }
 
-  fn create_sync_objects(
-    device: Arc<Device>,
-    images: &[vk::Image],
-  ) -> Result<(Vec<vk::Semaphore>, Vec<vk::Semaphore>, Vec<vk::Fence>, Vec<vk::Fence>), VulkanError> {
-    let sema_info = vk::SemaphoreCreateInfo::default();
-    let fence_info = vk::FenceCreateInfo::default().flags(vk::FenceCreateFlags::SIGNALED);
-
-    let mut image_semaphores = vec![Default::default(); Self::MAX_FRAMES_IN_FLIGHT];
-    for fence in &mut image_semaphores {
-      *fence = unsafe { device.logical().create_semaphore(&sema_info, None) }?;
-    }
-
-    let mut render_semaphores = vec![Default::default(); Self::MAX_FRAMES_IN_FLIGHT];
-    for fence in &mut render_semaphores {
-      *fence = unsafe { device.logical().create_semaphore(&sema_info, None) }?;
-    }
-
-    let mut flight_fences = vec![Default::default(); Self::MAX_FRAMES_IN_FLIGHT];
-    for fence in &mut flight_fences {
-      *fence = unsafe { device.logical().create_fence(&fence_info, None) }?;
-    }
-
-    let mut image_fences = vec![Default::default(); Self::MAX_FRAMES_IN_FLIGHT];
-
-    Ok((image_semaphores, render_semaphores, flight_fences, image_fences))
-  }
-
   fn choose_swap_surface_format(
     available_formats: Vec<vk::SurfaceFormatKHR>,
     preferred_color_space: ColorSpace,
@@ -547,7 +479,7 @@ impl Swapchain {
       }
     }
 
-    return available_formats[0];
+    available_formats[0]
   }
 
   fn choose_swap_present_mode(
@@ -576,18 +508,15 @@ impl Swapchain {
 
     // fallback attempts
     for mode in available_modes {
-      match preferred_present_mode {
-        PresentMode::AutoAdaptive => {
-          if mode == vk::PresentModeKHR::IMMEDIATE {
-            return mode;
-          }
+      if let PresentMode::AutoAdaptive = preferred_present_mode {
+        if mode == vk::PresentModeKHR::IMMEDIATE {
+          return mode;
         }
-        _ => {}
       }
     }
 
     // ultimate fallback
-    return vk::PresentModeKHR::FIFO;
+    vk::PresentModeKHR::FIFO
   }
 
   fn choose_swap_extent(available_extents: vk::SurfaceCapabilitiesKHR, window_extent: vk::Extent2D) -> vk::Extent2D {
