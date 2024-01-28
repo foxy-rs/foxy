@@ -1,6 +1,7 @@
 use enumflags2::BitFlags;
+use foxy_util::log::LogErr;
 use windows::Win32::{
-  Foundation::{HINSTANCE, HWND, LPARAM, WPARAM},
+  Foundation::{HINSTANCE, HWND, LPARAM, RECT, WPARAM},
   System::SystemServices::{MK_LBUTTON, MK_MBUTTON, MK_RBUTTON, MK_XBUTTON1, MK_XBUTTON2, MODIFIERKEYS_FLAGS},
   UI::{
     Input::KeyboardAndMouse::{MapVirtualKeyW, MAPVK_VSC_TO_VK_EX, VIRTUAL_KEY},
@@ -25,6 +26,10 @@ pub enum WindowMessage {
     hinstance: HINSTANCE,
   },
   CloseRequested,
+  Resized {
+    window_rect: RECT,
+    client_rect: RECT,
+  },
   Keyboard(KeyboardMessage),
   Mouse(MouseMessage),
   Other {
@@ -68,6 +73,17 @@ impl WindowMessage {
       WindowsAndMessaging::WM_CLOSE => WindowMessage::CloseRequested,
       WindowsAndMessaging::WM_DESTROY => WindowMessage::Closing,
       WindowsAndMessaging::WM_QUIT => WindowMessage::ExitLoop,
+      // WindowsAndMessaging::WM_SIZE => // this is for things like maximized, minimized, etc.
+      WindowsAndMessaging::WM_SIZING => {
+        let mut window_rect = RECT::default();
+        let _ = unsafe { GetWindowRect(hwnd, std::ptr::addr_of_mut!(window_rect)) }.log_error();
+        let mut client_rect = RECT::default();
+        let _ = unsafe { GetClientRect(hwnd, std::ptr::addr_of_mut!(client_rect)) }.log_error();
+        WindowMessage::Resized {
+          window_rect,
+          client_rect,
+        }
+      }
       msg if (WindowsAndMessaging::WM_KEYFIRST..=WindowsAndMessaging::WM_KEYLAST).contains(&msg) => {
         Self::new_keyboard_message(l_param)
       }

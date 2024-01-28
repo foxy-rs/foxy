@@ -27,9 +27,9 @@ impl Drop for RenderPipeline {
 }
 
 impl RenderPipeline {
-  pub fn builder<'v>(
-    device: &'v Device,
-  ) -> RenderPipelineBuilder<'v, VertexShaderMissing, FragmentShaderMissing, ConfigMissing> {
+  pub fn builder(
+    device: &Device,
+  ) -> RenderPipelineBuilder<'_, VertexShaderMissing, FragmentShaderMissing, ConfigMissing> {
     RenderPipelineBuilder::new(device)
   }
 

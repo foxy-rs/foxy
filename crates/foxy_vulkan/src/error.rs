@@ -85,8 +85,8 @@ impl Debug {
   // pub fn delete(&mut self) {
   //   if let Some(debug_utils) = self.debug_utils.take() {
   //     if let Some(debug_messenger) = self.debug_messenger.take() {
-  //       unsafe { debug_utils.destroy_debug_utils_messenger(debug_messenger, None); }
-  //     }
+  //       unsafe { debug_utils.destroy_debug_utils_messenger(debug_messenger,
+  // None); }     }
   //   }
   // }
 }
@@ -98,38 +98,38 @@ unsafe extern "system" fn debug_callback(
   _p_user_data: *mut std::ffi::c_void,
 ) -> vk::Bool32 {
   let callback_data = unsafe { *p_callback_data };
-  let message_id_name = unsafe { callback_data.message_id_name_as_c_str() };
-  let message = unsafe { callback_data.message_as_c_str() };
-
-  match message_types {
-    vk::DebugUtilsMessageTypeFlagsEXT::VALIDATION => match message_severity {
-      vk::DebugUtilsMessageSeverityFlagsEXT::ERROR => {
-        tracing::error!("VULKAN VALIDATION: {message_id_name:?} `{message:?}`")
-      }
-      vk::DebugUtilsMessageSeverityFlagsEXT::WARNING => {
-        tracing::error!("VULKAN VALIDATION: {message_id_name:?} `{message:?}`")
-      }
+  // let message_id_name = unsafe { callback_data.message_id_name_as_c_str() };
+  if let Some(message) = unsafe { callback_data.message_as_c_str() } {
+    match message_types {
+      vk::DebugUtilsMessageTypeFlagsEXT::VALIDATION => match message_severity {
+        vk::DebugUtilsMessageSeverityFlagsEXT::ERROR => {
+          tracing::error!("VULKAN VALIDATION: {message:?}")
+        }
+        vk::DebugUtilsMessageSeverityFlagsEXT::WARNING => {
+          tracing::error!("VULKAN VALIDATION: {message:?}")
+        }
+        _ => {}
+      },
+      vk::DebugUtilsMessageTypeFlagsEXT::DEVICE_ADDRESS_BINDING => match message_severity {
+        vk::DebugUtilsMessageSeverityFlagsEXT::ERROR => {
+          tracing::error!("VULKAN DEVICE_ADDRESS_BINDING: {message:?}")
+        }
+        vk::DebugUtilsMessageSeverityFlagsEXT::WARNING => {
+          tracing::error!("VULKAN DEVICE_ADDRESS_BINDING: {message:?}")
+        }
+        _ => {}
+      },
+      vk::DebugUtilsMessageTypeFlagsEXT::PERFORMANCE => match message_severity {
+        vk::DebugUtilsMessageSeverityFlagsEXT::ERROR => {
+          tracing::error!("VULKAN PERFORMANCE: {message:?}")
+        }
+        vk::DebugUtilsMessageSeverityFlagsEXT::WARNING => {
+          tracing::error!("VULKAN PERFORMANCE: {message:?}")
+        }
+        _ => {}
+      },
       _ => {}
-    },
-    vk::DebugUtilsMessageTypeFlagsEXT::DEVICE_ADDRESS_BINDING => match message_severity {
-      vk::DebugUtilsMessageSeverityFlagsEXT::ERROR => {
-        tracing::error!("VULKAN DEVICE_ADDRESS_BINDING: {message_id_name:?} `{message:?}`")
-      }
-      vk::DebugUtilsMessageSeverityFlagsEXT::WARNING => {
-        tracing::error!("VULKAN DEVICE_ADDRESS_BINDING: {message_id_name:?} `{message:?}`")
-      }
-      _ => {}
-    },
-    vk::DebugUtilsMessageTypeFlagsEXT::PERFORMANCE => match message_severity {
-      vk::DebugUtilsMessageSeverityFlagsEXT::ERROR => {
-        tracing::error!("VULKAN PERFORMANCE: {message_id_name:?} `{message:?}`")
-      }
-      vk::DebugUtilsMessageSeverityFlagsEXT::WARNING => {
-        tracing::error!("VULKAN PERFORMANCE: {message_id_name:?} `{message:?}`")
-      }
-      _ => {}
-    },
-    _ => {}
+    }
   }
 
   false.into()

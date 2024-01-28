@@ -8,6 +8,7 @@ pub struct WindowState {
   pub hwnd: HWND,
   pub hinstance: HINSTANCE,
   pub size: WindowSize,
+  pub inner_size: WindowSize,
   pub title: String,
   pub color_mode: ColorMode,
   pub close_behavior: CloseBehavior,

@@ -7,6 +7,7 @@ use foxy_types::{
   behavior::{CloseBehavior, ColorMode, Visibility},
   thread::EngineThread,
 };
+use foxy_util::log::LogErr;
 use messaging::Mailbox;
 use raw_window_handle::{
   HasRawDisplayHandle, HasRawWindowHandle, RawDisplayHandle, RawWindowHandle, Win32WindowHandle, WindowsDisplayHandle,
@@ -75,12 +76,22 @@ impl Window {
     match app_mailbox.wait()? {
       WindowMessage::Ready { hwnd, hinstance } => {
         let input = Input::new();
+
+        let mut window_rect = RECT::default();
+        let _ = unsafe { GetWindowRect(hwnd, std::ptr::addr_of_mut!(window_rect)) }.log_error();
+        let mut client_rect = RECT::default();
+        let _ = unsafe { GetClientRect(hwnd, std::ptr::addr_of_mut!(client_rect)) }.log_error();
+
         let state = WindowState {
           hwnd,
           hinstance,
           size: WindowSize {
-            width: create_info.size.width,
-            height: create_info.size.height,
+            width: window_rect.right - window_rect.left,
+            height: window_rect.bottom - window_rect.top,
+          },
+          inner_size: WindowSize {
+            width: client_rect.right - client_rect.left,
+            height: client_rect.bottom - client_rect.top,
           },
           title: String::from(create_info.title.0),
           color_mode: create_info.color_mode,
@@ -159,6 +170,10 @@ impl Window {
     self.state.size
   }
 
+  pub fn inner_size(&self) -> WindowSize {
+    self.state.inner_size
+  }
+
   /// Handles windows messages and then passes most onto the user
   fn intercept_message(&mut self, message: WindowMessage) -> Option<WindowMessage> {
     match message {
@@ -167,6 +182,19 @@ impl Window {
         return None;
       }
       WindowMessage::CloseRequested if CloseBehavior::Default == self.state.close_behavior => self.exit(),
+      WindowMessage::Resized {
+        window_rect,
+        client_rect,
+      } => {
+        self.state.size = WindowSize {
+          width: window_rect.right - window_rect.left,
+          height: window_rect.bottom - window_rect.top,
+        };
+        self.state.inner_size = WindowSize {
+          width: client_rect.right - client_rect.left,
+          height: client_rect.bottom - client_rect.top,
+        };
+      }
       WindowMessage::Keyboard(KeyboardMessage::Key { key_code, state, .. }) => {
         self.state.input.update_keyboard_state(key_code, state);
       }
@@ -197,13 +225,16 @@ impl Window {
 impl Iterator for Window {
   type Item = WindowMessage;
 
-  /// Returns next window message if available, otherwise returns an empty message immediately.
+  /// Returns next window message if available, otherwise returns an empty
+  /// message immediately.
   ///
   /// Returns `None` when app is exiting.
   ///
-  /// Use this if you want the application to run full tilt, as fast as possible.
+  /// Use this if you want the application to run full tilt, as fast as
+  /// possible.
   ///
-  /// ***Note:** the window message thread will still block until a message is recieved from Windows.*
+  /// ***Note:** the window message thread will still block until a message is
+  /// recieved from Windows.*
   fn next(&mut self) -> Option<Self::Item> {
     if let Ok(message) = self.app_mailbox.poll() {
       // info!("{message:?}");
@@ -232,9 +263,10 @@ unsafe impl HasRawWindowHandle for Window {
     handle.hwnd = self.state.hwnd.0 as *mut c_void;
     handle.hinstance = self.state.hinstance.0 as *mut c_void;
     // let mut handle =
-    //   Win32WindowHandle::new(NonZeroIsize::new(self.state.hwnd.0).expect("window handle should not be zero"));
-    // let hinstance = NonZeroIsize::new(self.state.hinstance.0).expect("instance handle should not be zero");
-    // handle.hinstance = Some(hinstance);
+    //   Win32WindowHandle::new(NonZeroIsize::new(self.state.hwnd.0).expect("window
+    // handle should not be zero")); let hinstance =
+    // NonZeroIsize::new(self.state.hinstance.0).expect("instance handle should not
+    // be zero"); handle.hinstance = Some(hinstance);
     RawWindowHandle::Win32(handle)
   }
 }

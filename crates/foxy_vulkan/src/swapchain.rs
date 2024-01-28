@@ -2,6 +2,7 @@ use std::{mem::ManuallyDrop, sync::Arc};
 
 use ash::{extensions::khr, vk};
 use foxy_util::log::LogErr;
+use tracing::debug;
 
 use crate::{
   device::Device,
@@ -87,12 +88,12 @@ impl Swapchain {
 
   pub fn new(
     device: Arc<Device>,
-    window_size: (i32, i32),
+    extent: (i32, i32),
     preferred_image_format: ImageFormat,
   ) -> Result<Self, VulkanError> {
-    let extent = vk::Extent2D::default()
-      .width(window_size.0 as u32)
-      .height(window_size.0 as u32);
+    debug!("Window extent: {extent:?}");
+    let extent = vk::Extent2D::default().width(extent.0 as u32).height(extent.1 as u32);
+    debug!("Window extent (true): {extent:?}");
 
     let swapchain_loader = khr::Swapchain::new(device.instance(), &device.logical());
     let (swapchain, images, image_format) =
@@ -270,7 +271,6 @@ impl Swapchain {
 
     let create_info = vk::SwapchainCreateInfoKHR::default()
       .surface(*device.surface().surface())
-      .surface(*device.surface().surface())
       .min_image_count(image_count)
       .image_format(surface_format.format)
       .image_color_space(surface_format.color_space)
@@ -389,6 +389,7 @@ impl Swapchain {
     swapchain_image_views: &[vk::ImageView],
     depth_image_views: &[vk::ImageView],
   ) -> Result<Vec<vk::Framebuffer>, VulkanError> {
+    debug!("Framebuffer extent: {swapchain_extent:?}");
     let framebuffers = (0..swapchain_image_views.len())
       .map(|i| {
         let attachments = &[swapchain_image_views[i], depth_image_views[i]];
@@ -413,6 +414,7 @@ impl Swapchain {
     images: &[vk::Image],
   ) -> Result<(Vec<vk::ImageView>, Vec<Image>), VulkanError> {
     let depth_format = Self::find_depth_format(device.clone());
+    debug!("Depth extent: {swapchain_extent:?}");
 
     let (views, images) = images
       .iter()
