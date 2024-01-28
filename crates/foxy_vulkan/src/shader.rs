@@ -19,6 +19,7 @@ enum BuildAttempt {
   Last,
 }
 
+// encapsulate to prevent premature droppage
 struct Module {
   device: Arc<ash::Device>,
   module: vk::ShaderModule,

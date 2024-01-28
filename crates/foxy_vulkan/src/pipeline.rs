@@ -248,9 +248,8 @@ impl<VS, FS> RenderPipelineBuilder<VS, FS, ConfigMissing> {
   }
 }
 
-impl<'c> RenderPipelineBuilder<VertexShaderSpecified, FragmentShaderSpecified, ConfigSpecified> {
+impl RenderPipelineBuilder<VertexShaderSpecified, FragmentShaderSpecified, ConfigSpecified> {
   pub fn build(self, vulkan: &Vulkan) -> Result<RenderPipeline> {
     RenderPipeline::new(vulkan, self.config.0, self.vertex_shader.0, self.fragment_shader.0)
-      .context("failed to create render pipeline")
   }
 }

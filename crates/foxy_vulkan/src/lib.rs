@@ -109,7 +109,7 @@ impl Vulkan {
     let logical = ManuallyDrop::new(Arc::new(Self::new_logical_device(&surface, &instance, *physical)?));
     let command_pool = ManuallyDrop::new(Self::create_command_pool(&surface, &instance, &logical, *physical)?);
     let shader_store = ManuallyDrop::new(ShaderStore::new((*logical).clone()));
-    let swapchain = ManuallyDrop::new(Swapchain::new()?);
+    let swapchain = ManuallyDrop::new(Swapchain::new(&instance, (*logical).clone(), &surface)?);
 
     Ok(Self {
       _entry: entry,
