@@ -3,13 +3,13 @@ pub mod keyboard;
 pub mod modifier;
 pub mod mouse;
 
-use enumflags2::BitFlags;
 use std::collections::HashMap;
+
+use enumflags2::BitFlags;
 use strum::IntoEnumIterator;
 
-use crate::window::input::{button::KeyState, keyboard::KeyCode, modifier::Modifiers, mouse::MouseCode};
-
 use self::button::ButtonState;
+use crate::window::input::{button::KeyState, keyboard::KeyCode, modifier::Modifiers, mouse::MouseCode};
 
 #[derive(Debug)]
 pub struct Input {

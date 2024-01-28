@@ -1,5 +1,12 @@
 #![deny(unsafe_op_in_unsafe_fn)]
 
+use std::{
+  collections::HashSet,
+  ffi::{c_char, CStr},
+  mem::ManuallyDrop,
+  sync::Arc,
+};
+
 use anyhow::Context;
 use ash::{
   extensions::{ext, khr},
@@ -7,9 +14,6 @@ use ash::{
 };
 use itertools::Itertools;
 use raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle, RawDisplayHandle};
-use std::{
-  collections::HashSet, ffi::{c_char, CStr}, mem::ManuallyDrop, sync::Arc
-};
 use tracing::*;
 
 use self::{
@@ -30,30 +34,27 @@ pub mod surface;
 pub mod swapchain;
 
 pub struct Vulkan {
-  _entry: ash::Entry,
+  shader_store: ManuallyDrop<ShaderStore>,
 
-  instance: ManuallyDrop<ash::Instance>,
-  debug: ManuallyDrop<Debug>,
-  surface: ManuallyDrop<Surface>,
-
-  physical: ManuallyDrop<vk::PhysicalDevice>,
-  logical: ManuallyDrop<Arc<ash::Device>>,
+  present_queue: vk::Queue,
+  graphics_queue: vk::Queue,
 
   command_pool: ManuallyDrop<vk::CommandPool>,
-  graphics_queue: vk::Queue,
-  present_queue: vk::Queue,
 
-  shader_store: ManuallyDrop<ShaderStore>,
-  swapchain: ManuallyDrop<Swapchain>,
+  logical: ManuallyDrop<Arc<ash::Device>>,
+  physical: ManuallyDrop<vk::PhysicalDevice>,
+
+  surface: ManuallyDrop<Surface>,
+
+  debug: ManuallyDrop<Debug>,
+  instance: ManuallyDrop<ash::Instance>,
+  _entry: ash::Entry,
 }
 
 impl Drop for Vulkan {
   fn drop(&mut self) {
     trace!("Dropping Vulkan");
     unsafe {
-      trace!("> Destroying swapchain");
-      ManuallyDrop::drop(&mut self.swapchain);
-
       trace!("> Destroying shaders");
       ManuallyDrop::drop(&mut self.shader_store);
 
@@ -78,18 +79,16 @@ impl Drop for Vulkan {
 }
 
 impl Vulkan {
-  const VALIDATION_LAYERS: &'static [&'static CStr] = &[
-    #[cfg(debug_assertions)]
-    c"VK_LAYER_KHRONOS_validation",
-  ];
-
+  const DEVICE_EXTENSIONS: &'static [&'static CStr] = &[khr::Swapchain::NAME];
   const INSTANCE_EXTENSIONS: &'static [&'static CStr] = &[
     khr::Surface::NAME,
     #[cfg(debug_assertions)]
     ext::DebugUtils::NAME,
   ];
-
-  const DEVICE_EXTENSIONS: &'static [&'static CStr] = &[khr::Swapchain::NAME];
+  const VALIDATION_LAYERS: &'static [&'static CStr] = &[
+    #[cfg(debug_assertions)]
+    c"VK_LAYER_KHRONOS_validation",
+  ];
 
   pub fn builder() -> VulkanBuilder<MissingWindow> {
     Default::default()
@@ -109,7 +108,6 @@ impl Vulkan {
     let logical = ManuallyDrop::new(Arc::new(Self::new_logical_device(&surface, &instance, *physical)?));
     let command_pool = ManuallyDrop::new(Self::create_command_pool(&surface, &instance, &logical, *physical)?);
     let shader_store = ManuallyDrop::new(ShaderStore::new((*logical).clone()));
-    let swapchain = ManuallyDrop::new(Swapchain::new(&instance, (*logical).clone(), &surface)?);
 
     Ok(Self {
       _entry: entry,
@@ -122,8 +120,11 @@ impl Vulkan {
       graphics_queue: Default::default(),
       present_queue: Default::default(),
       shader_store,
-      swapchain,
     })
+  }
+
+  pub fn instance(&self) -> &ash::Instance {
+    &self.instance
   }
 
   pub fn physical(&self) -> &vk::PhysicalDevice {
@@ -132,6 +133,10 @@ impl Vulkan {
 
   pub fn logical(&self) -> Arc<ash::Device> {
     (*self.logical).clone()
+  }
+
+  pub fn surface(&self) -> &Surface {
+    &self.surface
   }
 
   pub fn command_pool(&self) -> &vk::CommandPool {

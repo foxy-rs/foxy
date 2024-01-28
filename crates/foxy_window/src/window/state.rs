@@ -1,6 +1,7 @@
-use super::input::Input;
 use foxy_types::behavior::{CloseBehavior, ColorMode, Visibility};
 use windows::Win32::Foundation::{HINSTANCE, HWND};
+
+use super::input::Input;
 
 #[derive(Debug)]
 pub struct WindowState {
@@ -18,4 +19,10 @@ pub struct WindowState {
 pub struct WindowSize {
   pub width: i32,
   pub height: i32,
+}
+
+impl WindowSize {
+  pub fn to_tuple(self) -> (i32, i32) {
+    (self.width, self.height)
+  }
 }

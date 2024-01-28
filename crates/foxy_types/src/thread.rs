@@ -1,4 +1,5 @@
 use std::thread::JoinHandle;
+
 use tracing::*;
 
 pub struct EngineThread<Loop: ThreadLoop> {

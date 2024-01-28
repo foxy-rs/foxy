@@ -1,3 +1,5 @@
+pub use foxy_types::behavior::{CloseBehavior, ColorMode, Visibility};
+
 pub use crate::{
   debug::validation::ValidationLayer,
   window::{
@@ -6,5 +8,3 @@ pub use crate::{
     Window,
   },
 };
-
-pub use foxy_types::behavior::{CloseBehavior, ColorMode, Visibility};

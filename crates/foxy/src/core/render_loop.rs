@@ -18,8 +18,9 @@ pub struct RenderLoop {
 }
 
 impl ThreadLoop for RenderLoop {
-  const THREAD_ID: &'static str = "render";
   type Params = ();
+
+  const THREAD_ID: &'static str = "render";
 
   fn run(mut self, _: Self::Params) -> anyhow::Result<JoinHandle<anyhow::Result<()>>> {
     std::thread::Builder::new()

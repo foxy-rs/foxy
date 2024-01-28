@@ -1,6 +1,7 @@
+use std::sync::Arc;
+
 use anyhow::{Context, Result};
 use ash::vk;
-use std::sync::Arc;
 
 use crate::{
   error::VulkanError,

@@ -7,13 +7,10 @@ pub fn format_filter_slice(crate_logging_levels: &[(&str, Option<LogLevel>)]) ->
   let joined: String = crate_logging_levels
     .iter()
     .map(|(name, level)| {
-      format!(
-        "{name}={}",
-        match &level {
-          None => "off".to_string(),
-          Some(level) => level.to_string(),
-        }
-      )
+      format!("{name}={}", match &level {
+        None => "off".to_string(),
+        Some(level) => level.to_string(),
+      })
     })
     .collect::<Vec<String>>()
     .join(",");

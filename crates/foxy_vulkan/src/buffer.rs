@@ -1,13 +1,14 @@
+use std::{mem::ManuallyDrop, sync::Arc};
+
 use anyhow::{Context, Result};
 use ash::{self, vk};
-use std::sync::Arc;
 
 use crate::{image::Image, Vulkan};
 
 pub struct Buffer {
   device: Arc<ash::Device>,
-  pub buffer: vk::Buffer,
-  pub memory: vk::DeviceMemory,
+  pub buffer: ManuallyDrop<vk::Buffer>,
+  pub memory: ManuallyDrop<vk::DeviceMemory>,
   pub size: vk::DeviceSize,
 }
 
@@ -25,10 +26,11 @@ impl Buffer {
       ..Default::default()
     };
 
-    let buffer =
-      unsafe { vulkan.logical().create_buffer(&buffer_create_info, None) }.context("Failed to create buffer")?;
+    let mut buffer = ManuallyDrop::new(
+      unsafe { vulkan.logical().create_buffer(&buffer_create_info, None) }.context("Failed to create buffer")?,
+    );
 
-    let memory_reqs = unsafe { vulkan.logical().get_buffer_memory_requirements(buffer) };
+    let memory_reqs = unsafe { vulkan.logical().get_buffer_memory_requirements(*buffer) };
 
     let memory_create_info = vk::MemoryAllocateInfo {
       allocation_size: memory_reqs.size,
@@ -38,15 +40,18 @@ impl Buffer {
       ..Default::default()
     };
 
-    let memory = match unsafe { vulkan.logical().allocate_memory(&memory_create_info, None) }
-      .context("Failed to allocate buffer memory")
-    {
-      Ok(value) => value,
-      Err(err) => unsafe {
-        vulkan.logical().destroy_buffer(buffer, None);
-        Err(err)?
+    let memory = ManuallyDrop::new(
+      match unsafe { vulkan.logical().allocate_memory(&memory_create_info, None) }
+        .context("Failed to allocate buffer memory")
+      {
+        Ok(value) => value,
+        Err(err) => unsafe {
+          vulkan.logical().destroy_buffer(*buffer, None);
+          ManuallyDrop::drop(&mut buffer);
+          Err(err)?
+        },
       },
-    };
+    );
 
     Ok(Self {
       device: vulkan.logical(),
@@ -65,40 +70,36 @@ impl Buffer {
 
   pub fn copy_to_buffer(&self, vulkan: &Vulkan, dst: &Buffer) {
     vulkan.issue_single_time_commands(|command_buffer| {
-      let copy_region = vk::BufferCopy {
-        size: self.size,
-        ..Default::default()
-      };
+      let copy_region = vk::BufferCopy::default().size(self.size);
 
       unsafe {
         self
           .device
-          .cmd_copy_buffer(command_buffer, self.buffer, dst.buffer, &[copy_region]);
+          .cmd_copy_buffer(command_buffer, *self.buffer, *dst.buffer, &[copy_region]);
       }
     });
   }
 
   pub fn copy_to_image(&self, vulkan: &Vulkan, image: &Image) {
     vulkan.issue_single_time_commands(|command_buffer| {
-      let copy_region = vk::BufferImageCopy {
-        image_subresource: vk::ImageSubresourceLayers {
-          aspect_mask: vk::ImageAspectFlags::COLOR,
-          layer_count: image.layer_count,
-          ..Default::default()
-        },
-        image_extent: vk::Extent3D {
-          width: image.extent.width,
-          height: image.extent.height,
-          depth: 1,
-        },
-        ..Default::default()
-      };
+      let copy_region = vk::BufferImageCopy::default()
+        .image_subresource(
+          vk::ImageSubresourceLayers::default()
+            .aspect_mask(vk::ImageAspectFlags::COLOR)
+            .layer_count(image.layer_count),
+        )
+        .image_extent(
+          vk::Extent3D::default()
+            .width(image.extent.width)
+            .height(image.extent.height)
+            .depth(1),
+        );
 
       unsafe {
         self.device.cmd_copy_buffer_to_image(
           command_buffer,
-          self.buffer,
-          image.image,
+          *self.buffer,
+          *image.image,
           vk::ImageLayout::TRANSFER_DST_OPTIMAL,
           &[copy_region],
         );
@@ -110,8 +111,11 @@ impl Buffer {
 impl Drop for Buffer {
   fn drop(&mut self) {
     unsafe {
-      self.device.destroy_buffer(self.buffer, None);
-      self.device.free_memory(self.memory, None);
+      self.device.destroy_buffer(*self.buffer, None);
+      ManuallyDrop::drop(&mut self.buffer);
+
+      self.device.free_memory(*self.memory, None);
+      ManuallyDrop::drop(&mut self.memory);
     }
   }
 }

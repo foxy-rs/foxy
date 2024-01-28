@@ -1,8 +1,9 @@
-use quanta::Instant;
 use std::{
   fmt::{Display, Formatter},
   time::Duration,
 };
+
+use quanta::Instant;
 use tracing::*;
 
 pub mod game_loop;

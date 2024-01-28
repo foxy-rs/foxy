@@ -10,9 +10,8 @@ use byteorder::{ByteOrder, NativeEndian};
 use strum::{Display, EnumIter};
 use tracing::*;
 
-use crate::{error::VulkanError, shader_error};
-
 use super::{stage::StageInfo, storage::ShaderStore};
+use crate::{error::VulkanError, shader_error};
 
 #[derive(EnumIter, Display, Clone, Debug, PartialEq, Eq, Hash)]
 #[strum(serialize_all = "snake_case")]
@@ -113,7 +112,7 @@ impl Source {
         .strip_prefix(ShaderStore::SHADER_ASSET_DIR)
         .unwrap_or_else(|_error| path.as_ref()),
     );
-    
+
     // let file_name = cached_path.file_name().context("invalid file name")?;
     let parent = cached_path.parent().context("invalid file parent")?;
 
@@ -122,7 +121,10 @@ impl Source {
       error!("{error}");
     };
 
-    let mut extension = cached_path.extension().context("invalid file extension")?.to_os_string();
+    let mut extension = cached_path
+      .extension()
+      .context("invalid file extension")?
+      .to_os_string();
     extension.push(".spv");
 
     cached_path.set_extension(extension);

@@ -20,12 +20,11 @@ use windows::{
   },
 };
 
-use crate::window::Window;
-
 use super::{
   builder::{HasSize, HasTitle, WindowCreateInfo},
   message::{AppMessage, WindowMessage},
 };
+use crate::window::Window;
 
 pub struct WindowLoopCreateInfo {
   create_info: WindowCreateInfo<HasTitle, HasSize>,
@@ -47,8 +46,9 @@ pub struct WindowLoop {
 }
 
 impl ThreadLoop for WindowLoop {
-  const THREAD_ID: &'static str = "window";
   type Params = WindowLoopCreateInfo;
+
+  const THREAD_ID: &'static str = "window";
 
   fn run(mut self, info: Self::Params) -> anyhow::Result<JoinHandle<anyhow::Result<()>>> {
     std::thread::Builder::new()

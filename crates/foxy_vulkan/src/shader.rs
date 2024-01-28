@@ -1,13 +1,13 @@
-use ash::vk;
 use std::ffi::CString;
 use std::sync::Arc;
 use std::{marker::PhantomData, path::PathBuf};
-use tracing::*;
 
-use crate::error::VulkanError;
+use ash::vk;
+use tracing::*;
 
 use self::source::Source;
 use self::stage::{ShaderKind, StageInfo};
+use crate::error::VulkanError;
 
 pub mod source;
 pub mod stage;
@@ -26,11 +26,11 @@ struct Module {
 }
 
 impl Drop for Module {
-    fn drop(&mut self) {
-      unsafe {
-        self.device.destroy_shader_module(self.module, None);
-      }
+  fn drop(&mut self) {
+    unsafe {
+      self.device.destroy_shader_module(self.module, None);
     }
+  }
 }
 
 #[derive(Clone)] // This type is safe to clone because everything is super cheap

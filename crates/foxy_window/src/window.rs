@@ -1,15 +1,8 @@
 // Reference for multithreaded input processing:
 //   * https://www.jendrikillner.com/post/rust-game-part-3/
 //   * https://github.com/jendrikillner/RustMatch3/blob/rust-game-part-3/
-use crate::{
-  debug::validation::ValidationLayer,
-  window::{
-    builder::{HasSize, HasTitle, MissingSize, MissingTitle, WindowBuilder, WindowCreateInfo},
-    input::Input,
-    message::{AppMessage, KeyboardMessage, MouseMessage, WindowMessage},
-    state::{WindowSize, WindowState},
-  },
-};
+use std::{os::raw::c_void, sync::mpsc::channel};
+
 use foxy_types::{
   behavior::{CloseBehavior, ColorMode, Visibility},
   thread::EngineThread,
@@ -18,7 +11,6 @@ use messaging::Mailbox;
 use raw_window_handle::{
   HasRawDisplayHandle, HasRawWindowHandle, RawDisplayHandle, RawWindowHandle, Win32WindowHandle, WindowsDisplayHandle,
 };
-use std::{os::raw::c_void, sync::mpsc::channel};
 use tracing::*;
 use windows::{
   core::*,
@@ -30,6 +22,15 @@ use windows::{
 };
 
 use self::window_loop::{WindowLoop, WindowLoopCreateInfo};
+use crate::{
+  debug::validation::ValidationLayer,
+  window::{
+    builder::{HasSize, HasTitle, MissingSize, MissingTitle, WindowBuilder, WindowCreateInfo},
+    input::Input,
+    message::{AppMessage, KeyboardMessage, MouseMessage, WindowMessage},
+    state::{WindowSize, WindowState},
+  },
+};
 
 pub mod builder;
 pub mod input;
@@ -52,11 +53,10 @@ impl Drop for Window {
 }
 
 impl Window {
-  pub const WINDOW_THREAD_ID: &'static str = "window";
-  pub const WINDOW_SUBCLASS_ID: usize = 0;
-
   pub const MSG_APP_MESSAGE: u32 = WM_USER + 11;
   pub const MSG_EXIT_LOOP: u32 = WM_USER + 69;
+  pub const WINDOW_SUBCLASS_ID: usize = 0;
+  pub const WINDOW_THREAD_ID: &'static str = "window";
 
   pub fn builder() -> WindowBuilder<MissingTitle, MissingSize> {
     Default::default()
@@ -121,13 +121,10 @@ impl Window {
   pub fn set_visibility(&mut self, visibility: Visibility) {
     self.state.visibility = visibility;
     unsafe {
-      ShowWindow(
-        self.state.hwnd,
-        match visibility {
-          Visibility::Shown => SW_SHOW,
-          Visibility::Hidden => SW_HIDE,
-        },
-      );
+      ShowWindow(self.state.hwnd, match visibility {
+        Visibility::Shown => SW_SHOW,
+        Visibility::Hidden => SW_HIDE,
+      });
     }
   }
 

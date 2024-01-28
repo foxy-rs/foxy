@@ -1,3 +1,16 @@
+use std::{
+  marker::PhantomData,
+  sync::{Arc, Barrier},
+};
+
+use foxy_renderer::renderer::{render_data::RenderData, Renderer};
+use foxy_types::{behavior::Polling, thread::EngineThread};
+use foxy_util::log::LogErr;
+use foxy_window::prelude::*;
+use messaging::Mailbox;
+use tracing::*;
+
+use super::{engine_state::Foxy, stage::StageDiscriminants};
 use crate::core::{
   builder::{FoxyBuilder, FoxyCreateInfo, HasSize, HasTitle, MissingSize, MissingTitle},
   message::{GameLoopMessage, RenderLoopMessage},
@@ -5,18 +18,6 @@ use crate::core::{
   stage::Stage,
   time::Time,
 };
-use foxy_renderer::renderer::{render_data::RenderData, Renderer};
-use foxy_types::{behavior::Polling, thread::EngineThread};
-use foxy_util::log::LogErr;
-use foxy_window::prelude::*;
-use messaging::Mailbox;
-use std::{
-  marker::PhantomData,
-  sync::{Arc, Barrier},
-};
-use tracing::*;
-
-use super::{engine_state::Foxy, stage::StageDiscriminants};
 
 pub struct Framework<'a> {
   polling_strategy: Polling,
@@ -50,7 +51,7 @@ impl Framework<'_> {
       .with_visibility(Visibility::Hidden)
       .build()?;
 
-    let renderer = Renderer::new(&window)?;
+    let renderer = Renderer::new(&window, window.size().to_tuple())?;
     window.set_visibility(Visibility::Shown);
 
     let sync_barrier = Arc::new(Barrier::new(2));

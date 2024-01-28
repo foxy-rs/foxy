@@ -1,7 +1,8 @@
 #![cfg_attr(all(windows, not(debug_assertions)), windows_subsystem = "windows")]
 
-use foxy::prelude::*;
 use std::time::Duration;
+
+use foxy::prelude::*;
 use tracing::*;
 
 fn main() {

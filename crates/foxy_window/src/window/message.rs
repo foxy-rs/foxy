@@ -8,14 +8,13 @@ use windows::Win32::{
   },
 };
 
-use crate::{hiword, lobyte, loword};
-
 use super::input::{
   button::{ButtonState, KeyState},
   keyboard::KeyCode,
   modifier::Modifiers,
   mouse::MouseCode,
 };
+use crate::{hiword, lobyte, loword};
 
 #[derive(Debug, Default, PartialEq, Eq, Clone)]
 pub enum WindowMessage {
