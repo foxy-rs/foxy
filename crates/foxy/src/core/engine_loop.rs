@@ -10,7 +10,7 @@ use foxy_window::prelude::*;
 use messaging::Mailbox;
 use tracing::*;
 
-use super::{engine_state::Foxy, stage::StageDiscriminants};
+use super::{engine::Foxy, stage::StageDiscriminants};
 use crate::core::{
   builder::{FoxyBuilder, FoxyCreateInfo, HasSize, HasTitle, MissingSize, MissingTitle},
   message::{GameLoopMessage, RenderLoopMessage},

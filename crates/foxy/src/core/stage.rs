@@ -1,7 +1,7 @@
 use foxy_window::prelude::*;
 use strum::{Display, EnumDiscriminants};
 
-use super::engine_state::Foxy;
+use super::engine::Foxy;
 
 // KEEP THESE SMALL since you need to clone them for each iteration
 #[derive(Display, EnumDiscriminants)]
