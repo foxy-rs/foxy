@@ -34,7 +34,7 @@ impl Swapchain {
   const MAX_FRAMES_IN_FLIGHT: u32 = 2;
 
   pub fn new(instance: &ash::Instance, device: Arc<ash::Device>, surface: &Surface) -> Result<Self, VulkanError> {
-    let swapchain_loader = unsafe { khr::Swapchain::new(instance, &device) };
+    let swapchain_loader = khr::Swapchain::new(instance, &device);
     let swapchain = Self::create_swap_chain(&swapchain_loader, surface)?;
 
     Ok(Self {
@@ -78,6 +78,8 @@ impl Swapchain {
 
 impl Drop for Swapchain {
   fn drop(&mut self) {
-    unsafe {}
+    unsafe {
+      self.swapchain_loader.destroy_swapchain(self.swapchain, None);
+    }
   }
 }
