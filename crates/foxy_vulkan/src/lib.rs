@@ -4,6 +4,7 @@ use std::{
   collections::HashSet,
   ffi::{c_char, CStr},
   mem::ManuallyDrop,
+  ops::Deref,
   sync::Arc,
 };
 
@@ -20,8 +21,7 @@ use self::{
   builder::{MissingWindow, ValidationStatus, VulkanBuilder, VulkanCreateInfo},
   error::{Debug, VulkanError},
   shader::storage::ShaderStore,
-  surface::Surface,
-  swapchain::Swapchain,
+  surface::{Surface, SwapchainSupport},
 };
 
 pub mod buffer;
@@ -105,7 +105,8 @@ impl Vulkan {
     let debug = ManuallyDrop::new(Debug::new(&entry, &instance)?);
     let surface = ManuallyDrop::new(Surface::new(&create_info.window, &entry, &instance)?);
     let physical = ManuallyDrop::new(Self::pick_physical_device(&surface, &instance)?);
-    let logical = ManuallyDrop::new(Arc::new(Self::new_logical_device(&surface, &instance, *physical)?));
+    let (logical, graphics_queue, present_queue) = Self::new_logical_device(&surface, &instance, *physical)?;
+    let logical = ManuallyDrop::new(Arc::new(logical));
     let command_pool = ManuallyDrop::new(Self::create_command_pool(&surface, &instance, &logical, *physical)?);
     let shader_store = ManuallyDrop::new(ShaderStore::new((*logical).clone()));
 
@@ -117,8 +118,8 @@ impl Vulkan {
       physical,
       logical,
       command_pool,
-      graphics_queue: Default::default(),
-      present_queue: Default::default(),
+      graphics_queue,
+      present_queue,
       shader_store,
     })
   }
@@ -213,6 +214,10 @@ impl Vulkan {
     }
   }
 
+  pub fn swapchain_support(&self) -> Result<SwapchainSupport, VulkanError> {
+    self.surface.swapchain_support(*self.physical)
+  }
+
   fn select_version(entry: &ash::Entry) -> u32 {
     let (variant, major, minor, patch) =
       match unsafe { entry.try_enumerate_instance_version() }.expect("should always return VK_SUCCESS") {
@@ -253,9 +258,9 @@ impl Vulkan {
       }
     }
     // for i in 0..props.memory_type_count as usize {
-    //   if (type_filter & (1 << i)) != 0 && props.memory_types[i].property_flags.contains(properties) {
-    //     return props.memory_types[i];
-    //   }
+    //   if (type_filter & (1 << i)) != 0 &&
+    // props.memory_types[i].property_flags.contains(properties) {     return
+    // props.memory_types[i];   }
     // }
     error!("Failed to find supported memory type.");
     vk::MemoryType::default()
@@ -330,7 +335,8 @@ impl Vulkan {
   }
 
   fn supported(entry: &ash::Entry) -> Result<(Vec<vk::LayerProperties>, Vec<vk::ExtensionProperties>), VulkanError> {
-    // let layers: Vec<*const c_char> = Self::VALIDATION_LAYERS.iter().map(|name| name.as_ptr()).collect();
+    // let layers: Vec<*const c_char> = Self::VALIDATION_LAYERS.iter().map(|name|
+    // name.as_ptr()).collect();
     let layers = unsafe { entry.enumerate_instance_layer_properties() }?;
     let extensions = unsafe { entry.enumerate_instance_extension_properties(None) }?;
 
@@ -396,7 +402,7 @@ impl Vulkan {
     surface: &Surface,
     instance: &ash::Instance,
     physical_device: vk::PhysicalDevice,
-  ) -> Result<ash::Device, VulkanError> {
+  ) -> Result<(ash::Device, vk::Queue, vk::Queue), VulkanError> {
     let indices = Self::find_queue_families(surface, instance, physical_device)?;
     let mut queue_create_infos: Vec<vk::DeviceQueueCreateInfo> = vec![];
     let unique_queue_families: HashSet<u32> = HashSet::from([indices.graphics_family, indices.present_family]);
@@ -431,7 +437,10 @@ impl Vulkan {
     let device = unsafe { instance.create_device(physical_device, &create_info, None) }
       .context("Failed to create logical graphics device")?;
 
-    Ok(device)
+    let graphics_queue = unsafe { device.get_device_queue(indices.graphics_family, 0) };
+    let present_queue = unsafe { device.get_device_queue(indices.present_family, 0) };
+
+    Ok((device, graphics_queue, present_queue))
   }
 
   fn device_extensions_supported(
@@ -468,7 +477,9 @@ impl Vulkan {
     let device_name = unsafe { CStr::from_ptr(props.device_name.as_ptr()) };
 
     debug!("Checking if suitable: [{:?}]", device_name);
-    // debug!("Checking if suitable: [{}]", unsafe { std::str::from_utf8_unchecked(std::mem::transmute(&props.device_name as &[i8])) });
+    // debug!("Checking if suitable: [{}]", unsafe {
+    // std::str::from_utf8_unchecked(std::mem::transmute(&props.device_name as
+    // &[i8])) });
 
     let extensions_supported = match Self::device_extensions_supported(instance, physical_device) {
       Ok(_) => true,
@@ -497,15 +508,14 @@ impl Vulkan {
   }
 
   #[allow(unused)]
-  fn find_supported_format(
-    instance: &ash::Instance,
-    physical_device: vk::PhysicalDevice,
-    candidates: Arc<[vk::Format]>,
+  pub fn find_supported_format(
+    &self,
+    candidates: &[vk::Format],
     tiling: vk::ImageTiling,
     features: vk::FormatFeatureFlags,
   ) -> vk::Format {
     for format in candidates.iter() {
-      let props = unsafe { instance.get_physical_device_format_properties(physical_device, *format) };
+      let props = unsafe { self.instance.get_physical_device_format_properties(*self.physical, *format) };
 
       if (tiling == vk::ImageTiling::LINEAR && props.linear_tiling_features.contains(features))
         || (tiling == vk::ImageTiling::OPTIMAL && props.optimal_tiling_features.contains(features))
@@ -515,6 +525,10 @@ impl Vulkan {
     }
     error!("Failed to find supported format.");
     vk::Format::B8G8R8_UNORM
+  }
+
+  pub fn queue_families(&self) -> Result<QueueFamilyIndices, VulkanError> {
+    Self::find_queue_families(self.surface.deref(), self.instance.deref(), *self.physical.deref())
   }
 
   fn find_queue_families(
@@ -571,11 +585,12 @@ impl Vulkan {
 }
 
 #[derive(Default)]
-struct QueueFamilyIndices {
+pub struct QueueFamilyIndices {
   pub graphics_family: u32,
   pub present_family: u32,
 }
 
 impl QueueFamilyIndices {
-  // pub fn complete(&self) -> bool { self.graphics_family.is_some() && self.present_family.is_some() }
+  // pub fn complete(&self) -> bool { self.graphics_family.is_some() &&
+  // self.present_family.is_some() }
 }

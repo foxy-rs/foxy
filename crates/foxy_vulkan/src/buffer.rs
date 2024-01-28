@@ -1,24 +1,24 @@
 use std::{mem::ManuallyDrop, sync::Arc};
 
-use anyhow::{Context, Result};
+use anyhow::Context;
 use ash::{self, vk};
 
-use crate::{image::Image, Vulkan};
+use crate::{error::VulkanError, image::Image, Vulkan};
 
 pub struct Buffer {
   device: Arc<ash::Device>,
-  pub buffer: ManuallyDrop<vk::Buffer>,
-  pub memory: ManuallyDrop<vk::DeviceMemory>,
-  pub size: vk::DeviceSize,
+  buffer: ManuallyDrop<vk::Buffer>,
+  memory: ManuallyDrop<vk::DeviceMemory>,
+  size: vk::DeviceSize,
 }
 
 impl Buffer {
   pub fn new(
-    vulkan: &Vulkan,
+    vulkan: Arc<Vulkan>,
     size: vk::DeviceSize,
     usage: vk::BufferUsageFlags,
     properties: vk::MemoryPropertyFlags,
-  ) -> Result<Self> {
+  ) -> Result<Self, VulkanError> {
     let buffer_create_info = vk::BufferCreateInfo {
       size,
       usage,
@@ -61,6 +61,18 @@ impl Buffer {
     })
   }
 
+  pub fn buffer(&self) -> vk::Buffer {
+    *self.buffer
+  }
+
+  pub fn memory(&self) -> vk::DeviceMemory {
+    *self.memory
+  }
+
+  pub fn size(&self) -> vk::DeviceSize {
+    self.size
+  }
+
   // unsafe fn delete(&mut self) {
   //   unsafe {
   //     self.device.destroy_buffer(self.buffer, None);
@@ -86,12 +98,12 @@ impl Buffer {
         .image_subresource(
           vk::ImageSubresourceLayers::default()
             .aspect_mask(vk::ImageAspectFlags::COLOR)
-            .layer_count(image.layer_count),
+            .layer_count(image.layer_count()),
         )
         .image_extent(
           vk::Extent3D::default()
-            .width(image.extent.width)
-            .height(image.extent.height)
+            .width(image.extent().width)
+            .height(image.extent().height)
             .depth(1),
         );
 
@@ -99,7 +111,7 @@ impl Buffer {
         self.device.cmd_copy_buffer_to_image(
           command_buffer,
           *self.buffer,
-          *image.image,
+          image.image(),
           vk::ImageLayout::TRANSFER_DST_OPTIMAL,
           &[copy_region],
         );

@@ -1,11 +1,14 @@
+use std::{mem::ManuallyDrop, ops::Deref, sync::Arc};
+
 use foxy_vulkan::{
   builder::ValidationStatus,
   error::VulkanError,
   pipeline::{RenderPipeline, RenderPipelineConfig},
-  swapchain::Swapchain,
+  swapchain::{ImageFormat, Swapchain},
   Vulkan,
 };
 use raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle};
+use tracing::trace;
 
 use self::render_data::RenderData;
 
@@ -13,11 +16,25 @@ pub mod command;
 pub mod render_data;
 
 pub struct Renderer {
-  render_data: RenderData,
+  vulkan: ManuallyDrop<Arc<Vulkan>>,
+  swapchain: ManuallyDrop<Swapchain>,
+  render_pipeline: ManuallyDrop<RenderPipeline>,
 
-  render_pipeline: RenderPipeline,
-  swapchain: Swapchain,
-  vulkan: Vulkan,
+  render_data: RenderData,
+}
+
+impl Drop for Renderer {
+  fn drop(&mut self) {
+    trace!("Dropping Renderer");
+    unsafe {
+      trace!("> Dropping render pipeline");
+      ManuallyDrop::drop(&mut self.render_pipeline);
+      trace!("> Dropping swapchain");
+      ManuallyDrop::drop(&mut self.swapchain);
+      trace!("> Dropping vulkan");
+      ManuallyDrop::drop(&mut self.vulkan);
+    }
+  }
 }
 
 impl Renderer {
@@ -25,22 +42,28 @@ impl Renderer {
     window: impl HasRawDisplayHandle + HasRawWindowHandle,
     window_size: (i32, i32),
   ) -> Result<Self, VulkanError> {
-    let vulkan = Vulkan::builder()
-      .with_window(&window)
-      .with_validation(ValidationStatus::Enabled)
-      .build()?;
-    let swapchain = Swapchain::new(&vulkan)?;
-    let render_pipeline = RenderPipeline::builder()
-      .with_vertex_shader(vulkan.shaders().get_vertex("assets/shaders/simple/simple.vert"))
-      .with_fragment_shader(vulkan.shaders().get_fragment("assets/shaders/simple/simple.frag"))
-      .with_config(RenderPipelineConfig::default())
-      .build(&vulkan)?;
+    let vulkan = ManuallyDrop::new(Arc::new(
+      Vulkan::builder()
+        .with_window(&window)
+        .with_validation(ValidationStatus::Enabled)
+        .build()?,
+    ));
+    let swapchain = ManuallyDrop::new(Swapchain::new(vulkan.deref().clone(), window_size, ImageFormat {
+      ..Default::default()
+    })?);
+    let render_pipeline = ManuallyDrop::new(
+      RenderPipeline::builder(&vulkan)
+        .with_vertex_shader("assets/shaders/simple/simple.vert")
+        .with_fragment_shader("assets/shaders/simple/simple.frag")
+        .with_config(RenderPipelineConfig::default())
+        .build()?,
+    );
 
     Ok(Self {
+      vulkan,
       swapchain,
       render_pipeline,
       render_data: RenderData::default(),
-      vulkan,
     })
   }
 

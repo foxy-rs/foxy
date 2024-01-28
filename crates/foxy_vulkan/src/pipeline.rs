@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{path::PathBuf, sync::Arc};
 
 use anyhow::{Context, Result};
 use ash::vk;
@@ -29,8 +29,10 @@ impl Drop for RenderPipeline {
 }
 
 impl RenderPipeline {
-  pub fn builder() -> RenderPipelineBuilder<VertexShaderMissing, FragmentShaderMissing, ConfigMissing> {
-    RenderPipelineBuilder::default()
+  pub fn builder<'v>(
+    vulkan: &'v Vulkan,
+  ) -> RenderPipelineBuilder<'v, VertexShaderMissing, FragmentShaderMissing, ConfigMissing> {
+    RenderPipelineBuilder::new(vulkan)
   }
 
   fn new(
@@ -57,11 +59,13 @@ impl RenderPipeline {
     config: &RenderPipelineConfig,
   ) -> Result<vk::Pipeline, VulkanError> {
     if config.pipeline_layout == vk::PipelineLayout::null() {
-      return Err(unsupported_error!("pipeline layout is null")); // TODO: Add to builder
+      return Err(unsupported_error!("pipeline layout is null")); // TODO: Add to
+                                                                 // builder
     }
 
     if config.render_pass == vk::RenderPass::null() {
-      return Err(unsupported_error!("render pass is null")); // TODO: Add to builder
+      return Err(unsupported_error!("render pass is null")); // TODO: Add to
+                                                             // builder
     }
 
     // TODO: Overhaul pipeline creation to make it more type-driven
@@ -194,21 +198,17 @@ pub struct FragmentShaderSpecified(Shader<Fragment>);
 pub struct ConfigMissing;
 pub struct ConfigSpecified(RenderPipelineConfig);
 
-pub struct RenderPipelineBuilder<VS, FS, PC> {
+pub struct RenderPipelineBuilder<'v, VS, FS, PC> {
+  vulkan: &'v Vulkan,
   vertex_shader: VS,
   fragment_shader: FS,
   config: PC,
 }
 
-impl Default for RenderPipelineBuilder<VertexShaderMissing, FragmentShaderMissing, ConfigMissing> {
-  fn default() -> Self {
-    Self::new()
-  }
-}
-
-impl RenderPipelineBuilder<VertexShaderMissing, FragmentShaderMissing, ConfigMissing> {
-  pub fn new() -> Self {
+impl<'v> RenderPipelineBuilder<'v, VertexShaderMissing, FragmentShaderMissing, ConfigMissing> {
+  pub fn new(vulkan: &'v Vulkan) -> Self {
     Self {
+      vulkan,
       vertex_shader: VertexShaderMissing,
       fragment_shader: FragmentShaderMissing,
       config: ConfigMissing,
@@ -216,32 +216,38 @@ impl RenderPipelineBuilder<VertexShaderMissing, FragmentShaderMissing, ConfigMis
   }
 }
 
-impl<FS, PC> RenderPipelineBuilder<VertexShaderMissing, FS, PC> {
-  pub fn with_vertex_shader(self, shader: Shader<Vertex>) -> RenderPipelineBuilder<VertexShaderSpecified, FS, PC> {
+impl<'v, FS, PC> RenderPipelineBuilder<'v, VertexShaderMissing, FS, PC> {
+  pub fn with_vertex_shader<P: Into<PathBuf>>(
+    self,
+    path: P,
+  ) -> RenderPipelineBuilder<'v, VertexShaderSpecified, FS, PC> {
     RenderPipelineBuilder {
-      vertex_shader: VertexShaderSpecified(shader),
+      vulkan: self.vulkan,
+      vertex_shader: VertexShaderSpecified(self.vulkan.shaders().get_vertex(path)),
       fragment_shader: self.fragment_shader,
       config: self.config,
     }
   }
 }
 
-impl<VS, PC> RenderPipelineBuilder<VS, FragmentShaderMissing, PC> {
-  pub fn with_fragment_shader(
+impl<'v, VS, PC> RenderPipelineBuilder<'v, VS, FragmentShaderMissing, PC> {
+  pub fn with_fragment_shader<P: Into<PathBuf>>(
     self,
-    shader: Shader<Fragment>,
-  ) -> RenderPipelineBuilder<VS, FragmentShaderSpecified, PC> {
+    path: P,
+  ) -> RenderPipelineBuilder<'v, VS, FragmentShaderSpecified, PC> {
     RenderPipelineBuilder {
+      vulkan: self.vulkan,
       vertex_shader: self.vertex_shader,
-      fragment_shader: FragmentShaderSpecified(shader),
+      fragment_shader: FragmentShaderSpecified(self.vulkan.shaders().get_fragment(path)),
       config: self.config,
     }
   }
 }
 
-impl<VS, FS> RenderPipelineBuilder<VS, FS, ConfigMissing> {
-  pub fn with_config(self, config: RenderPipelineConfig) -> RenderPipelineBuilder<VS, FS, ConfigSpecified> {
+impl<'v, VS, FS> RenderPipelineBuilder<'v, VS, FS, ConfigMissing> {
+  pub fn with_config(self, config: RenderPipelineConfig) -> RenderPipelineBuilder<'v, VS, FS, ConfigSpecified> {
     RenderPipelineBuilder {
+      vulkan: self.vulkan,
       vertex_shader: self.vertex_shader,
       fragment_shader: self.fragment_shader,
       config: ConfigSpecified(config),
@@ -249,8 +255,8 @@ impl<VS, FS> RenderPipelineBuilder<VS, FS, ConfigMissing> {
   }
 }
 
-impl RenderPipelineBuilder<VertexShaderSpecified, FragmentShaderSpecified, ConfigSpecified> {
-  pub fn build(self, vulkan: &Vulkan) -> Result<RenderPipeline> {
-    RenderPipeline::new(vulkan, self.config.0, self.vertex_shader.0, self.fragment_shader.0)
+impl<'v> RenderPipelineBuilder<'v, VertexShaderSpecified, FragmentShaderSpecified, ConfigSpecified> {
+  pub fn build(self) -> Result<RenderPipeline> {
+    RenderPipeline::new(self.vulkan, self.config.0, self.vertex_shader.0, self.fragment_shader.0)
   }
 }

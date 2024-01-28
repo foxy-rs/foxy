@@ -1,20 +1,24 @@
 use std::{mem::ManuallyDrop, sync::Arc};
 
-use anyhow::{Context, Result};
+use anyhow::Context;
 use ash::{self, vk};
 
-use crate::Vulkan;
+use crate::{error::VulkanError, Vulkan};
 
 pub struct Image {
   device: Arc<ash::Device>,
-  pub image: ManuallyDrop<vk::Image>,
-  pub memory: ManuallyDrop<vk::DeviceMemory>,
-  pub extent: vk::Extent3D,
-  pub layer_count: u32,
+  image: ManuallyDrop<vk::Image>,
+  memory: ManuallyDrop<vk::DeviceMemory>,
+  extent: vk::Extent3D,
+  layer_count: u32,
 }
 
 impl Image {
-  pub fn new(vulkan: &Vulkan, image_info: vk::ImageCreateInfo, properties: vk::MemoryPropertyFlags) -> Result<Self> {
+  pub fn new(
+    vulkan: Arc<Vulkan>,
+    image_info: vk::ImageCreateInfo,
+    properties: vk::MemoryPropertyFlags,
+  ) -> Result<Self, VulkanError> {
     let mut image =
       ManuallyDrop::new(unsafe { vulkan.logical().create_image(&image_info, None) }.context("Failed to create image")?);
 
@@ -66,6 +70,22 @@ impl Image {
   //     self.device.free_memory(self.memory, None);
   //   }
   // }
+
+  pub fn image(&self) -> vk::Image {
+    *self.image
+  }
+
+  pub fn memory(&self) -> vk::DeviceMemory {
+    *self.memory
+  }
+
+  pub fn extent(&self) -> vk::Extent3D {
+    self.extent
+  }
+
+  pub fn layer_count(&self) -> u32 {
+    self.layer_count
+  }
 }
 
 impl Drop for Image {
