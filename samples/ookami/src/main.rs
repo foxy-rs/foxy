@@ -25,6 +25,9 @@ fn main() {
 
   for stage in framework {
     match stage {
+      Stage::Initialize => {
+        debug!("oh, hi");
+      }
       Stage::FixedUpdate { foxy } => {
         foxy.append_fps_every(Duration::from_millis(300));
       }

@@ -6,6 +6,7 @@ use std::{
 use anyhow::anyhow;
 use foxy_renderer::renderer::Renderer;
 use foxy_types::thread::ThreadLoop;
+use foxy_util::time::EngineTime;
 use messaging::Mailbox;
 use tracing::*;
 
@@ -15,6 +16,7 @@ pub struct RenderLoop {
   pub renderer: Renderer,
   pub messenger: Mailbox<RenderLoopMessage, GameLoopMessage>,
   pub sync_barrier: Arc<Barrier>,
+  pub time: EngineTime,
 }
 
 impl ThreadLoop for RenderLoop {
@@ -29,11 +31,16 @@ impl ThreadLoop for RenderLoop {
         trace!("Beginning render");
 
         loop {
-          if self.renderer_sync_or_exit()? {
-            break;
+          // if self.renderer_sync_or_exit()? {
+          //   break;
+          // }
+          self.sync_barrier.wait();
+          self.time.update();
+          while self.time.should_do_tick() {
+            self.time.tick();
           }
 
-          self.renderer.draw_frame()?;
+          self.renderer.draw_frame(self.time.time())?;
 
           if self.renderer_sync_or_exit()? {
             break;
@@ -52,8 +59,11 @@ impl ThreadLoop for RenderLoop {
 
 impl RenderLoop {
   fn renderer_sync_or_exit(&mut self) -> anyhow::Result<bool> {
-    self.sync_barrier.wait();
-    match self.messenger.poll() {
+    // self.sync_barrier.wait();
+    match self.messenger.send_and_wait(RenderLoopMessage::Response { 
+      delta_frame_time: *self.time.time().delta(), 
+      average_delta_frame_time: *self.time.time().average_delta(), 
+    }) {
       Ok(message) => match message {
         GameLoopMessage::RenderData(data) => {
           self.renderer.update_render_data(data)?;

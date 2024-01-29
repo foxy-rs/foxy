@@ -1,4 +1,5 @@
 use foxy_types::{handle::Handle, primitives::Dimensions};
+use foxy_util::time::Time;
 use foxy_vulkan::{
   device::{builder::ValidationStatus, Device},
   error::VulkanError,
@@ -64,8 +65,7 @@ impl Renderer {
     self.device.get_mut().delete();
   }
 
-  pub fn draw_frame(&mut self) -> Result<(), VulkanError> {
-    // if let Some((u32, bool)) = self.swapchain.next() {}
+  pub fn draw_frame(&mut self, _render_time: &Time) -> Result<(), VulkanError> {
 
     Ok(())
   }

@@ -4,20 +4,20 @@ use tracing::*;
 
 pub struct EngineThread<Loop: ThreadLoop> {
   join_handle: Option<JoinHandle<anyhow::Result<()>>>,
-  render_loop: Option<Loop>,
+  thread_loop: Option<Loop>,
 }
 
 impl<Loop: ThreadLoop> EngineThread<Loop> {
   pub fn new(thread_loop: Loop) -> Self {
     Self {
       join_handle: None,
-      render_loop: Some(thread_loop),
+      thread_loop: Some(thread_loop),
     }
   }
 
   pub fn run(&mut self, info: Loop::Params) {
-    if let Some(render_loop) = self.render_loop.take() {
-      self.join_handle = render_loop.run(info).inspect_err(|e| error!("{e}")).ok();
+    if let Some(thread_loop) = self.thread_loop.take() {
+      self.join_handle = thread_loop.run(info).inspect_err(|e| error!("{e}")).ok();
     }
   }
 

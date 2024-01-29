@@ -5,7 +5,7 @@ use std::{
 
 use foxy_renderer::renderer::{render_data::RenderData, Renderer};
 use foxy_types::{behavior::Polling, thread::EngineThread};
-use foxy_util::log::LogErr;
+use foxy_util::{log::LogErr, time::EngineTime};
 use foxy_window::prelude::*;
 use messaging::Mailbox;
 use tracing::*;
@@ -41,7 +41,9 @@ impl Framework<'_> {
   pub(crate) fn new(create_info: FoxyCreateInfo<HasTitle, HasSize>) -> anyhow::Result<Self> {
     trace!("Firing up Foxy");
 
+    // TODO: make this adjustable
     let time = Time::new(128.0, 1024);
+    let render_time = EngineTime::new(128.0, 1024);
 
     let mut window = Window::builder()
       .with_title(create_info.title.0)
@@ -61,6 +63,7 @@ impl Framework<'_> {
       renderer,
       messenger: renderer_mailbox,
       sync_barrier: sync_barrier.clone(),
+      time: render_time,
     });
 
     let current_stage = StageDiscriminants::Initialize;
@@ -91,13 +94,19 @@ impl Framework<'_> {
   }
 
   fn next_state(&mut self) -> Option<Stage<'_>> {
+    /*
+     * NOTE: each stage in the match is the PREVIOUS stage!!!
+     *       I've written the ACTUAL stage at the top of each
+     */
     let new_state = match self.current_stage {
       StageDiscriminants::Initialize => {
+        // Start
         info!("KON KON KITSUNE!");
         self.render_thread.run(());
         Stage::Start { foxy: &mut self.foxy }
       }
       StageDiscriminants::Start => {
+        // Begin Frame / Exiting
         if let Some(message) = self.next_window_message() {
           self.current_message = message;
           Stage::BeginFrame {
@@ -109,7 +118,9 @@ impl Framework<'_> {
         }
       }
       StageDiscriminants::BeginFrame => {
+        // Early Update
         self.sync_barrier.wait();
+        self.foxy.time.update();
 
         Stage::EarlyUpdate {
           foxy: &mut self.foxy,
@@ -117,7 +128,7 @@ impl Framework<'_> {
         }
       }
       StageDiscriminants::EarlyUpdate => {
-        self.foxy.time.update();
+        // Fixed Update / Update
         if self.foxy.time.should_do_tick() {
           self.foxy.time.tick();
           Stage::FixedUpdate { foxy: &mut self.foxy }
@@ -129,6 +140,7 @@ impl Framework<'_> {
         }
       }
       StageDiscriminants::FixedUpdate => {
+        // Fixed Update / Update
         if self.foxy.time.should_do_tick() {
           self.foxy.time.tick();
           Stage::FixedUpdate { foxy: &mut self.foxy }
@@ -139,16 +151,23 @@ impl Framework<'_> {
           }
         }
       }
-      StageDiscriminants::Update => Stage::EndFrame {
-        foxy: &mut self.foxy,
-        message: &mut self.current_message,
-      },
-      StageDiscriminants::EndFrame => {
-        let _ = self
+      StageDiscriminants::Update => {
+        // End Frame
+        match self
           .game_mailbox
-          .send(GameLoopMessage::RenderData(RenderData {}))
-          .log_error();
-        self.sync_barrier.wait();
+          .send_and_wait(GameLoopMessage::RenderData(RenderData {}))
+          .log_error()
+        {
+          Ok(render_response) => Stage::EndFrame {
+            foxy: &mut self.foxy,
+            message: &mut self.current_message,
+            render_response,
+          },
+          Err(_) => Stage::Exiting { foxy: &mut self.foxy },
+        }
+      }
+      StageDiscriminants::EndFrame => {
+        // Begin Frame / Exiting
         if let Some(message) = self.next_window_message() {
           self.current_message = message;
           Stage::BeginFrame {
@@ -160,6 +179,7 @@ impl Framework<'_> {
         }
       }
       StageDiscriminants::Exiting => {
+        // Exit Loop
         let _ = self.game_mailbox.send(GameLoopMessage::Exit).log_error();
         self.sync_barrier.wait();
 
@@ -167,8 +187,8 @@ impl Framework<'_> {
         Stage::ExitLoop
       }
       StageDiscriminants::ExitLoop => {
+        // Never gets sent to clients
         info!("OTSU KON DESHITA!");
-        // self.window.exit();
         return None;
       }
     };
