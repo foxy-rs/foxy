@@ -1,9 +1,8 @@
 use foxy_types::handle::Handle;
 use raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle};
 
+use super::Device;
 use crate::error::VulkanError;
-
-use super::{Device,};
 
 pub struct MissingWindow;
 pub struct HasWindow<W: HasRawDisplayHandle + HasRawWindowHandle>(W);

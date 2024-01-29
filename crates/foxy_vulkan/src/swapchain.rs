@@ -1,12 +1,14 @@
-use std::{mem::ManuallyDrop, sync::Arc};
-
 use ash::{extensions::khr, vk};
-use foxy_types::handle::Handle;
+use foxy_types::{handle::Handle, primitives::Dimensions};
 use foxy_util::log::LogErr;
 use tracing::debug;
 
 use crate::{
-  device::Device, error::VulkanError, image::Image, image_format::{ColorSpace, ImageFormat, PresentMode}, sync_objects::SyncObjects
+  device::Device,
+  error::VulkanError,
+  image::Image,
+  image_format::{ColorSpace, ImageFormat, PresentMode},
+  sync_objects::SyncObjects,
 };
 
 pub struct Swapchain {
@@ -76,11 +78,13 @@ impl Swapchain {
 
   pub fn new(
     device: Handle<Device>,
-    extent: (i32, i32),
+    extent: Dimensions,
     preferred_image_format: ImageFormat,
   ) -> Result<Self, VulkanError> {
     debug!("Window extent: {extent:?}");
-    let extent = vk::Extent2D::default().width(extent.0 as u32).height(extent.1 as u32);
+    let extent = vk::Extent2D::default()
+      .width(extent.width as u32)
+      .height(extent.height as u32);
     debug!("Window extent (true): {extent:?}");
 
     let swapchain_loader = khr::Swapchain::new(device.get().instance(), &device.get().logical());
@@ -93,13 +97,8 @@ impl Swapchain {
 
     let (depth_image_views, depth_images) = Self::create_depth_resources(device.clone(), extent, &images)?;
 
-    let framebuffers = Self::create_framebuffers(
-      device.clone(),
-      extent,
-      render_pass,
-      &image_views,
-      &depth_image_views,
-    )?;
+    let framebuffers =
+      Self::create_framebuffers(device.clone(), extent, render_pass, &image_views, &depth_image_views)?;
 
     let sync_objects = SyncObjects::new(device.clone())?;
 
@@ -135,7 +134,8 @@ impl Swapchain {
   fn acquire_next_image(&mut self) -> Result<(u32, bool), VulkanError> {
     unsafe {
       self
-        .device.get()
+        .device
+        .get()
         .logical()
         .wait_for_fences(&[self.current_fence_in_flight()], true, u64::MAX)
     }?;
@@ -160,7 +160,8 @@ impl Swapchain {
     if self.sync_objects.images_in_flight[image_index] != vk::Fence::null() {
       unsafe {
         self
-          .device.get()
+          .device
+          .get()
           .logical()
           .wait_for_fences(&[self.sync_objects.images_in_flight[image_index]], true, u64::MAX)
       }?;
@@ -175,13 +176,20 @@ impl Swapchain {
       .wait_semaphores(wait_semaphores)
       .signal_semaphores(signal_semaphores);
 
-    unsafe { self.device.get().logical().reset_fences(&[self.current_fence_in_flight()]) }?;
-
     unsafe {
       self
-        .device.get()
+        .device
+        .get()
         .logical()
-        .queue_submit(*self.device.get().graphics_queue(), &[submit_info], self.current_fence_in_flight())
+        .reset_fences(&[self.current_fence_in_flight()])
+    }?;
+
+    unsafe {
+      self.device.get().logical().queue_submit(
+        *self.device.get().graphics_queue(),
+        &[submit_info],
+        self.current_fence_in_flight(),
+      )
     }?;
 
     let swapchains = &[self.swapchain];
@@ -203,15 +211,14 @@ impl Swapchain {
   }
 
   pub fn extent_aspect_ratio(&self) -> f32 {
-    self.width() as f32 / self.height() as f32
+    self.size().width as f32 / self.size().height as f32
   }
 
-  pub fn width(&self) -> u32 {
-    self.extent.width
-  }
-
-  pub fn height(&self) -> u32 {
-    self.extent.height
+  pub fn size(&self) -> Dimensions {
+    Dimensions {
+      width: self.extent.width as i32,
+      height: self.extent.height as i32,
+    }
   }
 
   pub fn image_format(&self) -> vk::Format {

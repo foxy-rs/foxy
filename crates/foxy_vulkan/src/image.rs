@@ -1,4 +1,4 @@
-use std::{mem::ManuallyDrop, sync::Arc};
+use std::sync::Arc;
 
 use anyhow::Context;
 use ash::{self, vk};
@@ -29,19 +29,20 @@ impl Image {
     image_info: vk::ImageCreateInfo,
     properties: vk::MemoryPropertyFlags,
   ) -> Result<Self, VulkanError> {
-    let mut image = unsafe { device.get().logical().create_image(&image_info, None) }.context("Failed to create image")?;
+    let image = unsafe { device.get().logical().create_image(&image_info, None) }.context("Failed to create image")?;
 
     let memory_reqs = unsafe { device.get().logical().get_image_memory_requirements(image) };
 
     let allocation_info = vk::MemoryAllocateInfo::default()
       .memory_type_index(
-        device.get()
+        device
+          .get()
           .find_memory_type(memory_reqs.memory_type_bits, properties)
           .heap_index,
       )
       .allocation_size(memory_reqs.size);
 
-    let mut memory = match unsafe { device.get().logical().allocate_memory(&allocation_info, None) }
+    let memory = match unsafe { device.get().logical().allocate_memory(&allocation_info, None) }
       .context("Failed to allocate memory for image")
     {
       Ok(value) => value,

@@ -1,34 +1,41 @@
-use std::sync::Arc;
-
 use ash::vk;
-use foxy_types::handle::Handle;
+use foxy_types::primitives::Dimensions;
 
 use super::layout::PipelineLayout;
-use crate::{device::Device, error::VulkanError};
+use crate::error::VulkanError;
+
+pub struct MissingLayout;
+pub struct HasLayout(PipelineLayout);
+
+pub struct MissingRenderPass;
+pub struct HasRenderPass(vk::RenderPass);
 
 #[derive(Clone)]
-pub struct RenderPipelineConfig {
+pub struct RenderPipelineConfig<L, R> {
   pub viewports: Vec<vk::Viewport>,
   pub scissors: Vec<vk::Rect2D>,
   pub color_blend_attachments: Vec<vk::PipelineColorBlendAttachmentState>,
-  pub pipeline_layout: PipelineLayout,
-  pub render_pass: vk::RenderPass,
+  pub pipeline_layout: L,
+  pub render_pass: R,
   pub subpass: u32,
 }
 
-impl RenderPipelineConfig {
-  pub fn new(device: Handle<Device>, (width, height): (u32, u32)) -> Result<Self, VulkanError> {
+impl RenderPipelineConfig<MissingLayout, MissingRenderPass> {
+  pub fn new(size: Dimensions) -> Result<Self, VulkanError> {
     let viewports = vec![vk::Viewport::default()
       .x(0.)
       .y(0.)
-      .width(width as f32)
-      .height(height as f32)
+      .width(size.width as f32)
+      .height(size.height as f32)
       .min_depth(0.)
       .max_depth(1.)];
 
     let scissors = vec![vk::Rect2D::default()
       .offset(vk::Offset2D { x: 0, y: 0 })
-      .extent(vk::Extent2D { width, height })];
+      .extent(vk::Extent2D {
+        width: size.width as u32,
+        height: size.height as u32,
+      })];
 
     let color_blend_attachments = vec![vk::PipelineColorBlendAttachmentState::default()
       .blend_enable(true)
@@ -40,9 +47,7 @@ impl RenderPipelineConfig {
       .alpha_blend_op(vk::BlendOp::ADD)
       .color_write_mask(vk::ColorComponentFlags::RGBA)];
 
-    let pipeline_layout = PipelineLayout::new(device)?;
-
-    let render_pass = vk::RenderPass::null();
+    // let pipeline_layout = PipelineLayout::;
 
     let subpass: u32 = 0;
 
@@ -50,20 +55,46 @@ impl RenderPipelineConfig {
       viewports,
       scissors,
       color_blend_attachments,
-      pipeline_layout,
-      render_pass,
+      pipeline_layout: MissingLayout,
+      render_pass: MissingRenderPass,
       subpass,
     })
   }
+}
 
-  pub fn with_render_pass(mut self, render_pass: vk::RenderPass) -> Self {
-    self.render_pass = render_pass;
-    self
+impl<R> RenderPipelineConfig<MissingLayout, R> {
+  pub fn with_layout(self, pipeline_layout: PipelineLayout) -> RenderPipelineConfig<HasLayout, R> {
+    RenderPipelineConfig {
+      color_blend_attachments: self.color_blend_attachments,
+      viewports: self.viewports,
+      scissors: self.scissors,
+      pipeline_layout: HasLayout(pipeline_layout),
+      render_pass: self.render_pass,
+      subpass: self.subpass,
+    }
+  }
+}
+
+impl<L> RenderPipelineConfig<L, MissingRenderPass> {
+  pub fn with_render_pass(self, render_pass: vk::RenderPass) -> RenderPipelineConfig<L, HasRenderPass> {
+    RenderPipelineConfig {
+      color_blend_attachments: self.color_blend_attachments,
+      viewports: self.viewports,
+      scissors: self.scissors,
+      pipeline_layout: self.pipeline_layout,
+      render_pass: HasRenderPass(render_pass),
+      subpass: self.subpass,
+    }
+  }
+}
+
+impl RenderPipelineConfig<HasLayout, HasRenderPass> {
+  pub fn layout(&self) -> &PipelineLayout {
+    &self.pipeline_layout.0
   }
 
-  pub fn with_layout(mut self, pipeline_layout: PipelineLayout) -> Self {
-    self.pipeline_layout = pipeline_layout;
-    self
+  pub fn render_pass(&self) -> vk::RenderPass {
+    self.render_pass.0
   }
 
   pub fn viewport_info(&self) -> vk::PipelineViewportStateCreateInfo {

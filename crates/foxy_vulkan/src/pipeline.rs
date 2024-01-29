@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use anyhow::Result;
 use ash::vk;
 use foxy_types::handle::Handle;
@@ -10,19 +8,22 @@ pub mod layout;
 
 use self::{
   builder::{ConfigMissing, FragmentShaderMissing, RenderPipelineBuilder, VertexShaderMissing},
-  config::RenderPipelineConfig,
+  config::{HasLayout, HasRenderPass, RenderPipelineConfig},
 };
 use crate::{
-  device::Device, error::VulkanError, shader::{
+  device::Device,
+  error::VulkanError,
+  shader::{
     stage::{fragment::Fragment, vertex::Vertex},
     Shader,
-  }, unsupported_error
+  },
+  unsupported_error,
 };
 
 pub struct RenderPipeline {
   device: Handle<Device>,
   pipeline: vk::Pipeline,
-  config: RenderPipelineConfig,
+  config: RenderPipelineConfig<HasLayout, HasRenderPass>,
   vertex_shader: Handle<Shader<Vertex>>,
   fragment_shader: Handle<Shader<Fragment>>,
 }
@@ -44,7 +45,7 @@ impl RenderPipeline {
 
   fn new(
     device: Handle<Device>,
-    config: RenderPipelineConfig,
+    config: RenderPipelineConfig<HasLayout, HasRenderPass>,
     vertex_shader: Handle<Shader<Vertex>>,
     fragment_shader: Handle<Shader<Fragment>>,
   ) -> Result<Self> {
@@ -64,16 +65,8 @@ impl RenderPipeline {
     device: Handle<Device>,
     vertex_shader: Handle<Shader<Vertex>>,
     fragment_shader: Handle<Shader<Fragment>>,
-    config: &RenderPipelineConfig,
+    config: &RenderPipelineConfig<HasLayout, HasRenderPass>,
   ) -> Result<vk::Pipeline, VulkanError> {
-    if config.pipeline_layout.layout() == vk::PipelineLayout::null() {
-      return Err(unsupported_error!("pipeline layout is null"));
-    }
-
-    if config.render_pass == vk::RenderPass::null() {
-      return Err(unsupported_error!("render pass is null"));
-    }
-
     let vertex_shader = vertex_shader.get();
     let fragment_shader = fragment_shader.get();
     // TODO: Overhaul pipeline creation to make it more type-driven
@@ -96,12 +89,13 @@ impl RenderPipeline {
       .multisample_state(&multisample_info)
       .depth_stencil_state(&depth_stencil_info)
       .color_blend_state(&color_blend_info)
-      .layout(config.pipeline_layout.layout())
-      .render_pass(config.render_pass)
+      .layout(config.layout().layout())
+      .render_pass(config.render_pass())
       .subpass(config.subpass);
 
     unsafe {
-      device.get()
+      device
+        .get()
         .logical()
         .create_graphics_pipelines(vk::PipelineCache::null(), &[pipeline_create_info], None)
         .map(|pipelines| pipelines[0])

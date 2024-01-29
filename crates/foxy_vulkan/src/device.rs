@@ -3,7 +3,7 @@
 use std::{
   collections::HashSet,
   ffi::{c_char, CStr},
-  sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard},
+  sync::Arc,
 };
 
 use anyhow::Context;

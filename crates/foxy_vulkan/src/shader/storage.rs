@@ -88,7 +88,7 @@ impl ShaderStore {
         let shader = Handle::new(Shader::new(device, path.clone()));
         shader_map.insert(path, shader.clone());
         shader
-      },
+      }
     }
   }
 }

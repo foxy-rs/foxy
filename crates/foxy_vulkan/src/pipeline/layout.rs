@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use ash::vk;
 use foxy_types::handle::Handle;
 use tracing::debug;

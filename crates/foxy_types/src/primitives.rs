@@ -6,3 +6,9 @@ pub type Line3D = (Point3D, Point3D);
 
 pub type Matrix3D = glam::Mat3;
 pub type Matrix4D = glam::Mat4;
+
+#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub struct Dimensions {
+  pub width: i32,
+  pub height: i32,
+}

@@ -35,7 +35,8 @@ macro_rules! log_filter {
   }};
 }
 
-/// example: `ezwin::init_with_levels!(("ookami", Some(log::Level::Trace)), ("ezwin", None));`
+/// example: `ezwin::init_with_levels!(("ookami", Some(log::Level::Trace)),
+/// ("ezwin", None));`
 #[macro_export]
 macro_rules! log_filter_multiple {
     ($($levels:expr),+) => {{
@@ -43,7 +44,8 @@ macro_rules! log_filter_multiple {
     }};
 }
 
-/// this is different from `log_filter_multiple` in that it also has a dedicated first argument for the current crate.
+/// this is different from `log_filter_multiple` in that it also has a dedicated
+/// first argument for the current crate.
 #[macro_export]
 macro_rules! log_filter_with_others {
     ($level:expr, $($levels:expr),+) => {{

@@ -1,5 +1,3 @@
-use std::{mem::ManuallyDrop, sync::Arc};
-
 use anyhow::Context;
 use ash::{self, vk};
 use foxy_types::handle::Handle;
@@ -8,9 +6,18 @@ use crate::{device::Device, error::VulkanError, image::Image};
 
 pub struct Buffer {
   device: Handle<Device>,
-  buffer: ManuallyDrop<vk::Buffer>,
-  memory: ManuallyDrop<vk::DeviceMemory>,
+  buffer: vk::Buffer,
+  memory: vk::DeviceMemory,
   size: vk::DeviceSize,
+}
+
+impl Buffer {
+  pub fn delete(&mut self) {
+    unsafe {
+      self.device.get().logical().destroy_buffer(self.buffer, None);
+      self.device.get().logical().free_memory(self.memory, None);
+    }
+  }
 }
 
 impl Buffer {
@@ -27,33 +34,30 @@ impl Buffer {
       ..Default::default()
     };
 
-    let mut buffer = ManuallyDrop::new(
-      unsafe { device.get().logical().create_buffer(&buffer_create_info, None) }.context("Failed to create buffer")?,
-    );
+    let buffer =
+      unsafe { device.get().logical().create_buffer(&buffer_create_info, None) }.context("Failed to create buffer")?;
 
-    let memory_reqs = unsafe { device.get().logical().get_buffer_memory_requirements(*buffer) };
+    let memory_reqs = unsafe { device.get().logical().get_buffer_memory_requirements(buffer) };
 
     let memory_create_info = vk::MemoryAllocateInfo {
       allocation_size: memory_reqs.size,
-      memory_type_index: device.get()
+      memory_type_index: device
+        .get()
         .find_memory_type(memory_reqs.memory_type_bits, properties)
         .heap_index,
       ..Default::default()
     }
     .allocation_size(memory_reqs.size);
 
-    let memory = ManuallyDrop::new(
-      match unsafe { device.get().logical().allocate_memory(&memory_create_info, None) }
-        .context("Failed to allocate buffer memory")
-      {
-        Ok(value) => value,
-        Err(err) => unsafe {
-          device.get().logical().destroy_buffer(*buffer, None);
-          ManuallyDrop::drop(&mut buffer);
-          Err(err)?
-        },
+    let memory = match unsafe { device.get().logical().allocate_memory(&memory_create_info, None) }
+      .context("Failed to allocate buffer memory")
+    {
+      Ok(value) => value,
+      Err(err) => unsafe {
+        device.get().logical().destroy_buffer(buffer, None);
+        Err(err)?
       },
-    );
+    };
 
     Ok(Self {
       device,
@@ -64,11 +68,11 @@ impl Buffer {
   }
 
   pub fn buffer(&self) -> vk::Buffer {
-    *self.buffer
+    self.buffer
   }
 
   pub fn memory(&self) -> vk::DeviceMemory {
-    *self.memory
+    self.memory
   }
 
   pub fn size(&self) -> vk::DeviceSize {
@@ -88,9 +92,10 @@ impl Buffer {
 
       unsafe {
         self
-          .device.get()
+          .device
+          .get()
           .logical()
-          .cmd_copy_buffer(command_buffer, *self.buffer, *dst.buffer, &[copy_region]);
+          .cmd_copy_buffer(command_buffer, self.buffer, dst.buffer, &[copy_region]);
       }
     });
   }
@@ -113,24 +118,12 @@ impl Buffer {
       unsafe {
         self.device.get().logical().cmd_copy_buffer_to_image(
           command_buffer,
-          *self.buffer,
+          self.buffer,
           image.image(),
           vk::ImageLayout::TRANSFER_DST_OPTIMAL,
           &[copy_region],
         );
       }
     });
-  }
-}
-
-impl Drop for Buffer {
-  fn drop(&mut self) {
-    unsafe {
-      self.device.get().logical().destroy_buffer(*self.buffer, None);
-      ManuallyDrop::drop(&mut self.buffer);
-
-      self.device.get().logical().free_memory(*self.memory, None);
-      ManuallyDrop::drop(&mut self.memory);
-    }
   }
 }

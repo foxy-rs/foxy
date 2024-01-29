@@ -91,12 +91,12 @@ impl Input {
     self.modifiers.contains(modifiers)
   }
 
-  //   pub(crate) fn update_modifiers_state(&mut self, modifiers: ModifiersState) -> BitFlags<Modifiers> {
-  //     // TODO: just swap to bit manipulation to speed up. Stop being lazy, Gabriel.
-  //     for modifier in Modifiers::iter() {
-  //       if modifiers.contains(modifier.into()) != self.modifiers.contains(modifier) {
-  //         self.modifiers.toggle(modifier);
-  //       }
+  //   pub(crate) fn update_modifiers_state(&mut self, modifiers: ModifiersState)
+  // -> BitFlags<Modifiers> {     // TODO: just swap to bit manipulation to
+  // speed up. Stop being lazy, Gabriel.     for modifier in Modifiers::iter() {
+  //       if modifiers.contains(modifier.into()) !=
+  // self.modifiers.contains(modifier) {         self.modifiers.
+  // toggle(modifier);       }
   //     }
 
   //     self.modifiers

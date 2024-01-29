@@ -1,4 +1,4 @@
-use std::{mem::ManuallyDrop, ops::DerefMut, sync::Arc};
+use std::ops::DerefMut;
 
 use ash::vk;
 use foxy_types::handle::Handle;
@@ -19,15 +19,25 @@ impl SyncObjects {
       // sync objects
       for i in 0..Swapchain::MAX_FRAMES_IN_FLIGHT {
         self
-          .device.get()
+          .device
+          .get()
           .logical()
           .destroy_semaphore(self.render_finished_semaphores[i], None);
         self
-          .device.get()
+          .device
+          .get()
           .logical()
           .destroy_semaphore(self.image_avaiable_semaphores[i], None);
-        self.device.get().logical().destroy_fence(self.fences_in_flight[i], None);
-        self.device.get().logical().destroy_fence(self.images_in_flight[i], None);
+        self
+          .device
+          .get()
+          .logical()
+          .destroy_fence(self.fences_in_flight[i], None);
+        self
+          .device
+          .get()
+          .logical()
+          .destroy_fence(self.images_in_flight[i], None);
       }
     }
   }
@@ -55,6 +65,12 @@ impl SyncObjects {
 
     let images_in_flight = vec![Default::default(); Swapchain::MAX_FRAMES_IN_FLIGHT];
 
-    Ok(Self { device, images_in_flight, fences_in_flight, image_avaiable_semaphores, render_finished_semaphores })
+    Ok(Self {
+      device,
+      images_in_flight,
+      fences_in_flight,
+      image_avaiable_semaphores,
+      render_finished_semaphores,
+    })
   }
 }

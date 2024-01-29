@@ -40,7 +40,8 @@ macro_rules! log_init {
   }};
 }
 
-/// example: `ezwin::init_with_levels!(("ookami", Some(log::Level::Trace)), ("ezwin", None));`
+/// example: `ezwin::init_with_levels!(("ookami", Some(log::Level::Trace)),
+/// ("ezwin", None));`
 #[macro_export]
 macro_rules! log_init_multiple {
     ($($levels:expr),+) => {{

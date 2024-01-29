@@ -51,7 +51,7 @@ impl Framework<'_> {
       .with_visibility(Visibility::Hidden)
       .build()?;
 
-    let renderer = Renderer::new(&window, window.inner_size().to_tuple())?;
+    let renderer = Renderer::new(&window, window.inner_size())?;
     window.set_visibility(Visibility::Shown);
 
     let sync_barrier = Arc::new(Barrier::new(2));

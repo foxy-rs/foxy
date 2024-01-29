@@ -5,6 +5,7 @@ use std::{os::raw::c_void, sync::mpsc::channel};
 
 use foxy_types::{
   behavior::{CloseBehavior, ColorMode, Visibility},
+  primitives::Dimensions,
   thread::EngineThread,
 };
 use foxy_util::log::LogErr;
@@ -29,7 +30,7 @@ use crate::{
     builder::{HasSize, HasTitle, MissingSize, MissingTitle, WindowBuilder, WindowCreateInfo},
     input::Input,
     message::{AppMessage, KeyboardMessage, MouseMessage, WindowMessage},
-    state::{WindowSize, WindowState},
+    state::WindowState,
   },
 };
 
@@ -85,11 +86,11 @@ impl Window {
         let state = WindowState {
           hwnd,
           hinstance,
-          size: WindowSize {
+          size: Dimensions {
             width: window_rect.right - window_rect.left,
             height: window_rect.bottom - window_rect.top,
           },
-          inner_size: WindowSize {
+          inner_size: Dimensions {
             width: client_rect.right - client_rect.left,
             height: client_rect.bottom - client_rect.top,
           },
@@ -166,11 +167,11 @@ impl Window {
     }
   }
 
-  pub fn size(&self) -> WindowSize {
+  pub fn size(&self) -> Dimensions {
     self.state.size
   }
 
-  pub fn inner_size(&self) -> WindowSize {
+  pub fn inner_size(&self) -> Dimensions {
     self.state.inner_size
   }
 
@@ -186,11 +187,11 @@ impl Window {
         window_rect,
         client_rect,
       } => {
-        self.state.size = WindowSize {
+        self.state.size = Dimensions {
           width: window_rect.right - window_rect.left,
           height: window_rect.bottom - window_rect.top,
         };
-        self.state.inner_size = WindowSize {
+        self.state.inner_size = Dimensions {
           width: client_rect.right - client_rect.left,
           height: client_rect.bottom - client_rect.top,
         };

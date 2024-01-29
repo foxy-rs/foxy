@@ -1,12 +1,5 @@
-use std::{
-  mem::ManuallyDrop,
-  ops::Deref,
-  sync::{Arc, Mutex},
-};
-
-use foxy_types::handle::Handle;
+use foxy_types::{handle::Handle, primitives::Dimensions};
 use foxy_vulkan::{
-  deletion_queue::DeletionQueue,
   device::{builder::ValidationStatus, Device},
   error::VulkanError,
   image_format::ImageFormat,
@@ -34,12 +27,12 @@ pub struct Renderer {
 impl Renderer {
   pub fn new(
     window: impl HasRawDisplayHandle + HasRawWindowHandle,
-    window_size: (i32, i32),
+    window_size: Dimensions,
   ) -> Result<Self, VulkanError> {
     let device = Device::builder()
-        .with_window(&window)
-        .with_validation(ValidationStatus::Enabled)
-        .build()?;
+      .with_window(&window)
+      .with_validation(ValidationStatus::Enabled)
+      .build()?;
 
     let swapchain = Swapchain::new(device.clone(), window_size, ImageFormat { ..Default::default() })?;
 
@@ -89,7 +82,7 @@ impl Renderer {
     swapchain: &Swapchain,
     layout: PipelineLayout,
   ) -> Result<RenderPipeline, VulkanError> {
-    let config = RenderPipelineConfig::new(device.clone(), (swapchain.width(), swapchain.height()))?
+    let config = RenderPipelineConfig::new(swapchain.size())?
       .with_render_pass(swapchain.render_pass())
       .with_layout(layout);
 
