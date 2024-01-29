@@ -25,7 +25,7 @@ fn main() {
 
 The main goal of `foxy` is to be a simple, easy-to-use API. While high-performance is obviously a secondary goal, ease of implementation, with regards to the internal framework and the external API, are primary. I am only one student, after all. It will be using Vulkan to allow for hardware raytracing. The window currently uses `foxy_window` to create a Win32 desktop window. 
 
-⚠️ This project is still very much a WIP. ⚠️ 
+## ⚠️ This project is still very much a WIP. ⚠️ 
 
 There are **3** primary threads in `foxy`:
 
