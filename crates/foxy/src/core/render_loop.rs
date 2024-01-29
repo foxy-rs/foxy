@@ -60,9 +60,9 @@ impl ThreadLoop for RenderLoop {
 impl RenderLoop {
   fn renderer_sync_or_exit(&mut self) -> anyhow::Result<bool> {
     // self.sync_barrier.wait();
-    match self.messenger.send_and_wait(RenderLoopMessage::Response { 
-      delta_frame_time: *self.time.time().delta(), 
-      average_delta_frame_time: *self.time.time().average_delta(), 
+    match self.messenger.send_and_wait(RenderLoopMessage::Response {
+      delta_time: *self.time.time().delta(),
+      average_delta_time: *self.time.time().average_delta(),
     }) {
       Ok(message) => match message {
         GameLoopMessage::RenderData(data) => {

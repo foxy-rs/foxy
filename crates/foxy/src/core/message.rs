@@ -5,8 +5,8 @@ use foxy_renderer::renderer::render_data::RenderData;
 #[derive(Debug)]
 pub enum RenderLoopMessage {
   Response {
-    delta_frame_time: Duration,
-    average_delta_frame_time: Duration,
+    delta_time: Duration,
+    average_delta_time: Duration,
   },
 }
 

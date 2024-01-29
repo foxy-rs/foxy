@@ -1,16 +1,20 @@
 use std::{
   marker::PhantomData,
   sync::{Arc, Barrier},
+  time::Duration,
 };
 
 use foxy_renderer::renderer::{render_data::RenderData, Renderer};
 use foxy_types::{behavior::Polling, thread::EngineThread};
-use foxy_util::{log::LogErr, time::EngineTime};
+use foxy_util::{
+  log::LogErr,
+  time::{timer::Timer, EngineTime},
+};
 use foxy_window::prelude::*;
 use messaging::Mailbox;
 use tracing::*;
 
-use super::{engine::Foxy, stage::StageDiscriminants};
+use super::{builder::DebugInfo, engine::Foxy, stage::StageDiscriminants};
 use crate::core::{
   builder::{FoxyBuilder, FoxyCreateInfo, HasSize, HasTitle, MissingSize, MissingTitle},
   message::{GameLoopMessage, RenderLoopMessage},
@@ -21,6 +25,8 @@ use crate::core::{
 
 pub struct Framework<'a> {
   polling_strategy: Polling,
+  debug_info: DebugInfo,
+
   render_thread: EngineThread<RenderLoop>,
   game_mailbox: Mailbox<GameLoopMessage, RenderLoopMessage>,
   sync_barrier: Arc<Barrier>,
@@ -29,6 +35,7 @@ pub struct Framework<'a> {
   current_message: WindowMessage,
 
   foxy: Foxy,
+  fps_timer: Timer,
 
   _phantom: PhantomData<&'a ()>,
 }
@@ -75,7 +82,9 @@ impl Framework<'_> {
       game_mailbox,
       sync_barrier,
       polling_strategy: create_info.polling_strategy,
+      debug_info: create_info.debug_info,
       foxy,
+      fps_timer: Timer::new(),
       current_message: WindowMessage::None,
       _phantom: PhantomData,
     })
@@ -158,11 +167,22 @@ impl Framework<'_> {
           .send_and_wait(GameLoopMessage::RenderData(RenderData {}))
           .log_error()
         {
-          Ok(render_response) => Stage::EndFrame {
-            foxy: &mut self.foxy,
-            message: &mut self.current_message,
-            render_response,
-          },
+          Ok(render_response) => {
+            if self.fps_timer.has_elapsed(Duration::from_millis(300)) {
+              if let DebugInfo::Shown = self.debug_info {
+                let fps = 1.0 / self.foxy.time.average_delta_secs();
+                self
+                  .foxy
+                  .window
+                  .set_title(&format!("{} | FPS: {:.2}", self.foxy.window.title(), fps,));
+              }
+            }
+            Stage::EndFrame {
+              foxy: &mut self.foxy,
+              message: &mut self.current_message,
+              render_response,
+            }
+          }
           Err(_) => Stage::Exiting { foxy: &mut self.foxy },
         }
       }

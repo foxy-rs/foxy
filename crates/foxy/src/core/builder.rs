@@ -3,6 +3,13 @@ use foxy_window::prelude::*;
 
 use super::engine_loop::Framework;
 
+#[derive(Default)]
+pub enum DebugInfo {
+  Shown,
+  #[default]
+  Hidden,
+}
+
 pub struct HasTitle(pub &'static str);
 pub struct MissingTitle;
 
@@ -18,6 +25,7 @@ pub struct FoxyCreateInfo<Title, Size> {
   pub color_mode: ColorMode,
   pub close_behavior: CloseBehavior,
   pub polling_strategy: Polling,
+  pub debug_info: DebugInfo,
 }
 
 pub struct FoxyBuilder<Title, Size> {
@@ -39,6 +47,7 @@ impl Default for FoxyBuilder<MissingTitle, MissingSize> {
         color_mode: ColorMode::Dark,
         close_behavior: CloseBehavior::Default,
         polling_strategy: Polling::Poll,
+        debug_info: Default::default(),
       },
     }
   }
@@ -53,6 +62,7 @@ impl<Size> FoxyBuilder<MissingTitle, Size> {
         color_mode: self.create_info.color_mode,
         close_behavior: self.create_info.close_behavior,
         polling_strategy: self.create_info.polling_strategy,
+        debug_info: self.create_info.debug_info,
       },
     }
   }
@@ -67,6 +77,7 @@ impl<Title> FoxyBuilder<Title, MissingSize> {
         color_mode: self.create_info.color_mode,
         close_behavior: self.create_info.close_behavior,
         polling_strategy: self.create_info.polling_strategy,
+        debug_info: self.create_info.debug_info,
       },
     }
   }
@@ -81,6 +92,7 @@ impl<Title, Size> FoxyBuilder<Title, Size> {
         color_mode,
         close_behavior: self.create_info.close_behavior,
         polling_strategy: self.create_info.polling_strategy,
+        debug_info: self.create_info.debug_info,
       },
     }
   }
@@ -93,6 +105,7 @@ impl<Title, Size> FoxyBuilder<Title, Size> {
         color_mode: self.create_info.color_mode,
         close_behavior,
         polling_strategy: self.create_info.polling_strategy,
+        debug_info: self.create_info.debug_info,
       },
     }
   }
@@ -105,6 +118,20 @@ impl<Title, Size> FoxyBuilder<Title, Size> {
         color_mode: self.create_info.color_mode,
         close_behavior: self.create_info.close_behavior,
         polling_strategy: message_behavior,
+        debug_info: self.create_info.debug_info,
+      },
+    }
+  }
+
+  pub fn with_debug_info(self, debug_info: DebugInfo) -> Self {
+    Self {
+      create_info: FoxyCreateInfo {
+        title: self.create_info.title,
+        size: self.create_info.size,
+        color_mode: self.create_info.color_mode,
+        close_behavior: self.create_info.close_behavior,
+        polling_strategy: self.create_info.polling_strategy,
+        debug_info,
       },
     }
   }
