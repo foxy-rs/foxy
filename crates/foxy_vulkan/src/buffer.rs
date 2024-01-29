@@ -2,11 +2,12 @@ use std::{mem::ManuallyDrop, sync::Arc};
 
 use anyhow::Context;
 use ash::{self, vk};
+use foxy_types::handle::Handle;
 
 use crate::{device::Device, error::VulkanError, image::Image};
 
 pub struct Buffer {
-  device: Arc<Device>,
+  device: Handle<Device>,
   buffer: ManuallyDrop<vk::Buffer>,
   memory: ManuallyDrop<vk::DeviceMemory>,
   size: vk::DeviceSize,
@@ -14,7 +15,7 @@ pub struct Buffer {
 
 impl Buffer {
   pub fn new(
-    device: Arc<Device>,
+    device: Handle<Device>,
     size: vk::DeviceSize,
     usage: vk::BufferUsageFlags,
     properties: vk::MemoryPropertyFlags,
@@ -27,14 +28,14 @@ impl Buffer {
     };
 
     let mut buffer = ManuallyDrop::new(
-      unsafe { device.logical().create_buffer(&buffer_create_info, None) }.context("Failed to create buffer")?,
+      unsafe { device.get().logical().create_buffer(&buffer_create_info, None) }.context("Failed to create buffer")?,
     );
 
-    let memory_reqs = unsafe { device.logical().get_buffer_memory_requirements(*buffer) };
+    let memory_reqs = unsafe { device.get().logical().get_buffer_memory_requirements(*buffer) };
 
     let memory_create_info = vk::MemoryAllocateInfo {
       allocation_size: memory_reqs.size,
-      memory_type_index: device
+      memory_type_index: device.get()
         .find_memory_type(memory_reqs.memory_type_bits, properties)
         .heap_index,
       ..Default::default()
@@ -42,12 +43,12 @@ impl Buffer {
     .allocation_size(memory_reqs.size);
 
     let memory = ManuallyDrop::new(
-      match unsafe { device.logical().allocate_memory(&memory_create_info, None) }
+      match unsafe { device.get().logical().allocate_memory(&memory_create_info, None) }
         .context("Failed to allocate buffer memory")
       {
         Ok(value) => value,
         Err(err) => unsafe {
-          device.logical().destroy_buffer(*buffer, None);
+          device.get().logical().destroy_buffer(*buffer, None);
           ManuallyDrop::drop(&mut buffer);
           Err(err)?
         },
@@ -81,21 +82,21 @@ impl Buffer {
   //   }
   // }
 
-  pub fn copy_to_buffer(&self, vulkan: &Device, dst: &Buffer) {
-    vulkan.issue_single_time_commands(|command_buffer| {
+  pub fn copy_to_buffer(&self, dst: &Buffer) {
+    self.device.get().issue_single_time_commands(|command_buffer| {
       let copy_region = vk::BufferCopy::default().size(self.size);
 
       unsafe {
         self
-          .device
+          .device.get()
           .logical()
           .cmd_copy_buffer(command_buffer, *self.buffer, *dst.buffer, &[copy_region]);
       }
     });
   }
 
-  pub fn copy_to_image(&self, vulkan: &Device, image: &Image) {
-    vulkan.issue_single_time_commands(|command_buffer| {
+  pub fn copy_to_image(&self, image: &Image) {
+    self.device.get().issue_single_time_commands(|command_buffer| {
       let copy_region = vk::BufferImageCopy::default()
         .image_subresource(
           vk::ImageSubresourceLayers::default()
@@ -110,7 +111,7 @@ impl Buffer {
         );
 
       unsafe {
-        self.device.logical().cmd_copy_buffer_to_image(
+        self.device.get().logical().cmd_copy_buffer_to_image(
           command_buffer,
           *self.buffer,
           image.image(),
@@ -125,10 +126,10 @@ impl Buffer {
 impl Drop for Buffer {
   fn drop(&mut self) {
     unsafe {
-      self.device.logical().destroy_buffer(*self.buffer, None);
+      self.device.get().logical().destroy_buffer(*self.buffer, None);
       ManuallyDrop::drop(&mut self.buffer);
 
-      self.device.logical().free_memory(*self.memory, None);
+      self.device.get().logical().free_memory(*self.memory, None);
       ManuallyDrop::drop(&mut self.memory);
     }
   }

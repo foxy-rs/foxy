@@ -9,8 +9,8 @@ pub struct Surface {
   surface_loader: khr::Surface,
 }
 
-impl Drop for Surface {
-  fn drop(&mut self) {
+impl Surface {
+  pub fn delete(&mut self) {
     unsafe { self.surface_loader.destroy_surface(self.surface, None) };
   }
 }

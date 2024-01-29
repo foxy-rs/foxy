@@ -21,11 +21,12 @@ tracing-error = "0.2"
 byteorder = "1.5"
 bytemuck  = "1.13"
 itertools = "0.12"
-strum     = { version = "0.25", features = ["derive"] }
+strum     = { version = "0.26", features = ["derive"] }
 
 raw-window-handle = "0.5"
 ash-window        = { git = "https://github.com/ash-rs/ash.git" }
 ash               = { git = "https://github.com/ash-rs/ash.git", features = ["linked", "debug"] }
 shaderc           = "0.8"
 
-foxy_util = { version = "0.2", path = "../foxy_util" }
+foxy_util  = { version = "0.2", path = "../foxy_util" }
+foxy_types = { version = "0.2", path = "../foxy_types" }

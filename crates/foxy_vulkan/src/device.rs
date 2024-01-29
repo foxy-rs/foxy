@@ -3,9 +3,7 @@
 use std::{
   collections::HashSet,
   ffi::{c_char, CStr},
-  mem::ManuallyDrop,
-  ops::Deref,
-  sync::Arc,
+  sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard},
 };
 
 use anyhow::Context;
@@ -17,54 +15,53 @@ use itertools::Itertools;
 use raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle, RawDisplayHandle};
 use tracing::*;
 
+use self::builder::{DeviceBuilder, MissingWindow, ValidationStatus, VulkanCreateInfo};
 use crate::{
-  builder::{MissingWindow, ValidationStatus, VulkanBuilder, VulkanCreateInfo},
   error::{Debug, VulkanError},
   shader::storage::ShaderStore,
   surface::{Surface, SwapchainSupport},
   unsupported_error,
 };
 
+pub mod builder;
+
 pub struct Device {
-  shader_store: ManuallyDrop<ShaderStore>,
+  shader_store: ShaderStore,
 
   present_queue: vk::Queue,
   graphics_queue: vk::Queue,
 
-  command_pool: ManuallyDrop<vk::CommandPool>,
+  command_pool: vk::CommandPool,
 
-  logical: ManuallyDrop<Arc<ash::Device>>,
+  logical: Arc<ash::Device>,
   physical: vk::PhysicalDevice,
 
-  surface: ManuallyDrop<Surface>,
+  surface: Surface,
 
-  debug: ManuallyDrop<Debug>,
-  instance: ManuallyDrop<ash::Instance>,
+  debug: Debug,
+  instance: ash::Instance,
   _entry: ash::Entry,
 }
 
-impl Drop for Device {
-  fn drop(&mut self) {
-    trace!("Dropping Vulkan");
+impl Device {
+  pub fn delete(&mut self) {
+    trace!("Deleting Device");
     unsafe {
-      trace!("> Destroying shaders");
-      ManuallyDrop::drop(&mut self.shader_store);
+      trace!("> Deleting shaders");
+      self.shader_store.delete();
 
       trace!("> Destroying command pool");
-      self.logical.destroy_command_pool(*self.command_pool, None);
-      ManuallyDrop::drop(&mut self.command_pool);
+      self.logical.destroy_command_pool(self.command_pool, None);
 
       trace!("> Destroying logical device");
       self.logical.destroy_device(None);
-      ManuallyDrop::drop(&mut self.logical);
 
-      trace!("> Destroying surface");
-      ManuallyDrop::drop(&mut self.surface);
-      ManuallyDrop::drop(&mut self.debug);
+      trace!("> Deleting surface");
+      self.surface.delete();
+      self.debug.delete();
 
       trace!("> Destroying instance");
       self.instance.destroy_instance(None);
-      ManuallyDrop::drop(&mut self.instance);
     }
   }
 }
@@ -81,7 +78,7 @@ impl Device {
     c"VK_LAYER_KHRONOS_validation",
   ];
 
-  pub fn builder() -> VulkanBuilder<MissingWindow> {
+  pub fn builder() -> DeviceBuilder<MissingWindow> {
     Default::default()
   }
 
@@ -92,14 +89,14 @@ impl Device {
     let display_handle = create_info.window.raw_display_handle();
 
     let entry = ash::Entry::linked();
-    let instance = ManuallyDrop::new(Self::new_instance(&entry, display_handle, create_info.validation_status)?);
-    let debug = ManuallyDrop::new(Debug::new(&entry, &instance)?);
-    let surface = ManuallyDrop::new(Surface::new(&create_info.window, &entry, &instance)?);
+    let instance = Self::new_instance(&entry, display_handle, create_info.validation_status)?;
+    let debug = Debug::new(&entry, &instance)?;
+    let surface = Surface::new(&create_info.window, &entry, &instance)?;
     let physical = Self::pick_physical_device(&surface, &instance)?;
     let (logical, graphics_queue, present_queue) = Self::new_logical_device(&surface, &instance, physical)?;
-    let logical = ManuallyDrop::new(Arc::new(logical));
-    let command_pool = ManuallyDrop::new(Self::create_command_pool(&surface, &instance, &logical, physical)?);
-    let shader_store = ManuallyDrop::new(ShaderStore::new((*logical).clone()));
+    let logical = Arc::new(logical);
+    let command_pool = Self::create_command_pool(&surface, &instance, &logical, physical)?;
+    let shader_store = ShaderStore::new(logical.clone());
 
     Ok(Self {
       _entry: entry,
@@ -124,7 +121,7 @@ impl Device {
   }
 
   pub fn logical(&self) -> Arc<ash::Device> {
-    (*self.logical).clone()
+    self.logical.clone()
   }
 
   pub fn surface(&self) -> &Surface {
@@ -143,14 +140,14 @@ impl Device {
     &self.present_queue
   }
 
-  pub fn shaders(&self) -> &ShaderStore {
-    &self.shader_store
+  pub fn shaders(&mut self) -> &mut ShaderStore {
+    &mut self.shader_store
   }
 
   pub fn begin_single_time_commands(&self) -> Result<vk::CommandBuffer, VulkanError> {
     let allocate_info = vk::CommandBufferAllocateInfo {
       level: vk::CommandBufferLevel::PRIMARY,
-      command_pool: *self.command_pool,
+      command_pool: self.command_pool,
       command_buffer_count: 1,
       ..Default::default()
     };
@@ -187,7 +184,7 @@ impl Device {
 
     unsafe { self.logical.queue_wait_idle(self.graphics_queue) }.context("Failed to process graphics queue")?;
 
-    unsafe { self.logical.free_command_buffers(*self.command_pool, &[command_buffer]) };
+    unsafe { self.logical.free_command_buffers(self.command_pool, &[command_buffer]) };
 
     Ok(())
   }
@@ -572,7 +569,7 @@ impl Device {
   }
 
   pub fn queue_families(&self) -> Result<QueueFamilyIndices, VulkanError> {
-    Self::find_queue_families(self.surface.deref(), self.instance.deref(), self.physical)
+    Self::find_queue_families(&self.surface, &self.instance, self.physical)
   }
 
   fn find_queue_families(

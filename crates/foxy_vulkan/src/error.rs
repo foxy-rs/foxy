@@ -42,8 +42,8 @@ pub struct Debug {
   debug_messenger: Option<vk::DebugUtilsMessengerEXT>,
 }
 
-impl Drop for Debug {
-  fn drop(&mut self) {
+impl Debug {
+  pub fn delete(&mut self) {
     if let Some(debug_utils) = self.debug_utils.take() {
       if let Some(debug_messenger) = self.debug_messenger.take() {
         unsafe {

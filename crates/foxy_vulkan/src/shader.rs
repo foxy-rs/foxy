@@ -20,13 +20,15 @@ enum BuildAttempt {
 }
 
 // encapsulate to prevent premature droppage
+#[derive(Clone)]
 struct Module {
   device: Arc<ash::Device>,
   module: vk::ShaderModule,
 }
 
-impl Drop for Module {
-  fn drop(&mut self) {
+impl Module {
+  pub fn delete(&mut self) {
+    debug!("Deleting shader module");
     unsafe {
       self.device.destroy_shader_module(self.module, None);
     }
@@ -36,8 +38,15 @@ impl Drop for Module {
 #[derive(Clone)] // This type is safe to clone because everything is super cheap
 pub struct Shader<Stage: StageInfo> {
   shader_entry_point: CString,
-  module: Arc<Module>,
+  module: Module,
   _p: PhantomData<Stage>,
+}
+
+impl<Stage: StageInfo> Shader<Stage> {
+  pub fn delete(&mut self) {
+    debug!("Deleting shader");
+    self.module.delete();
+  }
 }
 
 impl<Stage: StageInfo> Shader<Stage> {
@@ -49,7 +58,7 @@ impl<Stage: StageInfo> Shader<Stage> {
 
     Self {
       shader_entry_point,
-      module: Arc::new(Module { device, module }),
+      module: Module { device, module },
       _p: PhantomData,
     }
   }

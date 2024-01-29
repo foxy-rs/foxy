@@ -42,6 +42,8 @@ impl ThreadLoop for RenderLoop {
 
         trace!("Ending render");
 
+        self.renderer.delete();
+
         Ok(())
       })
       .map_err(anyhow::Error::from)

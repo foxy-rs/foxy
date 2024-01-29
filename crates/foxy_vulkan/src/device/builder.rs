@@ -1,6 +1,9 @@
+use foxy_types::handle::Handle;
 use raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle};
 
-use super::{error::VulkanError, device::Device};
+use crate::error::VulkanError;
+
+use super::{Device,};
 
 pub struct MissingWindow;
 pub struct HasWindow<W: HasRawDisplayHandle + HasRawWindowHandle>(W);
@@ -12,18 +15,18 @@ pub enum ValidationStatus {
   Disabled,
 }
 
-pub struct VulkanBuilder<W> {
+pub struct DeviceBuilder<W> {
   window: W,
   validation_status: ValidationStatus,
 }
 
-impl Default for VulkanBuilder<MissingWindow> {
+impl Default for DeviceBuilder<MissingWindow> {
   fn default() -> Self {
     Self::new()
   }
 }
 
-impl VulkanBuilder<MissingWindow> {
+impl DeviceBuilder<MissingWindow> {
   pub fn new() -> Self {
     Self {
       window: MissingWindow,
@@ -32,30 +35,30 @@ impl VulkanBuilder<MissingWindow> {
   }
 }
 
-impl VulkanBuilder<MissingWindow> {
-  pub fn with_window<W: HasRawDisplayHandle + HasRawWindowHandle>(self, window: W) -> VulkanBuilder<HasWindow<W>> {
-    VulkanBuilder {
+impl DeviceBuilder<MissingWindow> {
+  pub fn with_window<W: HasRawDisplayHandle + HasRawWindowHandle>(self, window: W) -> DeviceBuilder<HasWindow<W>> {
+    DeviceBuilder {
       window: HasWindow(window),
       validation_status: self.validation_status,
     }
   }
 }
 
-impl<W> VulkanBuilder<W> {
-  pub fn with_validation(self, validation_status: ValidationStatus) -> VulkanBuilder<W> {
-    VulkanBuilder {
+impl<W> DeviceBuilder<W> {
+  pub fn with_validation(self, validation_status: ValidationStatus) -> DeviceBuilder<W> {
+    DeviceBuilder {
       window: self.window,
       validation_status,
     }
   }
 }
 
-impl<W: HasRawDisplayHandle + HasRawWindowHandle> VulkanBuilder<HasWindow<W>> {
-  pub fn build(self) -> Result<Device, VulkanError> {
-    Device::new(VulkanCreateInfo {
+impl<W: HasRawDisplayHandle + HasRawWindowHandle> DeviceBuilder<HasWindow<W>> {
+  pub fn build(self) -> Result<Handle<Device>, VulkanError> {
+    Ok(Handle::new(Device::new(VulkanCreateInfo {
       window: self.window.0,
       validation_status: self.validation_status,
-    })
+    })?))
   }
 }
 

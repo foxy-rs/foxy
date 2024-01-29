@@ -1,11 +1,16 @@
-use std::{mem::ManuallyDrop, ops::Deref, sync::Arc};
+use std::{
+  mem::ManuallyDrop,
+  ops::Deref,
+  sync::{Arc, Mutex},
+};
 
+use foxy_types::handle::Handle;
 use foxy_vulkan::{
-  builder::ValidationStatus,
-  device::Device,
+  deletion_queue::DeletionQueue,
+  device::{builder::ValidationStatus, Device},
   error::VulkanError,
   image_format::ImageFormat,
-  pipeline::{RenderPipeline, RenderPipelineConfig},
+  pipeline::{config::RenderPipelineConfig, layout::PipelineLayout, RenderPipeline},
   swapchain::Swapchain,
 };
 use raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle};
@@ -17,25 +22,13 @@ pub mod command;
 pub mod render_data;
 
 pub struct Renderer {
-  vulkan: ManuallyDrop<Arc<Device>>,
-  swapchain: ManuallyDrop<Swapchain>,
-  render_pipeline: ManuallyDrop<RenderPipeline>,
-
+  render_pipeline_layout: PipelineLayout,
+  render_pipeline: RenderPipeline,
   render_data: RenderData,
-}
 
-impl Drop for Renderer {
-  fn drop(&mut self) {
-    trace!("Dropping Renderer");
-    unsafe {
-      trace!("> Dropping render pipeline");
-      ManuallyDrop::drop(&mut self.render_pipeline);
-      trace!("> Dropping swapchain");
-      ManuallyDrop::drop(&mut self.swapchain);
-      trace!("> Dropping vulkan");
-      ManuallyDrop::drop(&mut self.vulkan);
-    }
-  }
+  swapchain: Swapchain,
+
+  device: Handle<Device>,
 }
 
 impl Renderer {
@@ -43,36 +36,73 @@ impl Renderer {
     window: impl HasRawDisplayHandle + HasRawWindowHandle,
     window_size: (i32, i32),
   ) -> Result<Self, VulkanError> {
-    let vulkan = ManuallyDrop::new(Arc::new(
-      Device::builder()
+    let device = Device::builder()
         .with_window(&window)
         .with_validation(ValidationStatus::Enabled)
-        .build()?,
-    ));
-    let swapchain = ManuallyDrop::new(Swapchain::new(vulkan.deref().clone(), window_size, ImageFormat {
-      ..Default::default()
-    })?);
-    let render_pipeline = ManuallyDrop::new(
-      RenderPipeline::builder(&vulkan)
-        .with_vertex_shader("assets/shaders/simple/simple.vert")
-        .with_fragment_shader("assets/shaders/simple/simple.frag")
-        .with_config(RenderPipelineConfig::default())
-        .build()?,
-    );
+        .build()?;
+
+    let swapchain = Swapchain::new(device.clone(), window_size, ImageFormat { ..Default::default() })?;
+
+    let render_pipeline_layout = PipelineLayout::new(device.clone())?;
+
+    let render_pipeline = Self::create_render_pipeline(device.clone(), &swapchain, render_pipeline_layout.clone())?;
+
+    let command_buffers = Self::create_command_buffers(device.clone(), &swapchain);
 
     Ok(Self {
-      vulkan,
+      device,
       swapchain,
+      render_pipeline_layout,
       render_pipeline,
       render_data: RenderData::default(),
     })
   }
 
+  pub fn delete(&mut self) {
+    trace!("Deleting Renderer");
+    trace!("> Deleting render_pipeline_layout");
+    self.render_pipeline_layout.delete();
+    trace!("> Deleting render_pipeline");
+    self.render_pipeline.delete();
+    trace!("> Deleting swapchain");
+    self.swapchain.delete();
+
+    trace!("> Deleting device");
+    self.device.get_mut().delete();
+  }
+
   pub fn draw_frame(&mut self) -> Result<(), VulkanError> {
+    // if let Some((u32, bool)) = self.swapchain.next() {}
+
     Ok(())
   }
 
   pub fn update_render_data(&mut self, render_data: RenderData) -> Result<(), VulkanError> {
+    Ok(())
+  }
+}
+
+/// Private Implemenation Details
+impl Renderer {
+  fn create_render_pipeline(
+    device: Handle<Device>,
+    swapchain: &Swapchain,
+    layout: PipelineLayout,
+  ) -> Result<RenderPipeline, VulkanError> {
+    let config = RenderPipelineConfig::new(device.clone(), (swapchain.width(), swapchain.height()))?
+      .with_render_pass(swapchain.render_pass())
+      .with_layout(layout);
+
+    let render_pipeline = RenderPipeline::builder(device)
+      .with_vertex_shader("assets/shaders/simple/simple.vert")
+      .with_fragment_shader("assets/shaders/simple/simple.frag")
+      .with_config(config)
+      .build()?;
+
+    Ok(render_pipeline)
+  }
+
+  fn create_command_buffers(device: Handle<Device>, swapchain: &Swapchain) -> Result<(), VulkanError> {
     Ok(())
   }
 }
