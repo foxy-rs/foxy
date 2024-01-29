@@ -19,5 +19,5 @@ tracing            = { version = "0.1" }
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
 arraydeque = "0.5"
-strum      = { version = "0.25", features = ["derive"] }
+strum      = { version = "0.26", features = ["derive"] }
 quanta     = "0.12"
