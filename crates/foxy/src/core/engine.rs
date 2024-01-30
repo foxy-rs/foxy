@@ -1,43 +1,28 @@
-use std::time::Duration;
-
-use foxy_util::time::timer::Timer;
+use foxy_util::time::{EngineTime, Time};
 use foxy_window::window::Window;
-use tracing::info;
-
-use super::time::Time;
 
 pub struct Foxy {
-  pub time: Time,
-  pub window: Window,
+  pub(crate) time: EngineTime,
+  window: Window,
 }
 
 impl Foxy {
-  pub fn new(time: Time, window: Window) -> Self {
+  pub fn new(time: EngineTime, window: Window) -> Self {
     Self {
       time,
       window,
     }
   }
 
-  // pub fn append_fps_every(&mut self, duration: Duration, extra_info: String) {
-  //   if self.fps_timer.has_elapsed(duration) {
-  //     let fps = 1.0 / self.time.average_delta_secs();
-  //     self
-  //       .window
-  //       .set_title(&format!("{}: {:.2}{}", self.window.title(), fps, extra_info));
-  //   }
-  // }
+  pub fn time(&self) -> Time {
+    self.time.time()
+  }
 
-  // pub fn append_ft_every(&mut self, duration: Duration) {
-  //   if self.fps_timer.has_elapsed(duration) {
-  //     self
-  //       .window
-  //       .set_title(&format!("{}: {:.6}", self.window.title(), self.time.average_delta_secs()));
-  //   }
-  // }
+  pub fn window(&self) -> &Window {
+    &self.window
+  }
 
-  // pub fn print_fps(&self) {
-  //   let fps = 1.0 / self.time.average_delta_secs();
-  //   info!("{}", format!("{}: {:.2}", self.window.title(), fps));
-  // }
+  pub fn window_mut(&mut self) -> &mut Window {
+    &mut self.window
+  }
 }

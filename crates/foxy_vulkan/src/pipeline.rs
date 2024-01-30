@@ -1,4 +1,3 @@
-use anyhow::Result;
 use ash::vk;
 use foxy_types::handle::Handle;
 
@@ -6,71 +5,55 @@ pub mod builder;
 pub mod config;
 pub mod layout;
 
-use self::{
-  builder::{ConfigMissing, FragmentShaderMissing, RenderPipelineBuilder, VertexShaderMissing},
-  config::{HasLayout, HasRenderPass, RenderPipelineConfig},
-};
+use self::config::{HasLayout, HasRenderPass, RenderPipelineConfig};
 use crate::{
-  device::Device,
-  error::VulkanError,
-  shader::{
-    stage::{fragment::Fragment, vertex::Vertex},
-    Shader,
-  },
-  unsupported_error,
+  device::Device, error::VulkanError, shader::set::{HasFragment, HasVertex, NoCompute, NoFragment, NoGeometry, NoMesh, NoVertex, ShaderSet}, vulkan_error, vulkan_unsupported_error
 };
 
-pub struct RenderPipeline {
-  device: Handle<Device>,
-  pipeline: vk::Pipeline,
-  config: RenderPipelineConfig<HasLayout, HasRenderPass>,
-  vertex_shader: Handle<Shader<Vertex>>,
-  fragment_shader: Handle<Shader<Fragment>>,
-}
-
-impl RenderPipeline {
-  pub fn delete(&mut self) {
-    unsafe {
-      self.device.get().logical().destroy_pipeline(self.pipeline, None);
-    }
-  }
-}
-
-impl RenderPipeline {
-  pub fn builder(
-    device: Handle<Device>,
-  ) -> RenderPipelineBuilder<VertexShaderMissing, FragmentShaderMissing, ConfigMissing> {
-    RenderPipelineBuilder::new(device)
-  }
+pub trait RenderPipeline {
+  #[allow(clippy::type_complexity)]
+  type ShaderSet = ShaderSet<Self::Vertex, Self::Fragment, Self::Compute, Self::Geometry, Self::Mesh>;
+  type Vertex = NoVertex;
+  type Fragment = NoFragment;
+  type Compute = NoCompute;
+  type Geometry = NoGeometry;
+  type Mesh = NoMesh;
 
   fn new(
     device: Handle<Device>,
     config: RenderPipelineConfig<HasLayout, HasRenderPass>,
-    vertex_shader: Handle<Shader<Vertex>>,
-    fragment_shader: Handle<Shader<Fragment>>,
-  ) -> Result<Self> {
-    let pipeline =
-      Self::create_graphics_pipeline(device.clone(), vertex_shader.clone(), fragment_shader.clone(), &config)?;
+    shader_set: Self::ShaderSet,
+  ) -> Result<Self, VulkanError>
+  where
+    Self: Sized;
 
-    Ok(Self {
-      device,
-      pipeline,
-      vertex_shader,
-      fragment_shader,
-      config,
-    })
-  }
+  fn delete(&mut self);
 
-  fn create_graphics_pipeline(
+  fn bind(&self, command_buffer: vk::CommandBuffer);
+}
+
+pub struct SimpleRenderPipeline {
+  device: Handle<Device>,
+  pipeline: vk::Pipeline,
+  config: RenderPipelineConfig<HasLayout, HasRenderPass>,
+}
+
+impl RenderPipeline for SimpleRenderPipeline {
+  type Fragment = HasFragment;
+  type Vertex = HasVertex;
+
+  fn new(
     device: Handle<Device>,
-    vertex_shader: Handle<Shader<Vertex>>,
-    fragment_shader: Handle<Shader<Fragment>>,
-    config: &RenderPipelineConfig<HasLayout, HasRenderPass>,
-  ) -> Result<vk::Pipeline, VulkanError> {
-    let vertex_shader = vertex_shader.get();
-    let fragment_shader = fragment_shader.get();
-    // TODO: Overhaul pipeline creation to make it more type-driven
+    config: RenderPipelineConfig<HasLayout, HasRenderPass>,
+    shader_set: Self::ShaderSet,
+  ) -> Result<Self, VulkanError>
+  where
+    Self: Sized,
+  {
+    let vertex_shader = shader_set.vertex();
+    let fragment_shader = shader_set.fragment();
 
+    // TODO: Overhaul pipeline creation to make it more type-driven
     let shader_stage_create_infos = &[vertex_shader.pipeline_info(), fragment_shader.pipeline_info()];
     let vertex_input_info = vk::PipelineVertexInputStateCreateInfo::default();
     let input_assembly_info = config.input_assembly_info();
@@ -93,13 +76,35 @@ impl RenderPipeline {
       .render_pass(config.render_pass())
       .subpass(config.subpass);
 
-    unsafe {
+    let pipeline = unsafe {
       device
         .get()
         .logical()
         .create_graphics_pipelines(vk::PipelineCache::null(), &[pipeline_create_info], None)
-        .map(|pipelines| pipelines[0])
-        .map_err(|err| unsupported_error!("failed to create graphics pipelines: {err:?}"))
+        .map(|pipelines| pipelines.first().cloned())
+        .map_err(|err| vulkan_unsupported_error!("failed to create graphics pipelines: {err:?}"))
+    }?.ok_or_else(|| vulkan_error!("invalid pipeline index"))?;
+
+    Ok(Self {
+      device,
+      pipeline,
+      config,
+    })
+  }
+
+  fn delete(&mut self) {
+    unsafe {
+      self.device.get().logical().destroy_pipeline(self.pipeline, None);
     }
+  }
+
+  fn bind(&self, command_buffer: vk::CommandBuffer) {
+    unsafe {
+      self
+        .device
+        .get()
+        .logical()
+        .cmd_bind_pipeline(command_buffer, vk::PipelineBindPoint::GRAPHICS, self.pipeline)
+    };
   }
 }

@@ -3,6 +3,7 @@ use std::time::Duration;
 use quanta::Instant;
 
 #[allow(dead_code)]
+#[derive(Debug)]
 pub struct Timer {
   start_of_lap: Instant,
 }

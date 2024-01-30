@@ -24,7 +24,8 @@ fn main() {
 
   for stage in framework {
     match stage {
-      Stage::Update { message, .. } => match message {
+      // Stage::EarlyUpdate { .. } => debug!("UPDATE"),
+      Stage::Update { message, foxy, .. } => match message {
         WindowMessage::None | WindowMessage::Other { .. } | WindowMessage::Mouse(MouseMessage::Cursor) => {}
         _ => debug!("UPDATE: {:?}", message),
       },

@@ -17,27 +17,17 @@ impl SyncObjects {
   pub fn delete(&mut self) {
     unsafe {
       // sync objects
-      for i in 0..Swapchain::MAX_FRAMES_IN_FLIGHT {
-        self
-          .device
-          .get()
-          .logical()
-          .destroy_semaphore(self.render_finished_semaphores[i], None);
-        self
-          .device
-          .get()
-          .logical()
-          .destroy_semaphore(self.image_avaiable_semaphores[i], None);
-        self
-          .device
-          .get()
-          .logical()
-          .destroy_fence(self.fences_in_flight[i], None);
-        self
-          .device
-          .get()
-          .logical()
-          .destroy_fence(self.images_in_flight[i], None);
+      for &s in &self.render_finished_semaphores {
+        self.device.get().logical().destroy_semaphore(s, None);
+      }
+      for &s in &self.image_avaiable_semaphores {
+        self.device.get().logical().destroy_semaphore(s, None);
+      }
+      for &f in &self.fences_in_flight {
+        self.device.get().logical().destroy_fence(f, None);
+      }
+      for &f in &self.images_in_flight {
+        self.device.get().logical().destroy_fence(f, None);
       }
     }
   }

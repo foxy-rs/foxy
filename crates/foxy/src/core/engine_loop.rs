@@ -20,7 +20,6 @@ use crate::core::{
   message::{GameLoopMessage, RenderLoopMessage},
   render_loop::RenderLoop,
   stage::Stage,
-  time::Time,
 };
 
 pub struct Framework<'a> {
@@ -49,8 +48,8 @@ impl Framework<'_> {
     trace!("Firing up Foxy");
 
     // TODO: make this adjustable
-    let time = Time::new(128.0, 1024);
-    let render_time = EngineTime::new(128.0, 1024);
+    let time = EngineTime::default();
+    let render_time = EngineTime::default();
 
     let mut window = Window::builder()
       .with_title(create_info.title.0)
@@ -96,9 +95,9 @@ impl Framework<'_> {
 
   fn next_window_message(&mut self) -> Option<WindowMessage> {
     if let Polling::Wait = self.polling_strategy {
-      self.foxy.window.wait()
+      self.foxy.window_mut().wait()
     } else {
-      self.foxy.window.next()
+      self.foxy.window_mut().next()
     }
   }
 
@@ -138,7 +137,7 @@ impl Framework<'_> {
       }
       StageDiscriminants::EarlyUpdate => {
         // Fixed Update / Update
-        if self.foxy.time.should_do_tick() {
+        if self.foxy.time.should_do_tick_unchecked() {
           self.foxy.time.tick();
           Stage::FixedUpdate { foxy: &mut self.foxy }
         } else {
@@ -150,7 +149,7 @@ impl Framework<'_> {
       }
       StageDiscriminants::FixedUpdate => {
         // Fixed Update / Update
-        if self.foxy.time.should_do_tick() {
+        if self.foxy.time.should_do_tick_unchecked() {
           self.foxy.time.tick();
           Stage::FixedUpdate { foxy: &mut self.foxy }
         } else {
@@ -170,11 +169,11 @@ impl Framework<'_> {
           Ok(render_response) => {
             if self.fps_timer.has_elapsed(Duration::from_millis(300)) {
               if let DebugInfo::Shown = self.debug_info {
-                let fps = 1.0 / self.foxy.time.average_delta_secs();
+                let fps = 1.0 / self.foxy.time().average_delta_secs();
                 self
                   .foxy
-                  .window
-                  .set_title(&format!("{} | FPS: {:.2}", self.foxy.window.title(), fps,));
+                  .window()
+                  .set_title(&format!("{} | FPS: {:.2}", self.foxy.window().title(), fps,));
               }
             }
             Stage::EndFrame {

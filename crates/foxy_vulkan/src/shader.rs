@@ -12,6 +12,7 @@ use crate::error::VulkanError;
 pub mod source;
 pub mod stage;
 pub mod storage;
+pub mod set;
 
 enum BuildAttempt {
   First,

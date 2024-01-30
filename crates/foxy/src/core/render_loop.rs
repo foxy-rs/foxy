@@ -6,7 +6,7 @@ use std::{
 use anyhow::anyhow;
 use foxy_renderer::renderer::Renderer;
 use foxy_types::thread::ThreadLoop;
-use foxy_util::time::EngineTime;
+use foxy_util::{log::LogErr, time::EngineTime};
 use messaging::Mailbox;
 use tracing::*;
 
@@ -36,11 +36,14 @@ impl ThreadLoop for RenderLoop {
           // }
           self.sync_barrier.wait();
           self.time.update();
-          while self.time.should_do_tick() {
+          
+          while self.time.should_do_tick_unchecked() {
             self.time.tick();
           }
 
-          self.renderer.draw_frame(self.time.time())?;
+          if let Err(error) = self.renderer.draw_frame(self.time.time()) {
+            error!("{error}");    
+          }
 
           if self.renderer_sync_or_exit()? {
             break;
@@ -49,6 +52,7 @@ impl ThreadLoop for RenderLoop {
 
         trace!("Ending render");
 
+        self.renderer.wait_for_gpu();
         self.renderer.delete();
 
         Ok(())

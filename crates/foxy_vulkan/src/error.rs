@@ -14,11 +14,13 @@ pub enum VulkanError {
   #[error("{0}")]
   Other(#[from] anyhow::Error),
   #[error("{0}")]
+  SyncObjects(String),
+  #[error("{0}")]
   IO(#[from] std::io::Error),
 }
 
 #[macro_export]
-macro_rules! unsupported_error {
+macro_rules! vulkan_unsupported_error {
   () => {
     $crate::error::VulkanError::Unsupported(format!("attempted action unsupported by the device running Vulkan"))
   };
@@ -28,12 +30,22 @@ macro_rules! unsupported_error {
 }
 
 #[macro_export]
-macro_rules! shader_error {
+macro_rules! vulkan_shader_error {
   () => {
     $crate::error::VulkanError::Unsupported(format!("attempted action unsupported by the device running Vulkan"))
   };
   ($($arg:tt)*) => {{
     $crate::error::VulkanError::Unsupported(format!($($arg)*))
+  }}
+}
+
+#[macro_export]
+macro_rules! vulkan_error {
+  () => {
+    $crate::error::VulkanError::Other(anyhow::anyhow!("vulkan error"))
+  };
+  ($($arg:tt)*) => {{
+    $crate::error::VulkanError::Other(anyhow::anyhow!(format!($($arg)*)))
   }}
 }
 

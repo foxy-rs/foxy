@@ -11,6 +11,7 @@ use ash::{
   extensions::{ext, khr},
   vk,
 };
+use foxy_util::log::LogErr;
 use itertools::Itertools;
 use raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle, RawDisplayHandle};
 use tracing::*;
@@ -20,7 +21,7 @@ use crate::{
   error::{Debug, VulkanError},
   shader::storage::ShaderStore,
   surface::{Surface, SwapchainSupport},
-  unsupported_error,
+  vulkan_unsupported_error,
 };
 
 pub mod builder;
@@ -144,6 +145,10 @@ impl Device {
     &mut self.shader_store
   }
 
+  pub fn wait_idle(&self) {
+    let _ = unsafe { self.logical.device_wait_idle() }.log_error();
+  }
+
   pub fn begin_single_time_commands(&self) -> Result<vk::CommandBuffer, VulkanError> {
     let allocate_info = vk::CommandBufferAllocateInfo {
       level: vk::CommandBufferLevel::PRIMARY,
@@ -160,10 +165,12 @@ impl Device {
       ..Default::default()
     };
 
-    unsafe { self.logical.begin_command_buffer(command_buffer[0], &begin_info) }
+    let command_buffer = *command_buffer.first().expect("command buffer 0 should be valid");
+
+    unsafe { self.logical.begin_command_buffer(command_buffer, &begin_info) }
       .context("Failed to begin command buffer")?;
 
-    Ok(command_buffer[0])
+    Ok(command_buffer)
   }
 
   pub fn end_single_time_commands(&self, command_buffer: vk::CommandBuffer) -> Result<(), VulkanError> {
@@ -245,11 +252,7 @@ impl Device {
         return mem_type;
       }
     }
-    // for i in 0..props.memory_type_count as usize {
-    //   if (type_filter & (1 << i)) != 0 &&
-    // props.memory_types[i].property_flags.contains(properties) {     return
-    // props.memory_types[i];   }
-    // }
+    
     error!("Failed to find supported memory type.");
     vk::MemoryType::default()
   }
@@ -284,7 +287,7 @@ impl Device {
     }
 
     if !missing_layers.is_empty() {
-      return Err(unsupported_error!(
+      return Err(vulkan_unsupported_error!(
         "not all requested layers are supported on this device:\nMissing: {missing_layers:?}"
       ));
     }
@@ -312,7 +315,7 @@ impl Device {
     }
 
     if !missing_extensions.is_empty() {
-      return Err(unsupported_error!(
+      return Err(vulkan_unsupported_error!(
         "not all requested instance extensions are supported on this device:\nMissing: {missing_extensions:?}"
       ));
     }
@@ -451,7 +454,7 @@ impl Device {
     }
 
     if !missing_extensions.is_empty() {
-      return Err(unsupported_error!(
+      return Err(vulkan_unsupported_error!(
         "not all requested device extensions are supported on this device:\nMissing: {missing_extensions:?}"
       ));
     }
@@ -472,7 +475,7 @@ impl Device {
     macro_rules! supported_feature {
       ($features:tt, $feature:tt) => {{
         if $features.$feature != true.into() {
-          return Err(unsupported_error!(
+          return Err(vulkan_unsupported_error!(
             "not all requested device features are supported on this device: missing {}",
             stringify!($token)
           ));
@@ -604,7 +607,7 @@ impl Device {
       }
     }
 
-    Err(unsupported_error!("Failed to find suitable queue families"))
+    Err(vulkan_unsupported_error!("Failed to find suitable queue families"))
   }
 
   fn create_command_pool(

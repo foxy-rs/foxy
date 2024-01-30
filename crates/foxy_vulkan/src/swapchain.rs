@@ -9,6 +9,7 @@ use crate::{
   image::Image,
   image_format::{ColorSpace, ImageFormat, PresentMode},
   sync_objects::SyncObjects,
+  vulkan_error,
 };
 
 pub struct Swapchain {
@@ -119,32 +120,52 @@ impl Swapchain {
     })
   }
 
-  fn current_fence_in_flight(&self) -> vk::Fence {
-    self.sync_objects.fences_in_flight[self.current_frame_index]
+  fn current_fence_in_flight(&self) -> Option<vk::Fence> {
+    self
+      .sync_objects
+      .fences_in_flight
+      .get(self.current_frame_index)
+      .cloned()
   }
 
-  fn current_image_available_semaphore(&self) -> vk::Semaphore {
-    self.sync_objects.image_avaiable_semaphores[self.current_frame_index]
+  fn current_image_available_semaphore(&self) -> Option<vk::Semaphore> {
+    self
+      .sync_objects
+      .image_avaiable_semaphores
+      .get(self.current_frame_index)
+      .cloned()
   }
 
-  fn current_render_finished_semaphore(&self) -> vk::Semaphore {
-    self.sync_objects.render_finished_semaphores[self.current_frame_index]
+  fn current_render_finished_semaphore(&self) -> Option<vk::Semaphore> {
+    self
+      .sync_objects
+      .render_finished_semaphores
+      .get(self.current_frame_index)
+      .cloned()
   }
 
   fn acquire_next_image(&mut self) -> Result<(u32, bool), VulkanError> {
+    let current_fence_in_flight = self
+      .current_fence_in_flight()
+      .ok_or_else(|| vulkan_error!("Invalid sempahore index"))?;
+
     unsafe {
       self
         .device
         .get()
         .logical()
-        .wait_for_fences(&[self.current_fence_in_flight()], true, u64::MAX)
+        .wait_for_fences(&[current_fence_in_flight], true, u64::MAX)
     }?;
+
+    let current_image_available_semaphore = self
+      .current_image_available_semaphore()
+      .ok_or_else(|| vulkan_error!("Invalid sempahore index"))?;
 
     let result = unsafe {
       self.swapchain_loader.acquire_next_image(
         self.swapchain,
         u64::MAX,
-        self.current_image_available_semaphore(),
+        current_image_available_semaphore,
         vk::Fence::null(),
       )
     }?;
@@ -157,38 +178,62 @@ impl Swapchain {
     buffers: &[vk::CommandBuffer],
     image_index: usize,
   ) -> Result<bool, VulkanError> {
-    if self.sync_objects.images_in_flight[image_index] != vk::Fence::null() {
+    let image_in_flight_fence = *self
+      .sync_objects
+      .images_in_flight
+      .get(image_index)
+      .ok_or_else(|| vulkan_error!("Invalid fence index"))?;
+
+    if image_in_flight_fence != vk::Fence::null() {
       unsafe {
         self
           .device
           .get()
           .logical()
-          .wait_for_fences(&[self.sync_objects.images_in_flight[image_index]], true, u64::MAX)
+          .wait_for_fences(&[image_in_flight_fence], true, u64::MAX)
       }?;
     }
 
-    self.sync_objects.images_in_flight[image_index] = self.sync_objects.images_in_flight[self.current_frame_index];
+    let fence_in_flight = self
+      .sync_objects
+      .fences_in_flight
+      .get(self.current_frame_index)
+      .ok_or_else(|| vulkan_error!("Invalid fence index"))?;
 
-    let wait_semaphores = &[self.current_image_available_semaphore()];
-    let signal_semaphores = &[self.current_render_finished_semaphore()];
-    let submit_info = vk::SubmitInfo::default()
+    *self
+      .sync_objects
+      .images_in_flight
+      .get_mut(image_index)
+      .ok_or_else(|| vulkan_error!("Invalid fence index"))? = *fence_in_flight;
+
+    let current_image_available_semaphore = self
+      .current_image_available_semaphore()
+      .ok_or_else(|| vulkan_error!("Invalid sempahore index"))?;
+
+    let current_render_finished_semaphore = self
+      .current_render_finished_semaphore()
+      .ok_or_else(|| vulkan_error!("Invalid sempahore index"))?;
+
+    let wait_semaphores = &[current_image_available_semaphore];
+    let wait_dst_stage_mask = &[vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT];
+    let signal_semaphores = &[current_render_finished_semaphore];
+    let submit_infos = &[vk::SubmitInfo::default()
       .command_buffers(buffers)
       .wait_semaphores(wait_semaphores)
-      .signal_semaphores(signal_semaphores);
+      .wait_dst_stage_mask(wait_dst_stage_mask)
+      .signal_semaphores(signal_semaphores)];
 
-    unsafe {
-      self
-        .device
-        .get()
-        .logical()
-        .reset_fences(&[self.current_fence_in_flight()])
-    }?;
+    let current_fence_in_flight = self
+      .current_fence_in_flight()
+      .ok_or_else(|| vulkan_error!("Invalid fence index"))?;
+
+    unsafe { self.device.get().logical().reset_fences(&[current_fence_in_flight]) }?;
 
     unsafe {
       self.device.get().logical().queue_submit(
         *self.device.get().graphics_queue(),
-        &[submit_info],
-        self.current_fence_in_flight(),
+        submit_infos,
+        current_fence_in_flight,
       )
     }?;
 
@@ -210,7 +255,7 @@ impl Swapchain {
     result.map_err(VulkanError::from)
   }
 
-  pub fn extent_aspect_ratio(&self) -> f32 {
+  pub fn aspect_ratio(&self) -> f32 {
     self.size().width as f32 / self.size().height as f32
   }
 
@@ -229,16 +274,16 @@ impl Swapchain {
     self.images.len()
   }
 
-  pub fn image_view(&self, index: usize) -> vk::ImageView {
-    self.image_views[index]
+  pub fn image_view(&self, index: usize) -> Option<vk::ImageView> {
+    self.image_views.get(index).cloned()
   }
 
   pub fn render_pass(&self) -> vk::RenderPass {
     self.render_pass
   }
 
-  pub fn frame_buffer(&self, index: usize) -> vk::Framebuffer {
-    self.framebuffers[index]
+  pub fn frame_buffer(&self, index: usize) -> Option<vk::Framebuffer> {
+    self.framebuffers.get(index).cloned()
   }
 
   fn create_swap_chain(
@@ -382,9 +427,10 @@ impl Swapchain {
     depth_image_views: &[vk::ImageView],
   ) -> Result<Vec<vk::Framebuffer>, VulkanError> {
     debug!("Framebuffer extent: {swapchain_extent:?}");
-    let framebuffers = (0..swapchain_image_views.len())
-      .map(|i| {
-        let attachments = &[swapchain_image_views[i], depth_image_views[i]];
+
+    let framebuffers = swapchain_image_views.iter().zip(depth_image_views)
+      .map(|(swapchain_image_view, depth_image_view)| {
+        let attachments = &[*swapchain_image_view, *depth_image_view];
 
         let framebuffer_info = vk::FramebufferCreateInfo::default()
           .render_pass(render_pass)
@@ -473,7 +519,7 @@ impl Swapchain {
       }
     }
 
-    available_formats[0]
+    available_formats.first().cloned().expect("no valid swap surfaces in vector")
   }
 
   fn choose_swap_present_mode(
