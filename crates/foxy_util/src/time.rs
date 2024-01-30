@@ -67,7 +67,7 @@ pub struct EngineTime {
   tick_delta_time: Duration,
 
   averages_sampling_time: Duration,
-  past_delta_times: ArrayDeque<Duration, 5>,
+  past_delta_times: ArrayDeque<Duration, {Self::SAMPLES_PER_SECOND}>,
   average_delta_time: Duration,
   fps_timer: Timer,
 }
@@ -77,7 +77,7 @@ impl Default for EngineTime {
     const TICK_RATE: f64 = 128.0;
     let tick_time: Duration = Duration::from_secs_f64(1. / TICK_RATE);
     const BAIL_THRESHOLD: u32 = 1024;
-    const AVERAGE_DELTA_TIME_SAMPLE_SPEED: Duration = Duration::from_millis(200);
+    let averages_sampling_time: Duration = Duration::from_secs_f64(1.0 / EngineTime::SAMPLES_PER_SECOND as f64);
     Self {
       tick_rate: TICK_RATE,
       tick_time,
@@ -93,13 +93,15 @@ impl Default for EngineTime {
       tick_delta_time: Default::default(),
       past_delta_times: Default::default(),
       average_delta_time: Default::default(),
-      averages_sampling_time: AVERAGE_DELTA_TIME_SAMPLE_SPEED,
+      averages_sampling_time,
       fps_timer: Default::default(),
     }
   }
 }
 
 impl EngineTime {
+  const SAMPLES_PER_SECOND: usize = 10;
+
   pub fn with_tick_rate(mut self, tick_rate: f64) -> Self {
     self.tick_rate = tick_rate;
     self
