@@ -9,7 +9,6 @@ fn main() {
     ("foxy_window", Some(LogLevel::Trace)),
     ("foxy_renderer", Some(LogLevel::Trace)),
     ("foxy_vulkan", Some(LogLevel::Trace)),
-    ("foxy_types", Some(LogLevel::Trace)),
     ("foxy_utils", Some(LogLevel::Trace)),
     ("ookami", Some(LogLevel::Trace))
   ) {
@@ -23,13 +22,11 @@ fn main() {
     .build_unwrap();
 
   for stage in framework {
-    match stage {
-      // Stage::EarlyUpdate { .. } => debug!("UPDATE"),
-      Stage::Update { message, foxy, .. } => match message {
+    if let Stage::Update { message, .. } = stage {
+        match message {
         WindowMessage::None | WindowMessage::Other { .. } | WindowMessage::Mouse(MouseMessage::Cursor) => {}
         _ => debug!("UPDATE: {:?}", message),
-      },
-      _ => {}
+      }
     }
   }
 }
