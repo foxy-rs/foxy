@@ -23,7 +23,6 @@ pub struct Renderer {
   render_data: RenderData,
 
   swapchain: Handle<Swapchain>,
-
   device: Handle<Device>,
 }
 
