@@ -1,4 +1,4 @@
-use foxy_util::time::{EngineTime, Time};
+use foxy_utils::time::{EngineTime, Time};
 use foxy_window::window::Window;
 
 pub struct Foxy {
@@ -8,10 +8,7 @@ pub struct Foxy {
 
 impl Foxy {
   pub fn new(time: EngineTime, window: Window) -> Self {
-    Self {
-      time,
-      window,
-    }
+    Self { time, window }
   }
 
   pub fn time(&self) -> Time {

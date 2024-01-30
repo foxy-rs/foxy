@@ -1,6 +1,6 @@
 use std::sync::mpsc::Sender;
 
-use foxy_util::log::LogErr;
+use foxy_utils::log::LogErr;
 use windows::Win32::{
   Foundation::*,
   UI::{Shell::DefSubclassProc, WindowsAndMessaging::*},

@@ -4,7 +4,6 @@ pub mod timer;
 
 use std::time::Duration;
 
-use arraydeque::{ArrayDeque, CapacityError};
 use quanta::Instant;
 use thiserror::Error;
 use tracing::*;
@@ -56,8 +55,6 @@ pub struct EngineTime {
   step_count: u32,
   bail_threshold: u32,
 
-  start_time: Instant,
-
   previous_frame: Instant,
   current_frame: Instant,
   delta_time: Duration,
@@ -67,8 +64,8 @@ pub struct EngineTime {
   tick_delta_time: Duration,
 
   averages_sampling_time: Duration,
-  past_delta_times: ArrayDeque<Duration, {Self::SAMPLES_PER_SECOND}>,
-  average_delta_time: Duration,
+  frame_time_sum: Duration,
+  frame_count: u32,
   fps_timer: Timer,
 }
 
@@ -77,30 +74,29 @@ impl Default for EngineTime {
     const TICK_RATE: f64 = 128.0;
     let tick_time: Duration = Duration::from_secs_f64(1. / TICK_RATE);
     const BAIL_THRESHOLD: u32 = 1024;
-    let averages_sampling_time: Duration = Duration::from_secs_f64(1.0 / EngineTime::SAMPLES_PER_SECOND as f64);
+    let averages_sampling_time: Duration = Duration::from_secs_f64(1.0 / EngineTime::MAX_SAMPLES as f64);
     Self {
       tick_rate: TICK_RATE,
       tick_time,
       lag_time: Default::default(),
       step_count: 0,
       bail_threshold: BAIL_THRESHOLD,
-      start_time: Instant::now(),
       previous_frame: Instant::now(),
       current_frame: Instant::now(),
       delta_time: Default::default(),
       tick_previous_frame: Instant::now(),
       tick_current_frame: Instant::now(),
       tick_delta_time: Default::default(),
-      past_delta_times: Default::default(),
-      average_delta_time: Default::default(),
       averages_sampling_time,
       fps_timer: Default::default(),
+      frame_time_sum: Default::default(),
+      frame_count: 1,
     }
   }
 }
 
 impl EngineTime {
-  const SAMPLES_PER_SECOND: usize = 10;
+  const MAX_SAMPLES: usize = 10;
 
   pub fn with_tick_rate(mut self, tick_rate: f64) -> Self {
     self.tick_rate = tick_rate;
@@ -121,7 +117,7 @@ impl EngineTime {
     Time {
       delta_time: self.delta_time,
       tick_delta_time: self.tick_delta_time,
-      average_delta_time: self.average_delta_time,
+      average_delta_time: self.frame_time_sum.checked_div(self.frame_count).unwrap_or_default(),
     }
   }
 
@@ -141,15 +137,13 @@ impl EngineTime {
     self.step_count = 0;
 
     if self.fps_timer.has_elapsed(self.averages_sampling_time) {
-      if let Err(CapacityError { element }) = self.past_delta_times.push_back(self.delta_time) {
-        self.past_delta_times.pop_front();
-        let _ = self.past_delta_times.push_back(element);
-      }
-
-      self.average_delta_time = {
-        let sum: Duration = self.past_delta_times.iter().sum();
-        sum.div_f64(self.past_delta_times.len() as f64)
-      }
+      self.frame_time_sum += self.delta_time;
+      self.frame_count = if self.frame_count >= Self::MAX_SAMPLES as u32 {
+      self.frame_time_sum = self.delta_time;
+        1
+      } else {
+        self.frame_count + 1
+      };
     }
   }
 

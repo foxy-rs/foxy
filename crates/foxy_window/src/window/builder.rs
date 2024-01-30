@@ -1,4 +1,4 @@
-use foxy_types::behavior::{CloseBehavior, ColorMode, Visibility};
+use foxy_utils::types::behavior::{CloseBehavior, ColorMode, Visibility};
 
 use super::Window;
 

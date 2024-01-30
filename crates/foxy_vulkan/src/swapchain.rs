@@ -1,6 +1,8 @@
 use ash::{extensions::khr, vk};
-use foxy_types::{handle::Handle, primitives::Dimensions};
-use foxy_util::log::LogErr;
+use foxy_utils::{
+  log::LogErr,
+  types::{handle::Handle, primitives::Dimensions},
+};
 use tracing::debug;
 
 use crate::{
@@ -147,7 +149,7 @@ impl Swapchain {
   fn acquire_next_image(&mut self) -> Result<(u32, bool), VulkanError> {
     let current_fence_in_flight = self
       .current_fence_in_flight()
-      .ok_or_else(|| vulkan_error!("Invalid sempahore index"))?;
+      .ok_or_else(|| vulkan_error!("Invalid fence index"))?;
 
     unsafe {
       self
@@ -156,6 +158,9 @@ impl Swapchain {
         .logical()
         .wait_for_fences(&[current_fence_in_flight], true, u64::MAX)
     }?;
+
+    // unsafe { self.device.get().logical().reset_fences(&[current_fence_in_flight])
+    // }?;
 
     let current_image_available_semaphore = self
       .current_image_available_semaphore()
@@ -192,6 +197,9 @@ impl Swapchain {
           .logical()
           .wait_for_fences(&[image_in_flight_fence], true, u64::MAX)
       }?;
+    } else {
+      debug!("fence was null");
+      debug!("a");
     }
 
     let fence_in_flight = self
@@ -200,11 +208,13 @@ impl Swapchain {
       .get(self.current_frame_index)
       .ok_or_else(|| vulkan_error!("Invalid fence index"))?;
 
-    *self
+    let image_in_flight_fence = self
       .sync_objects
       .images_in_flight
       .get_mut(image_index)
-      .ok_or_else(|| vulkan_error!("Invalid fence index"))? = *fence_in_flight;
+      .ok_or_else(|| vulkan_error!("Invalid fence index"))?;
+
+    *image_in_flight_fence = *fence_in_flight;
 
     let current_image_available_semaphore = self
       .current_image_available_semaphore()
@@ -428,7 +438,9 @@ impl Swapchain {
   ) -> Result<Vec<vk::Framebuffer>, VulkanError> {
     debug!("Framebuffer extent: {swapchain_extent:?}");
 
-    let framebuffers = swapchain_image_views.iter().zip(depth_image_views)
+    let framebuffers = swapchain_image_views
+      .iter()
+      .zip(depth_image_views)
       .map(|(swapchain_image_view, depth_image_view)| {
         let attachments = &[*swapchain_image_view, *depth_image_view];
 
@@ -519,7 +531,10 @@ impl Swapchain {
       }
     }
 
-    available_formats.first().cloned().expect("no valid swap surfaces in vector")
+    available_formats
+      .first()
+      .cloned()
+      .expect("no valid swap surfaces in vector")
   }
 
   fn choose_swap_present_mode(

@@ -1,6 +1,6 @@
 use std::sync::RwLockReadGuard;
 
-use foxy_types::handle::Handle;
+use foxy_utils::types::handle::Handle;
 
 use super::{
   stage::{compute::Compute, fragment::Fragment, geometry::Geometry, mesh::Mesh, vertex::Vertex},

@@ -5,10 +5,10 @@ use std::{
 };
 
 use foxy_renderer::renderer::{render_data::RenderData, Renderer};
-use foxy_types::{behavior::Polling, thread::EngineThread};
-use foxy_util::{
+use foxy_utils::{
   log::LogErr,
   time::{timer::Timer, EngineTime},
+  types::{behavior::Polling, thread::EngineThread},
 };
 use foxy_window::prelude::*;
 use messaging::Mailbox;

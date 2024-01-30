@@ -1,4 +1,4 @@
-use foxy_types::handle::Handle;
+use foxy_utils::types::handle::Handle;
 use raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle};
 
 use super::Device;

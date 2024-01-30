@@ -1,5 +1,5 @@
 use enumflags2::BitFlags;
-use foxy_util::log::LogErr;
+use foxy_utils::log::LogErr;
 use windows::Win32::{
   Foundation::{HINSTANCE, HWND, LPARAM, RECT, WPARAM},
   System::SystemServices::{MK_LBUTTON, MK_MBUTTON, MK_RBUTTON, MK_XBUTTON1, MK_XBUTTON2, MODIFIERKEYS_FLAGS},

@@ -1,5 +1,7 @@
-use foxy_types::{handle::Handle, primitives::Dimensions};
-use foxy_util::time::Time;
+use foxy_utils::{
+  time::Time,
+  types::{handle::Handle, primitives::Dimensions},
+};
 use foxy_vulkan::{
   command_buffer::CommandBuffers,
   device::{builder::ValidationStatus, Device},
@@ -38,7 +40,9 @@ impl Renderer {
       .with_validation(ValidationStatus::Enabled)
       .build()?;
 
-    let swapchain = Handle::new(Swapchain::new(device.clone(), window_size, ImageFormat { ..Default::default() })?);
+    let swapchain = Handle::new(Swapchain::new(device.clone(), window_size, ImageFormat {
+      ..Default::default()
+    })?);
 
     let render_pipeline_layout = PipelineLayout::new(device.clone())?;
     let config = RenderPipelineConfig::new(swapchain.get().size())?
@@ -101,6 +105,4 @@ impl Renderer {
 }
 
 /// Private Implemenation Details
-impl Renderer {
-  
-}
+impl Renderer {}

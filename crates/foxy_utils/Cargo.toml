@@ -1,12 +1,12 @@
 [package]
-name        = "foxy_util"
-version     = "0.2.0"
+name        = "foxy_utils"
+version     = "0.1.0"
 edition     = "2021"
 authors     = ["Gabriel Lugo <dev.gabriel.lugo@gmail.com>"]
 repository  = "https://github.com/GTLugo/foxy"
 license     = "MIT OR Apache-2.0"
 readme      = "README.md"
-description = "Util for `foxy`"
+description = "Common types and utilities for `foxy` submodules"
 keywords    = ["foxy"]
 categories  = ["data-structures"]
 
@@ -18,6 +18,6 @@ anyhow             = "1.0"
 tracing            = { version = "0.1" }
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
-arraydeque = "0.5"
+glam       = "0.25"
 strum      = { version = "0.26", features = ["derive"] }
 quanta     = "0.12"

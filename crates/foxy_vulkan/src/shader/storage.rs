@@ -2,7 +2,7 @@
 
 use std::{collections::HashMap, path::PathBuf, sync::Arc};
 
-use foxy_types::handle::Handle;
+use foxy_utils::types::handle::Handle;
 use tracing::debug;
 
 use super::{

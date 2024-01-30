@@ -1,4 +1,4 @@
-use foxy_types::{
+use foxy_utils::types::{
   behavior::{CloseBehavior, ColorMode, Visibility},
   primitives::Dimensions,
 };

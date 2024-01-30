@@ -1,18 +1,18 @@
-use std::ffi::CString;
-use std::sync::Arc;
-use std::{marker::PhantomData, path::PathBuf};
+use std::{ffi::CString, marker::PhantomData, path::PathBuf, sync::Arc};
 
 use ash::vk;
 use tracing::*;
 
-use self::source::Source;
-use self::stage::{ShaderKind, StageInfo};
+use self::{
+  source::Source,
+  stage::{ShaderKind, StageInfo},
+};
 use crate::error::VulkanError;
 
+pub mod set;
 pub mod source;
 pub mod stage;
 pub mod storage;
-pub mod set;
 
 enum BuildAttempt {
   First,

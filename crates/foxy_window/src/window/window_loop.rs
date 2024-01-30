@@ -3,8 +3,7 @@ use std::{
   thread::JoinHandle,
 };
 
-use foxy_types::thread::ThreadLoop;
-use foxy_util::log::LogErr;
+use foxy_utils::{log::LogErr, types::thread::ThreadLoop};
 use messaging::{Mailbox, MessagingError};
 use tracing::*;
 use windows::{

@@ -3,12 +3,14 @@
 //   * https://github.com/jendrikillner/RustMatch3/blob/rust-game-part-3/
 use std::{os::raw::c_void, sync::mpsc::channel};
 
-use foxy_types::{
-  behavior::{CloseBehavior, ColorMode, Visibility},
-  primitives::Dimensions,
-  thread::EngineThread,
+use foxy_utils::{
+  log::LogErr,
+  types::{
+    behavior::{CloseBehavior, ColorMode, Visibility},
+    primitives::Dimensions,
+    thread::EngineThread,
+  },
 };
-use foxy_util::log::LogErr;
 use messaging::Mailbox;
 use raw_window_handle::{
   HasRawDisplayHandle, HasRawWindowHandle, RawDisplayHandle, RawWindowHandle, Win32WindowHandle, WindowsDisplayHandle,

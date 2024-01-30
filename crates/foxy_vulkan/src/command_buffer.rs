@@ -1,5 +1,5 @@
 use ash::vk;
-use foxy_types::handle::Handle;
+use foxy_utils::types::handle::Handle;
 
 use crate::{device::Device, error::VulkanError, pipeline::RenderPipeline, swapchain::Swapchain, vulkan_error};
 
@@ -11,19 +11,21 @@ pub struct CommandBuffers {
 }
 
 impl CommandBuffers {
-  pub fn new(device: Handle<Device>, swapchain: Handle<Swapchain>, ) -> Result<Self, VulkanError> {
+  pub fn new(device: Handle<Device>, swapchain: Handle<Swapchain>) -> Result<Self, VulkanError> {
     let buffer_info = vk::CommandBufferAllocateInfo::default()
       .level(vk::CommandBufferLevel::PRIMARY)
       .command_pool(*device.get().command_pool())
       .command_buffer_count(swapchain.get().image_count() as u32);
     let buffers = unsafe { device.get().logical().allocate_command_buffers(&buffer_info) }?;
 
-    Ok(Self { device, swapchain, buffers })
+    Ok(Self {
+      device,
+      swapchain,
+      buffers,
+    })
   }
 
-  pub fn delete(&mut self) {
-    
-  }
+  pub fn delete(&mut self) {}
 
   pub fn record(&self, pipeline: &impl RenderPipeline) -> Result<(), VulkanError> {
     // record a hard-coded set of commands for now
@@ -44,7 +46,11 @@ impl CommandBuffers {
 
       unsafe { self.device.get().logical().begin_command_buffer(buffer, &begin_info) }?;
 
-      let framebuffer = self.swapchain.get().frame_buffer(i).ok_or_else(|| vulkan_error!("invalid framebuffer index"))?;
+      let framebuffer = self
+        .swapchain
+        .get()
+        .frame_buffer(i)
+        .ok_or_else(|| vulkan_error!("invalid framebuffer index"))?;
 
       let pass_info = vk::RenderPassBeginInfo::default()
         .render_pass(self.swapchain.get().render_pass())
@@ -58,13 +64,19 @@ impl CommandBuffers {
             }),
         )
         .clear_values(&clear_values);
-      
-      unsafe { self.device.get().logical().cmd_begin_render_pass(buffer, &pass_info, vk::SubpassContents::INLINE) };
+
+      unsafe {
+        self
+          .device
+          .get()
+          .logical()
+          .cmd_begin_render_pass(buffer, &pass_info, vk::SubpassContents::INLINE)
+      };
 
       pipeline.bind(buffer);
-      
+
       unsafe { self.device.get().logical().cmd_draw(buffer, 3, 1, 0, 0) };
-      
+
       unsafe { self.device.get().logical().cmd_end_render_pass(buffer) };
 
       unsafe { self.device.get().logical().end_command_buffer(buffer) }?;
@@ -74,7 +86,10 @@ impl CommandBuffers {
   }
 
   pub fn submit(&mut self, image_index: usize) -> Result<bool, VulkanError> {
-    self.swapchain.get_mut().submit_command_buffers(&self.buffers, image_index)
+    self
+      .swapchain
+      .get_mut()
+      .submit_command_buffers(&self.buffers, image_index)
   }
 
   pub fn buffers(&self) -> &[vk::CommandBuffer] {

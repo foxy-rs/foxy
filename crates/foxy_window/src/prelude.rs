@@ -1,4 +1,4 @@
-pub use foxy_types::behavior::{CloseBehavior, ColorMode, Visibility};
+pub use foxy_utils::types::behavior::{CloseBehavior, ColorMode, Visibility};
 
 pub use crate::{
   debug::validation::ValidationLayer,

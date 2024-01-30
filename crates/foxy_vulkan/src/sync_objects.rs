@@ -1,7 +1,7 @@
 use std::ops::DerefMut;
 
 use ash::vk;
-use foxy_types::handle::Handle;
+use foxy_utils::types::handle::Handle;
 
 use crate::{device::Device, error::VulkanError, swapchain::Swapchain};
 
@@ -53,7 +53,7 @@ impl SyncObjects {
       *fence = unsafe { device.get().logical().create_fence(&fence_info, None) }?;
     }
 
-    let images_in_flight = vec![Default::default(); Swapchain::MAX_FRAMES_IN_FLIGHT];
+    let images_in_flight = vec![vk::Fence::null(); Swapchain::MAX_FRAMES_IN_FLIGHT];
 
     Ok(Self {
       device,

@@ -1,4 +1,4 @@
-use foxy_types::prelude::*;
+use foxy_utils::types::prelude::*;
 
 pub enum Command {
   DrawPoint(Point3D),

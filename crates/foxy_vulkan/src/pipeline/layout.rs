@@ -1,5 +1,5 @@
 use ash::vk;
-use foxy_types::handle::Handle;
+use foxy_utils::types::handle::Handle;
 
 use crate::{device::Device, error::VulkanError};
 

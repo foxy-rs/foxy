@@ -1,6 +1,14 @@
 [workspace]
 resolver = "2"
-members  = ["crates/foxy", "crates/foxy_vulkan", "crates/foxy_window", "crates/foxy_renderer", "crates/foxy_types", "crates/foxy_util", "samples/simple", "samples/ookami"]
+members = [
+  "crates/foxy", 
+  "crates/foxy_vulkan", 
+  "crates/foxy_window", 
+  "crates/foxy_renderer",
+  "crates/foxy_utils",
+  "samples/simple", 
+  "samples/ookami", 
+]
 
 [profile.dev.package."foxy"]
 opt-level = 0
@@ -14,10 +22,7 @@ opt-level = 0
 [profile.dev.package."foxy_renderer"]
 opt-level = 0
 
-[profile.dev.package."foxy_util"]
-opt-level = 0
-
-[profile.dev.package."foxy_types"]
+[profile.dev.package."foxy_utils"]
 opt-level = 0
 
 # Enable high optimizations for dependencies

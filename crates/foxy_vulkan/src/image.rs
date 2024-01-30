@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use anyhow::Context;
 use ash::{self, vk};
-use foxy_types::handle::Handle;
+use foxy_utils::types::handle::Handle;
 
 use crate::{device::Device, error::VulkanError};
 

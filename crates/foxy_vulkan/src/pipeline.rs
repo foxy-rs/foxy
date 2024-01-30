@@ -1,5 +1,5 @@
 use ash::vk;
-use foxy_types::handle::Handle;
+use foxy_utils::types::handle::Handle;
 
 pub mod builder;
 pub mod config;
@@ -7,7 +7,10 @@ pub mod layout;
 
 use self::config::{HasLayout, HasRenderPass, RenderPipelineConfig};
 use crate::{
-  device::Device, error::VulkanError, shader::set::{HasFragment, HasVertex, NoCompute, NoFragment, NoGeometry, NoMesh, NoVertex, ShaderSet}, vulkan_error, vulkan_unsupported_error
+  device::Device,
+  error::VulkanError,
+  shader::set::{HasFragment, HasVertex, NoCompute, NoFragment, NoGeometry, NoMesh, NoVertex, ShaderSet},
+  vulkan_error, vulkan_unsupported_error,
 };
 
 pub trait RenderPipeline {
@@ -83,7 +86,8 @@ impl RenderPipeline for SimpleRenderPipeline {
         .create_graphics_pipelines(vk::PipelineCache::null(), &[pipeline_create_info], None)
         .map(|pipelines| pipelines.first().cloned())
         .map_err(|err| vulkan_unsupported_error!("failed to create graphics pipelines: {err:?}"))
-    }?.ok_or_else(|| vulkan_error!("invalid pipeline index"))?;
+    }?
+    .ok_or_else(|| vulkan_error!("invalid pipeline index"))?;
 
     Ok(Self {
       device,

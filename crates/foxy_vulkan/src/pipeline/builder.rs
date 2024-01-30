@@ -30,8 +30,8 @@
 //   config: PC,
 // }
 
-// impl RenderPipelineBuilder<VertexShaderMissing, FragmentShaderMissing, ConfigMissing> {
-//   pub fn new(vulkan: Handle<Device>) -> Self {
+// impl RenderPipelineBuilder<VertexShaderMissing, FragmentShaderMissing,
+// ConfigMissing> {   pub fn new(vulkan: Handle<Device>) -> Self {
 //     Self {
 //       vulkan,
 //       vertex_shader: VertexShaderMissing,
@@ -48,7 +48,8 @@
 //   ) -> RenderPipelineBuilder<VertexShaderSpecified, FS, PC> {
 //     RenderPipelineBuilder {
 //       vulkan: self.vulkan.clone(),
-//       vertex_shader: VertexShaderSpecified(self.vulkan.get_mut().shaders().get_vertex(path)),
+//       vertex_shader:
+// VertexShaderSpecified(self.vulkan.get_mut().shaders().get_vertex(path)),
 //       fragment_shader: self.fragment_shader,
 //       config: self.config,
 //     }
@@ -63,7 +64,8 @@
 //     RenderPipelineBuilder {
 //       vulkan: self.vulkan.clone(),
 //       vertex_shader: self.vertex_shader,
-//       fragment_shader: FragmentShaderSpecified(self.vulkan.get_mut().shaders().get_fragment(path)),
+//       fragment_shader:
+// FragmentShaderSpecified(self.vulkan.get_mut().shaders().get_fragment(path)),
 //       config: self.config,
 //     }
 //   }
@@ -83,9 +85,9 @@
 //   }
 // }
 
-// impl RenderPipelineBuilder<VertexShaderSpecified, FragmentShaderSpecified, ConfigSpecified> {
-//   pub fn build(self) -> Result<RenderPipeline, VulkanError> {
-//     Ok(RenderPipeline::new(
+// impl RenderPipelineBuilder<VertexShaderSpecified, FragmentShaderSpecified,
+// ConfigSpecified> {   pub fn build(self) -> Result<RenderPipeline,
+// VulkanError> {     Ok(RenderPipeline::new(
 //       self.vulkan,
 //       self.config.0,
 //       self.vertex_shader.0,

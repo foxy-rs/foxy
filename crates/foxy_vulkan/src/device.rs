@@ -11,7 +11,7 @@ use ash::{
   extensions::{ext, khr},
   vk,
 };
-use foxy_util::log::LogErr;
+use foxy_utils::log::LogErr;
 use itertools::Itertools;
 use raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle, RawDisplayHandle};
 use tracing::*;
@@ -252,7 +252,7 @@ impl Device {
         return mem_type;
       }
     }
-    
+
     error!("Failed to find supported memory type.");
     vk::MemoryType::default()
   }

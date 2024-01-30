@@ -1,4 +1,4 @@
-use crate::time::{EngineTime, Time};
+use super::{EngineTime, Time};
 
 pub struct GameLoop {
   pub time: EngineTime,

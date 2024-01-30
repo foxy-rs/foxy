@@ -1,5 +1,5 @@
 use ash::vk;
-use foxy_types::primitives::Dimensions;
+use foxy_utils::types::primitives::Dimensions;
 
 use super::layout::PipelineLayout;
 use crate::error::VulkanError;
