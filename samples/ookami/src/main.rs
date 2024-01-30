@@ -23,7 +23,7 @@ fn main() {
 
   for stage in framework {
     if let Stage::Update { message, .. } = stage {
-        match message {
+      match message {
         WindowMessage::None | WindowMessage::Other { .. } | WindowMessage::Mouse(MouseMessage::Cursor) => {}
         _ => debug!("UPDATE: {:?}", message),
       }

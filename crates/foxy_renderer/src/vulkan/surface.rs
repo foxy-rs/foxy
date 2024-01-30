@@ -3,7 +3,7 @@ use ash::{extensions::khr, vk};
 use raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle};
 
 use super::error::VulkanError;
-use crate::instance::Instance;
+use crate::vulkan::instance::Instance;
 
 pub struct Surface {
   surface: vk::SurfaceKHR,

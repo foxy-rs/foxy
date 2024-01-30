@@ -6,10 +6,13 @@ pub mod layout;
 
 use self::config::{HasLayout, HasRenderPass, RenderPipelineConfig};
 use crate::{
-  device::Device,
-  error::VulkanError,
-  shader::set::{HasFragment, HasVertex, NoCompute, NoFragment, NoGeometry, NoMesh, NoVertex, ShaderSet},
-  vulkan_error, vulkan_unsupported_error,
+  vulkan::{
+    device::Device,
+    error::VulkanError,
+    shader::set::{HasFragment, HasVertex, NoCompute, NoFragment, NoGeometry, NoMesh, NoVertex, ShaderSet},
+  },
+  vulkan_error,
+  vulkan_unsupported_error,
 };
 
 pub trait RenderPipeline {

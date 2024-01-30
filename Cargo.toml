@@ -1,8 +1,7 @@
 [workspace]
 resolver = "2"
 members = [
-  "crates/foxy", 
-  "crates/foxy_vulkan", 
+  "crates/foxy",
   "crates/foxy_window", 
   "crates/foxy_renderer",
   "crates/foxy_utils",

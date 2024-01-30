@@ -6,7 +6,7 @@ use super::{
   stage::{compute::Compute, fragment::Fragment, geometry::Geometry, mesh::Mesh, vertex::Vertex},
   Shader,
 };
-use crate::device::Device;
+use crate::vulkan::Vulkan;
 
 #[derive(Clone)]
 pub struct NoVertex;
@@ -35,7 +35,7 @@ pub struct HasMesh(Handle<Shader<Mesh>>);
 
 #[derive(Clone)]
 pub struct ShaderSet<V, F, C, G, M> {
-  device: Handle<Device>,
+  device: Handle<Vulkan>,
   vertex: V,
   fragment: F,
   compute: C,
@@ -44,7 +44,7 @@ pub struct ShaderSet<V, F, C, G, M> {
 }
 
 impl ShaderSet<NoVertex, NoFragment, NoCompute, NoGeometry, NoMesh> {
-  pub fn new(device: Handle<Device>) -> Self {
+  pub fn new(device: Handle<Vulkan>) -> Self {
     Self {
       device,
       vertex: NoVertex,

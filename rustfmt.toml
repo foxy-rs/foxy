@@ -10,3 +10,4 @@ use_try_shorthand          = true
 wrap_comments              = true
 condense_wildcard_suffixes = true
 imports_granularity        = "Crate"
+imports_layout             = "HorizontalVertical"

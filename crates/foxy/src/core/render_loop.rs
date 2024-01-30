@@ -5,7 +5,7 @@ use std::{
 
 use anyhow::anyhow;
 use foxy_renderer::renderer::Renderer;
-use foxy_utils::{log::LogErr, time::EngineTime, types::thread::ThreadLoop};
+use foxy_utils::{time::EngineTime, types::thread::ThreadLoop};
 use messaging::Mailbox;
 use tracing::*;
 
@@ -51,7 +51,6 @@ impl ThreadLoop for RenderLoop {
 
         trace!("Ending render");
 
-        self.renderer.wait_for_gpu();
         self.renderer.delete();
 
         Ok(())

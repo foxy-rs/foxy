@@ -2,9 +2,7 @@ use anyhow::Context;
 use ash::{self, vk};
 use foxy_utils::types::handle::Handle;
 
-use crate::{device::Device, error::VulkanError};
-
-use super::image::Image;
+use crate::vulkan::{device::Device, error::VulkanError};
 
 pub struct Buffer {
   device: Handle<Device>,
@@ -88,44 +86,44 @@ impl Buffer {
   //   }
   // }
 
-  pub fn copy_to_buffer(&self, dst: &Buffer) {
-    self.device.get().issue_single_time_commands(|command_buffer| {
-      let copy_region = vk::BufferCopy::default().size(self.size);
+  // pub fn copy_to_buffer(&self, dst: &Buffer) {
+  //   self.device.get().issue_single_time_commands(|command_buffer| {
+  //     let copy_region = vk::BufferCopy::default().size(self.size);
 
-      unsafe {
-        self
-          .device
-          .get()
-          .logical()
-          .cmd_copy_buffer(command_buffer, self.buffer, dst.buffer, &[copy_region]);
-      }
-    });
-  }
+  //     unsafe {
+  //       self
+  //         .device
+  //         .get()
+  //         .logical()
+  //         .cmd_copy_buffer(command_buffer, self.buffer, dst.buffer,
+  // &[copy_region]);     }
+  //   });
+  // }
 
-  pub fn copy_to_image(&self, image: &Image) {
-    self.device.get().issue_single_time_commands(|command_buffer| {
-      let copy_region = vk::BufferImageCopy::default()
-        .image_subresource(
-          vk::ImageSubresourceLayers::default()
-            .aspect_mask(vk::ImageAspectFlags::COLOR)
-            .layer_count(image.layer_count()),
-        )
-        .image_extent(
-          vk::Extent3D::default()
-            .width(image.extent().width)
-            .height(image.extent().height)
-            .depth(1),
-        );
+  // pub fn copy_to_image(&self, image: &Image) {
+  //   self.device.get().issue_single_time_commands(|command_buffer| {
+  //     let copy_region = vk::BufferImageCopy::default()
+  //       .image_subresource(
+  //         vk::ImageSubresourceLayers::default()
+  //           .aspect_mask(vk::ImageAspectFlags::COLOR)
+  //           .layer_count(image.layer_count()),
+  //       )
+  //       .image_extent(
+  //         vk::Extent3D::default()
+  //           .width(image.extent().width)
+  //           .height(image.extent().height)
+  //           .depth(1),
+  //       );
 
-      unsafe {
-        self.device.get().logical().cmd_copy_buffer_to_image(
-          command_buffer,
-          self.buffer,
-          image.image(),
-          vk::ImageLayout::TRANSFER_DST_OPTIMAL,
-          &[copy_region],
-        );
-      }
-    });
-  }
+  //     unsafe {
+  //       self.device.get().logical().cmd_copy_buffer_to_image(
+  //         command_buffer,
+  //         self.buffer,
+  //         image.image(),
+  //         vk::ImageLayout::TRANSFER_DST_OPTIMAL,
+  //         &[copy_region],
+  //       );
+  //     }
+  //   });
+  // }
 }

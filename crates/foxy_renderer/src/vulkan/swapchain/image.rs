@@ -1,13 +1,11 @@
-use std::sync::Arc;
-
 use anyhow::Context;
 use ash::{self, vk};
 use foxy_utils::types::handle::Handle;
 
-use crate::{device::Device, error::VulkanError};
+use crate::vulkan::{device::Device, error::VulkanError};
 
 pub struct Image {
-  device: Arc<ash::Device>,
+  device: Handle<Device>,
   image: vk::Image,
   memory: vk::DeviceMemory,
   extent: vk::Extent3D,
@@ -17,8 +15,8 @@ pub struct Image {
 impl Image {
   pub fn delete(&mut self) {
     unsafe {
-      self.device.destroy_image(self.image, None);
-      self.device.free_memory(self.memory, None);
+      self.device.get().logical().destroy_image(self.image, None);
+      self.device.get().logical().free_memory(self.memory, None);
     }
   }
 }
@@ -63,7 +61,7 @@ impl Image {
     };
 
     Ok(Self {
-      device: device.get().logical(),
+      device,
       image,
       memory,
       extent: image_info.extent,

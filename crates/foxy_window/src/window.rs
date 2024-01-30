@@ -13,7 +13,12 @@ use foxy_utils::{
 };
 use messaging::Mailbox;
 use raw_window_handle::{
-  HasRawDisplayHandle, HasRawWindowHandle, RawDisplayHandle, RawWindowHandle, Win32WindowHandle, WindowsDisplayHandle,
+  HasRawDisplayHandle,
+  HasRawWindowHandle,
+  RawDisplayHandle,
+  RawWindowHandle,
+  Win32WindowHandle,
+  WindowsDisplayHandle,
 };
 use tracing::*;
 use windows::{

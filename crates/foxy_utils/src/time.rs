@@ -139,7 +139,7 @@ impl EngineTime {
     if self.fps_timer.has_elapsed(self.averages_sampling_time) {
       self.frame_time_sum += self.delta_time;
       self.frame_count = if self.frame_count >= Self::MAX_SAMPLES as u32 {
-      self.frame_time_sum = self.delta_time;
+        self.frame_time_sum = self.delta_time;
         1
       } else {
         self.frame_count + 1

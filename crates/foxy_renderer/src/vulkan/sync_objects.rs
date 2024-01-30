@@ -3,7 +3,8 @@ use std::ops::DerefMut;
 use ash::vk;
 use foxy_utils::types::handle::Handle;
 
-use crate::{device::Device, error::VulkanError, swapchain::Swapchain};
+use super::{device::Device, frame_data::FrameData};
+use crate::vulkan::{error::VulkanError, swapchain::Swapchain};
 
 pub struct SyncObjects {
   device: Handle<Device>,
@@ -38,22 +39,22 @@ impl SyncObjects {
     let sema_info = vk::SemaphoreCreateInfo::default();
     let fence_info = vk::FenceCreateInfo::default().flags(vk::FenceCreateFlags::SIGNALED);
 
-    let mut image_avaiable_semaphores = vec![Default::default(); Swapchain::MAX_FRAMES_IN_FLIGHT];
+    let mut image_avaiable_semaphores = vec![Default::default(); FrameData::FRAME_OVERLAP];
     for fence in image_avaiable_semaphores.deref_mut() {
       *fence = unsafe { device.get().logical().create_semaphore(&sema_info, None) }?;
     }
 
-    let mut render_finished_semaphores = vec![Default::default(); Swapchain::MAX_FRAMES_IN_FLIGHT];
+    let mut render_finished_semaphores = vec![Default::default(); FrameData::FRAME_OVERLAP];
     for fence in render_finished_semaphores.deref_mut() {
       *fence = unsafe { device.get().logical().create_semaphore(&sema_info, None) }?;
     }
 
-    let mut fences_in_flight = vec![Default::default(); Swapchain::MAX_FRAMES_IN_FLIGHT];
+    let mut fences_in_flight = vec![Default::default(); FrameData::FRAME_OVERLAP];
     for fence in fences_in_flight.deref_mut() {
       *fence = unsafe { device.get().logical().create_fence(&fence_info, None) }?;
     }
 
-    let images_in_flight = vec![vk::Fence::null(); Swapchain::MAX_FRAMES_IN_FLIGHT];
+    let images_in_flight = vec![vk::Fence::null(); FrameData::FRAME_OVERLAP];
 
     Ok(Self {
       device,

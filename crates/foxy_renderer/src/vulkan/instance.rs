@@ -9,8 +9,10 @@ use raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle, RawDisplayHandl
 use tracing::*;
 
 use crate::{
-  device::builder::ValidationStatus,
-  error::{Debug, VulkanError},
+  vulkan::{
+    builder::ValidationStatus,
+    error::{Debug, VulkanError},
+  },
   vulkan_unsupported_error,
 };
 
@@ -43,12 +45,8 @@ impl Instance {
   }
 
   pub fn delete(&mut self) {
-    trace!("Deleting Device");
     unsafe {
-      trace!("> Deleting validation layers");
       self.debug.delete();
-
-      trace!("> Destroying instance");
       self.instance.destroy_instance(None);
     }
   }

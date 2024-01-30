@@ -22,30 +22,30 @@ pub enum VulkanError {
 #[macro_export]
 macro_rules! vulkan_unsupported_error {
   () => {
-    $crate::error::VulkanError::Unsupported(format!("attempted action unsupported by the device running Vulkan"))
+    $crate::vulkan::error::VulkanError::Unsupported(format!("attempted action unsupported by the device running Vulkan"))
   };
   ($($arg:tt)*) => {{
-    $crate::error::VulkanError::Unsupported(format!($($arg)*))
+    $crate::vulkan::error::VulkanError::Unsupported(format!($($arg)*))
   }}
 }
 
 #[macro_export]
 macro_rules! vulkan_shader_error {
   () => {
-    $crate::error::VulkanError::Unsupported(format!("attempted action unsupported by the device running Vulkan"))
+    $crate::vulkan::error::VulkanError::Unsupported(format!("attempted action unsupported by the device running Vulkan"))
   };
   ($($arg:tt)*) => {{
-    $crate::error::VulkanError::Unsupported(format!($($arg)*))
+    $crate::vulkan::error::VulkanError::Unsupported(format!($($arg)*))
   }}
 }
 
 #[macro_export]
 macro_rules! vulkan_error {
   () => {
-    $crate::error::VulkanError::Other(anyhow::anyhow!("vulkan error"))
+    $crate::vulkan::error::VulkanError::Other(anyhow::anyhow!("vulkan error"))
   };
   ($($arg:tt)*) => {{
-    $crate::error::VulkanError::Other(anyhow::anyhow!(format!($($arg)*)))
+    $crate::vulkan::error::VulkanError::Other(anyhow::anyhow!(format!($($arg)*)))
   }}
 }
 

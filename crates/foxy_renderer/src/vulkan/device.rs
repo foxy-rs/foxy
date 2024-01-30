@@ -1,198 +1,99 @@
-#![deny(unsafe_op_in_unsafe_fn)]
-
-use std::{collections::HashSet, ffi::CStr, sync::Arc};
+use std::{collections::HashSet, ffi::CStr};
 
 use anyhow::Context;
 use ash::{extensions::khr, vk};
-use foxy_utils::log::LogErr;
+use foxy_utils::types::handle::Handle;
 use itertools::Itertools;
-use raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle};
 use tracing::*;
 
-use self::builder::{DeviceBuilder, MissingWindow, VulkanCreateInfo};
-use crate::{
+use super::{
   error::VulkanError,
   instance::Instance,
-  shader::storage::ShaderStore,
-  surface::{Surface, SwapchainSupport},
-  vulkan_unsupported_error,
+  queue::{Queue, QueueFamilyIndices},
+  surface::Surface,
 };
-
-pub mod builder;
-pub mod sync_objects;
+use crate::vulkan_unsupported_error;
 
 pub struct Device {
-  shader_store: ShaderStore,
-
-  present_queue: vk::Queue,
-  graphics_queue: vk::Queue,
-
-  command_pool: vk::CommandPool,
-
-  logical: Arc<ash::Device>,
+  instance: Handle<Instance>,
   physical: vk::PhysicalDevice,
-
-  surface: Surface,
-  instance: Instance,
-}
-
-impl Device {
-  pub fn delete(&mut self) {
-    trace!("Deleting Device");
-    unsafe {
-      trace!("> Deleting shaders");
-      self.shader_store.delete();
-
-      trace!("> Destroying command pool");
-      self.logical.destroy_command_pool(self.command_pool, None);
-
-      trace!("> Destroying logical device");
-      self.logical.destroy_device(None);
-
-      trace!("> Deleting surface");
-      self.surface.delete();
-
-      trace!("> Deleting instance");
-      self.instance.delete();
-    }
-  }
+  logical: ash::Device,
+  graphics: Queue,
+  present: Queue,
 }
 
 impl Device {
   const DEVICE_EXTENSIONS: &'static [&'static CStr] = &[khr::Swapchain::NAME];
 
-  pub fn builder() -> DeviceBuilder<MissingWindow> {
-    Default::default()
-  }
-
-  pub(crate) fn new<W: HasRawDisplayHandle + HasRawWindowHandle>(
-    create_info: VulkanCreateInfo<W>,
-  ) -> Result<Self, VulkanError> {
-    trace!("Initializing Vulkan");
-    let display_handle = create_info.window.raw_display_handle();
-
-    let instance = Instance::new(&create_info.window, create_info.validation_status)?;
-    let surface = Surface::new(&create_info.window, &instance)?;
-    let physical = Self::pick_physical_device(&surface, &instance)?;
-    let (logical, graphics_queue, present_queue) = Self::new_logical_device(&surface, &instance, physical)?;
-    let logical = Arc::new(logical);
-    let command_pool = Self::create_command_pool(&surface, &instance, &logical, physical)?;
-    let shader_store = ShaderStore::new(logical.clone());
+  pub fn new(surface: &Surface, instance: Handle<Instance>) -> Result<Self, VulkanError> {
+    let physical = Self::pick_physical_device(&surface, &instance.get())?;
+    let (logical, graphics, present) = Self::new_logical_device(&surface, &instance.get(), physical)?;
 
     Ok(Self {
       instance,
-      surface,
       physical,
       logical,
-      command_pool,
-      graphics_queue,
-      present_queue,
-      shader_store,
+      graphics,
+      present,
     })
   }
 
-  pub fn instance(&self) -> &Instance {
-    &self.instance
+  pub fn delete(&mut self) {
+    unsafe {
+      self.logical.destroy_device(None);
+    }
   }
 
   pub fn physical(&self) -> &vk::PhysicalDevice {
     &self.physical
   }
 
-  pub fn logical(&self) -> Arc<ash::Device> {
-    self.logical.clone()
+  pub fn logical(&self) -> &ash::Device {
+    &self.logical
   }
 
-  pub fn surface(&self) -> &Surface {
-    &self.surface
+  pub fn graphics(&self) -> &Queue {
+    &self.graphics
   }
 
-  pub fn command_pool(&self) -> &vk::CommandPool {
-    &self.command_pool
+  pub fn present(&self) -> &Queue {
+    &self.present
   }
 
-  pub fn graphics_queue(&self) -> &vk::Queue {
-    &self.graphics_queue
-  }
+  #[allow(unused)]
+  pub fn find_supported_format(
+    &self,
+    candidates: &[vk::Format],
+    tiling: vk::ImageTiling,
+    features: vk::FormatFeatureFlags,
+  ) -> vk::Format {
+    for format in candidates.iter() {
+      let props = unsafe {
+        self
+          .instance
+          .get()
+          .raw()
+          .get_physical_device_format_properties(self.physical, *format)
+      };
 
-  pub fn present_queue(&self) -> &vk::Queue {
-    &self.present_queue
-  }
-
-  pub fn shaders(&mut self) -> &mut ShaderStore {
-    &mut self.shader_store
-  }
-
-  pub fn wait_idle(&self) {
-    let _ = unsafe { self.logical.device_wait_idle() }.log_error();
-  }
-
-  pub fn begin_single_time_commands(&self) -> Result<vk::CommandBuffer, VulkanError> {
-    let allocate_info = vk::CommandBufferAllocateInfo {
-      level: vk::CommandBufferLevel::PRIMARY,
-      command_pool: self.command_pool,
-      command_buffer_count: 1,
-      ..Default::default()
-    };
-
-    let command_buffer =
-      unsafe { self.logical.allocate_command_buffers(&allocate_info) }.context("Failed to allocate command buffers")?;
-
-    let begin_info = vk::CommandBufferBeginInfo {
-      flags: vk::CommandBufferUsageFlags::ONE_TIME_SUBMIT,
-      ..Default::default()
-    };
-
-    let command_buffer = *command_buffer.first().expect("command buffer 0 should be valid");
-
-    unsafe { self.logical.begin_command_buffer(command_buffer, &begin_info) }
-      .context("Failed to begin command buffer")?;
-
-    Ok(command_buffer)
-  }
-
-  pub fn end_single_time_commands(&self, command_buffer: vk::CommandBuffer) -> Result<(), VulkanError> {
-    unsafe { self.logical.end_command_buffer(command_buffer) }.context("Failed to end command buffer")?;
-
-    let submit_info = vk::SubmitInfo {
-      command_buffer_count: 1,
-      p_command_buffers: &command_buffer,
-      ..Default::default()
-    };
-
-    unsafe {
-      self
-        .logical
-        .queue_submit(self.graphics_queue, &[submit_info], vk::Fence::null())
-    }
-    .context("Failed to submit graphics queue")?;
-
-    unsafe { self.logical.queue_wait_idle(self.graphics_queue) }.context("Failed to process graphics queue")?;
-
-    unsafe { self.logical.free_command_buffers(self.command_pool, &[command_buffer]) };
-
-    Ok(())
-  }
-
-  pub fn issue_single_time_commands<F: FnOnce(vk::CommandBuffer)>(&self, commands: F) {
-    match self.begin_single_time_commands() {
-      Ok(command_buffer) => {
-        commands(command_buffer);
-        match self.end_single_time_commands(command_buffer) {
-          Ok(_) => {}
-          Err(e) => error!("{e:#}"),
-        };
+      if (tiling == vk::ImageTiling::LINEAR && props.linear_tiling_features.contains(features))
+        || (tiling == vk::ImageTiling::OPTIMAL && props.optimal_tiling_features.contains(features))
+      {
+        return *format;
       }
-      Err(e) => error!("{e:#}"),
     }
-  }
-
-  pub fn swapchain_support(&self) -> Result<SwapchainSupport, VulkanError> {
-    self.surface.swapchain_support(self.physical)
+    error!("Failed to find supported format.");
+    vk::Format::B8G8R8_UNORM
   }
 
   pub fn find_memory_type(&self, type_filter: u32, properties: vk::MemoryPropertyFlags) -> vk::MemoryType {
-    let props = unsafe { self.instance.raw().get_physical_device_memory_properties(self.physical) };
+    let props = unsafe {
+      self
+        .instance
+        .get()
+        .raw()
+        .get_physical_device_memory_properties(self.physical)
+    };
 
     for mem_type in props.memory_types {
       if (type_filter & (1 << mem_type.heap_index)) != 0 && mem_type.property_flags.contains(properties) {
@@ -236,7 +137,7 @@ impl Device {
     surface: &Surface,
     instance: &Instance,
     physical_device: vk::PhysicalDevice,
-  ) -> Result<(ash::Device, vk::Queue, vk::Queue), VulkanError> {
+  ) -> Result<(ash::Device, Queue, Queue), VulkanError> {
     let indices = Self::find_queue_families(surface, instance, physical_device)?;
     let mut queue_create_infos: Vec<vk::DeviceQueueCreateInfo> = vec![];
     let unique_queue_families: HashSet<u32> = HashSet::from([indices.graphics_family, indices.present_family]);
@@ -274,7 +175,10 @@ impl Device {
     let graphics_queue = unsafe { device.get_device_queue(indices.graphics_family, 0) };
     let present_queue = unsafe { device.get_device_queue(indices.present_family, 0) };
 
-    Ok((device, graphics_queue, present_queue))
+    let graphics = Queue::new(graphics_queue, indices.graphics_family);
+    let present = Queue::new(present_queue, indices.present_family);
+
+    Ok((device, graphics, present))
   }
 
   fn device_extensions_supported(instance: &Instance, physical_device: vk::PhysicalDevice) -> Result<(), VulkanError> {
@@ -388,35 +292,6 @@ impl Device {
     indices.is_ok() && extensions_supported && swapchain_adequate && features_supported
   }
 
-  #[allow(unused)]
-  pub fn find_supported_format(
-    &self,
-    candidates: &[vk::Format],
-    tiling: vk::ImageTiling,
-    features: vk::FormatFeatureFlags,
-  ) -> vk::Format {
-    for format in candidates.iter() {
-      let props = unsafe {
-        self
-          .instance
-          .raw()
-          .get_physical_device_format_properties(self.physical, *format)
-      };
-
-      if (tiling == vk::ImageTiling::LINEAR && props.linear_tiling_features.contains(features))
-        || (tiling == vk::ImageTiling::OPTIMAL && props.optimal_tiling_features.contains(features))
-      {
-        return *format;
-      }
-    }
-    error!("Failed to find supported format.");
-    vk::Format::B8G8R8_UNORM
-  }
-
-  pub fn queue_families(&self) -> Result<QueueFamilyIndices, VulkanError> {
-    Self::find_queue_families(&self.surface, &self.instance, self.physical)
-  }
-
   fn find_queue_families(
     surface: &Surface,
     instance: &Instance,
@@ -455,32 +330,4 @@ impl Device {
 
     Err(vulkan_unsupported_error!("Failed to find suitable queue families"))
   }
-
-  fn create_command_pool(
-    surface: &Surface,
-    instance: &Instance,
-    logical: &ash::Device,
-    physical: vk::PhysicalDevice,
-  ) -> Result<vk::CommandPool, VulkanError> {
-    let indices = Self::find_queue_families(surface, instance, physical)?;
-
-    let create_info = vk::CommandPoolCreateInfo {
-      queue_family_index: indices.graphics_family,
-      flags: vk::CommandPoolCreateFlags::TRANSIENT | vk::CommandPoolCreateFlags::RESET_COMMAND_BUFFER,
-      ..Default::default()
-    };
-
-    unsafe { logical.create_command_pool(&create_info, None) }.map_err(VulkanError::from)
-  }
-}
-
-#[derive(Default)]
-pub struct QueueFamilyIndices {
-  pub graphics_family: u32,
-  pub present_family: u32,
-}
-
-impl QueueFamilyIndices {
-  // pub fn complete(&self) -> bool { self.graphics_family.is_some() &&
-  // self.present_family.is_some() }
 }

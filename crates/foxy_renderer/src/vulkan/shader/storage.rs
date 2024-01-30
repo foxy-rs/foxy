@@ -1,6 +1,6 @@
 // pub static SHADERS: OnceLock<ShaderStore> = OnceLock::new();
 
-use std::{collections::HashMap, path::PathBuf, sync::Arc};
+use std::{collections::HashMap, path::PathBuf};
 
 use foxy_utils::types::handle::Handle;
 use tracing::debug;
@@ -9,10 +9,11 @@ use super::{
   stage::{compute::Compute, fragment::Fragment, geometry::Geometry, mesh::Mesh, vertex::Vertex, StageInfo},
   Shader,
 };
+use crate::vulkan::device::Device;
 
 #[allow(dead_code)]
 pub struct ShaderStore {
-  device: Arc<ash::Device>,
+  device: Handle<Device>,
   vertex_shaders: HashMap<PathBuf, Handle<Shader<Vertex>>>,
   fragment_shaders: HashMap<PathBuf, Handle<Shader<Fragment>>>,
   compute_shaders: HashMap<PathBuf, Handle<Shader<Compute>>>,
@@ -22,7 +23,6 @@ pub struct ShaderStore {
 
 impl ShaderStore {
   pub fn delete(&mut self) {
-    debug!("Deleting shaders");
     for shader in self.vertex_shaders.values_mut() {
       shader.get_mut().delete();
     }
@@ -45,7 +45,7 @@ impl ShaderStore {
   pub const SHADER_ASSET_DIR: &'static str = "assets/shaders";
   pub const SHADER_CACHE_DIR: &'static str = "tmp/shaders";
 
-  pub fn new(device: Arc<ash::Device>) -> Self {
+  pub fn new(device: Handle<Device>) -> Self {
     Self {
       device,
       vertex_shaders: Default::default(),
@@ -77,7 +77,7 @@ impl ShaderStore {
   }
 
   fn get_shader<Stage: StageInfo + Clone, P: Into<PathBuf>>(
-    device: Arc<ash::Device>,
+    device: Handle<Device>,
     shader_map: &mut HashMap<PathBuf, Handle<Shader<Stage>>>,
     path: P,
   ) -> Handle<Shader<Stage>> {

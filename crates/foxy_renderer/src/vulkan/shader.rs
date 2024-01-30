@@ -1,13 +1,15 @@
-use std::{ffi::CString, marker::PhantomData, path::PathBuf, sync::Arc};
+use std::{ffi::CString, marker::PhantomData, path::PathBuf};
 
 use ash::vk;
+use foxy_utils::types::handle::Handle;
 use tracing::*;
 
 use self::{
   source::Source,
   stage::{ShaderKind, StageInfo},
 };
-use crate::error::VulkanError;
+use super::device::Device;
+use crate::vulkan::error::VulkanError;
 
 pub mod set;
 pub mod source;
@@ -23,7 +25,7 @@ enum BuildAttempt {
 // encapsulate to prevent premature droppage
 #[derive(Clone)]
 struct Module {
-  device: Arc<ash::Device>,
+  device: Handle<Device>,
   module: vk::ShaderModule,
 }
 
@@ -31,7 +33,7 @@ impl Module {
   pub fn delete(&mut self) {
     debug!("Deleting shader module");
     unsafe {
-      self.device.destroy_shader_module(self.module, None);
+      self.device.get().logical().destroy_shader_module(self.module, None);
     }
   }
 }
@@ -51,11 +53,11 @@ impl<Stage: StageInfo> Shader<Stage> {
 }
 
 impl<Stage: StageInfo> Shader<Stage> {
-  pub fn new<P: Into<PathBuf>>(device: Arc<ash::Device>, path: P) -> Self {
+  pub fn new<P: Into<PathBuf>>(device: Handle<Device>, path: P) -> Self {
     let source = Source::new::<Stage, _>(path);
     let shader_entry_point = Stage::kind().entry_point_cstring();
-    let module = Self::build_shader_module(device.clone(), &source, BuildAttempt::First)
-      .expect("fallbacks should never fail to compile");
+    let module =
+      Self::build_shader_module(&device, &source, BuildAttempt::First).expect("fallbacks should never fail to compile");
 
     Self {
       shader_entry_point,
@@ -80,7 +82,7 @@ impl<Stage: StageInfo> Shader<Stage> {
   }
 
   fn build_shader_module(
-    device: Arc<ash::Device>,
+    device: &Handle<Device>,
     source: &Source,
     attempt: BuildAttempt,
   ) -> Result<vk::ShaderModule, VulkanError> {
@@ -91,7 +93,12 @@ impl<Stage: StageInfo> Shader<Stage> {
         let shader_module = {
           let shader_module_create_info = vk::ShaderModuleCreateInfo::default().code(words);
 
-          match unsafe { device.create_shader_module(&shader_module_create_info, None) } {
+          match unsafe {
+            device
+              .get()
+              .logical()
+              .create_shader_module(&shader_module_create_info, None)
+          } {
             Ok(module) => module,
             Err(err) => match attempt {
               BuildAttempt::First => {

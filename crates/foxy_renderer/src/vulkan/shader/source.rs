@@ -1,5 +1,6 @@
 use std::{
-  env, fs,
+  env,
+  fs,
   fs::File,
   io::{Read, Write},
   path::{Path, PathBuf},
@@ -11,7 +12,7 @@ use strum::{Display, EnumIter};
 use tracing::*;
 
 use super::{stage::StageInfo, storage::ShaderStore};
-use crate::{error::VulkanError, vulkan_shader_error};
+use crate::{vulkan::error::VulkanError, vulkan_shader_error};
 
 #[derive(EnumIter, Display, Clone, Debug, PartialEq, Eq, Hash)]
 #[strum(serialize_all = "snake_case")]

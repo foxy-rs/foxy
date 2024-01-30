@@ -1,7 +1,7 @@
 use ash::vk;
 use foxy_utils::types::handle::Handle;
 
-use crate::{device::Device, error::VulkanError};
+use crate::vulkan::{device::Device, error::VulkanError};
 
 #[derive(Clone)]
 pub struct PipelineLayout {

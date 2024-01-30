@@ -2,7 +2,7 @@ use ash::vk;
 use foxy_utils::types::primitives::Dimensions;
 
 use super::layout::PipelineLayout;
-use crate::error::VulkanError;
+use crate::vulkan::error::VulkanError;
 
 pub struct MissingLayout;
 pub struct HasLayout(PipelineLayout);
