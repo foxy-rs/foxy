@@ -96,7 +96,7 @@ impl Default for EngineTime {
 }
 
 impl EngineTime {
-  const MAX_SAMPLES: usize = 10;
+  const MAX_SAMPLES: usize = 25;
 
   pub fn with_tick_rate(mut self, tick_rate: f64) -> Self {
     self.tick_rate = tick_rate;
