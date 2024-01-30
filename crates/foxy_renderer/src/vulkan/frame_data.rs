@@ -14,9 +14,6 @@ impl FrameData {
 
   pub fn delete(&mut self, device: &mut Handle<Device>) {
     unsafe {
-      let buffers = &[self.master_command_buffer];
-      device.get_mut().logical().free_command_buffers(self.command_pool, buffers);
-
       device.get_mut().logical().destroy_command_pool(self.command_pool, None);
     }
   }
