@@ -1,7 +1,9 @@
 use ash::vk;
 use foxy_utils::types::handle::Handle;
 
-use crate::{device::Device, error::VulkanError, pipeline::RenderPipeline, swapchain::Swapchain, vulkan_error};
+use crate::{device::Device, error::VulkanError, swapchain::Swapchain, vulkan_error};
+
+use super::pipeline::RenderPipeline;
 
 #[derive(Clone)]
 pub struct CommandBuffers {

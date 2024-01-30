@@ -5,12 +5,13 @@ use foxy_utils::{
 };
 use tracing::debug;
 
-use crate::{
-  device::Device,
-  error::VulkanError,
+use self::{
   image::Image,
   image_format::{ColorSpace, ImageFormat, PresentMode},
-  sync_objects::SyncObjects,
+};
+use crate::{
+  device::{sync_objects::SyncObjects, Device},
+  error::VulkanError,
   vulkan_error,
 };
 
@@ -33,6 +34,12 @@ pub struct Swapchain {
   sync_objects: SyncObjects,
   device: Handle<Device>,
 }
+
+pub mod buffer;
+pub mod command_buffer;
+pub mod image;
+pub mod image_format;
+pub mod pipeline;
 
 impl Swapchain {
   pub fn delete(&mut self) {
@@ -90,7 +97,7 @@ impl Swapchain {
       .height(extent.height as u32);
     debug!("Window extent (true): {extent:?}");
 
-    let swapchain_loader = khr::Swapchain::new(device.get().instance(), &device.get().logical());
+    let swapchain_loader = khr::Swapchain::new(device.get().instance().raw(), &device.get().logical());
     let (swapchain, images, image_format) =
       Self::create_swap_chain(device.clone(), &swapchain_loader, preferred_image_format, extent)?;
 

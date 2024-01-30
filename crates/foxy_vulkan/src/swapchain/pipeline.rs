@@ -1,7 +1,6 @@
 use ash::vk;
 use foxy_utils::types::handle::Handle;
 
-pub mod builder;
 pub mod config;
 pub mod layout;
 

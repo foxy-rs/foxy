@@ -3,6 +3,7 @@ use ash::{extensions::khr, vk};
 use raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle};
 
 use super::error::VulkanError;
+use crate::instance::Instance;
 
 pub struct Surface {
   surface: vk::SurfaceKHR,
@@ -16,17 +17,19 @@ impl Surface {
 }
 
 impl Surface {
-  pub fn new(
-    window: impl HasRawDisplayHandle + HasRawWindowHandle,
-    entry: &ash::Entry,
-    instance: &ash::Instance,
-  ) -> Result<Self, VulkanError> {
+  pub fn new(window: impl HasRawDisplayHandle + HasRawWindowHandle, instance: &Instance) -> Result<Self, VulkanError> {
     let surface = unsafe {
-      ash_window::create_surface(entry, instance, window.raw_display_handle(), window.raw_window_handle(), None)
+      ash_window::create_surface(
+        instance.entry(),
+        instance.raw(),
+        window.raw_display_handle(),
+        window.raw_window_handle(),
+        None,
+      )
     }
     .context("Failed to create window surface")?;
 
-    let surface_loader = khr::Surface::new(entry, instance);
+    let surface_loader = khr::Surface::new(instance.entry(), instance.raw());
 
     Ok(Self {
       surface,

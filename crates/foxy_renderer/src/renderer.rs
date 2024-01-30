@@ -3,16 +3,13 @@ use foxy_utils::{
   types::{handle::Handle, primitives::Dimensions},
 };
 use foxy_vulkan::{
-  command_buffer::CommandBuffers,
   device::{builder::ValidationStatus, Device},
   error::VulkanError,
-  image_format::ImageFormat,
-  pipeline::{config::RenderPipelineConfig, layout::PipelineLayout, RenderPipeline, SimpleRenderPipeline},
   shader::set::ShaderSet,
-  swapchain::Swapchain,
+  swapchain::{command_buffer::CommandBuffers, image_format::ImageFormat, pipeline::{config::RenderPipelineConfig, layout::PipelineLayout, RenderPipeline, SimpleRenderPipeline}, Swapchain},
 };
 use raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle};
-use tracing::{error, trace};
+use tracing::*;
 
 use self::render_data::RenderData;
 

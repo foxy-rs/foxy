@@ -2,7 +2,9 @@ use anyhow::Context;
 use ash::{self, vk};
 use foxy_utils::types::handle::Handle;
 
-use crate::{device::Device, error::VulkanError, image::Image};
+use crate::{device::Device, error::VulkanError};
+
+use super::image::Image;
 
 pub struct Buffer {
   device: Handle<Device>,

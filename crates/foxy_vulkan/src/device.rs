@@ -1,30 +1,25 @@
 #![deny(unsafe_op_in_unsafe_fn)]
 
-use std::{
-  collections::HashSet,
-  ffi::{c_char, CStr},
-  sync::Arc,
-};
+use std::{collections::HashSet, ffi::CStr, sync::Arc};
 
 use anyhow::Context;
-use ash::{
-  extensions::{ext, khr},
-  vk,
-};
+use ash::{extensions::khr, vk};
 use foxy_utils::log::LogErr;
 use itertools::Itertools;
-use raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle, RawDisplayHandle};
+use raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle};
 use tracing::*;
 
-use self::builder::{DeviceBuilder, MissingWindow, ValidationStatus, VulkanCreateInfo};
+use self::builder::{DeviceBuilder, MissingWindow, VulkanCreateInfo};
 use crate::{
-  error::{Debug, VulkanError},
+  error::VulkanError,
+  instance::Instance,
   shader::storage::ShaderStore,
   surface::{Surface, SwapchainSupport},
   vulkan_unsupported_error,
 };
 
 pub mod builder;
+pub mod sync_objects;
 
 pub struct Device {
   shader_store: ShaderStore,
@@ -38,10 +33,7 @@ pub struct Device {
   physical: vk::PhysicalDevice,
 
   surface: Surface,
-
-  debug: Debug,
-  instance: ash::Instance,
-  _entry: ash::Entry,
+  instance: Instance,
 }
 
 impl Device {
@@ -59,25 +51,15 @@ impl Device {
 
       trace!("> Deleting surface");
       self.surface.delete();
-      self.debug.delete();
 
-      trace!("> Destroying instance");
-      self.instance.destroy_instance(None);
+      trace!("> Deleting instance");
+      self.instance.delete();
     }
   }
 }
 
 impl Device {
   const DEVICE_EXTENSIONS: &'static [&'static CStr] = &[khr::Swapchain::NAME];
-  const INSTANCE_EXTENSIONS: &'static [&'static CStr] = &[
-    khr::Surface::NAME,
-    #[cfg(debug_assertions)]
-    ext::DebugUtils::NAME,
-  ];
-  const VALIDATION_LAYERS: &'static [&'static CStr] = &[
-    #[cfg(debug_assertions)]
-    c"VK_LAYER_KHRONOS_validation",
-  ];
 
   pub fn builder() -> DeviceBuilder<MissingWindow> {
     Default::default()
@@ -89,10 +71,8 @@ impl Device {
     trace!("Initializing Vulkan");
     let display_handle = create_info.window.raw_display_handle();
 
-    let entry = ash::Entry::linked();
-    let instance = Self::new_instance(&entry, display_handle, create_info.validation_status)?;
-    let debug = Debug::new(&entry, &instance)?;
-    let surface = Surface::new(&create_info.window, &entry, &instance)?;
+    let instance = Instance::new(&create_info.window, create_info.validation_status)?;
+    let surface = Surface::new(&create_info.window, &instance)?;
     let physical = Self::pick_physical_device(&surface, &instance)?;
     let (logical, graphics_queue, present_queue) = Self::new_logical_device(&surface, &instance, physical)?;
     let logical = Arc::new(logical);
@@ -100,9 +80,7 @@ impl Device {
     let shader_store = ShaderStore::new(logical.clone());
 
     Ok(Self {
-      _entry: entry,
       instance,
-      debug,
       surface,
       physical,
       logical,
@@ -113,7 +91,7 @@ impl Device {
     })
   }
 
-  pub fn instance(&self) -> &ash::Instance {
+  pub fn instance(&self) -> &Instance {
     &self.instance
   }
 
@@ -213,39 +191,8 @@ impl Device {
     self.surface.swapchain_support(self.physical)
   }
 
-  fn select_version(entry: &ash::Entry) -> u32 {
-    let (variant, major, minor, patch) =
-      match unsafe { entry.try_enumerate_instance_version() }.expect("should always return VK_SUCCESS") {
-        // Vulkan 1.1+
-        Some(version) => {
-          let variant = vk::api_version_variant(version);
-          let major = vk::api_version_major(version);
-          let minor = vk::api_version_minor(version);
-          let patch = vk::api_version_patch(version);
-          (variant, major, minor, patch)
-        }
-        // Vulkan 1.0
-        None => (0, 1, 0, 0),
-      };
-
-    info!("Driver version: Vulkan {major}.{minor}.{patch}.{variant}");
-
-    let selected_version = vk::make_api_version(0, major, minor, 0);
-
-    {
-      let variant = vk::api_version_variant(selected_version);
-      let major = vk::api_version_major(selected_version);
-      let minor = vk::api_version_minor(selected_version);
-      let patch = vk::api_version_patch(selected_version);
-
-      info!("Selected version: Vulkan {major}.{minor}.{patch}.{variant}");
-    }
-
-    selected_version
-  }
-
   pub fn find_memory_type(&self, type_filter: u32, properties: vk::MemoryPropertyFlags) -> vk::MemoryType {
-    let props = unsafe { self.instance.get_physical_device_memory_properties(self.physical) };
+    let props = unsafe { self.instance.raw().get_physical_device_memory_properties(self.physical) };
 
     for mem_type in props.memory_types {
       if (type_filter & (1 << mem_type.heap_index)) != 0 && mem_type.property_flags.contains(properties) {
@@ -257,112 +204,8 @@ impl Device {
     vk::MemoryType::default()
   }
 
-  fn request_layers_and_extensions(
-    entry: &ash::Entry,
-    display_handle: RawDisplayHandle,
-    validation_status: ValidationStatus,
-  ) -> Result<(Vec<*const c_char>, Vec<*const c_char>), VulkanError> {
-    let (supported_layers, supported_extensions) = Self::supported(entry)?;
-    let supported_layers = supported_layers
-      .iter()
-      .map(|l| l.layer_name_as_c_str().unwrap())
-      .collect_vec();
-    let supported_extensions = supported_extensions
-      .iter()
-      .map(|e| e.extension_name_as_c_str().unwrap())
-      .collect_vec();
-
-    debug!("Supported layers:\n{:#?}", supported_layers);
-    debug!("Supported instance extensions:\n{:#?}", supported_extensions);
-
-    // Layers ----------------------
-
-    let mut requested_layers = Self::VALIDATION_LAYERS.iter().collect_vec();
-
-    let mut missing_layers = Vec::new();
-    for layer in Self::VALIDATION_LAYERS {
-      if !supported_layers.contains(layer) {
-        missing_layers.push(*layer);
-      }
-    }
-
-    if !missing_layers.is_empty() {
-      return Err(vulkan_unsupported_error!(
-        "not all requested layers are supported on this device:\nMissing: {missing_layers:?}"
-      ));
-    }
-
-    if validation_status == ValidationStatus::Disabled {
-      requested_layers.clear();
-    }
-
-    let requested_layers = requested_layers.iter().map(|l| l.as_ptr()).collect_vec();
-
-    // Extensions ------------------
-
-    let mut requested_extensions = ash_window::enumerate_required_extensions(display_handle)?
-      .to_vec()
-      .iter()
-      .map(|c| unsafe { CStr::from_ptr(*c) })
-      .collect_vec();
-    requested_extensions.extend_from_slice(Self::INSTANCE_EXTENSIONS);
-
-    let mut missing_extensions: Vec<&CStr> = Vec::new();
-    for extension in &requested_extensions {
-      if !supported_extensions.contains(extension) {
-        missing_extensions.push(extension);
-      }
-    }
-
-    if !missing_extensions.is_empty() {
-      return Err(vulkan_unsupported_error!(
-        "not all requested instance extensions are supported on this device:\nMissing: {missing_extensions:?}"
-      ));
-    }
-
-    let requested_extensions = requested_extensions.iter().map(|l| l.as_ptr()).collect_vec();
-
-    Ok((requested_layers, requested_extensions))
-  }
-
-  fn supported(entry: &ash::Entry) -> Result<(Vec<vk::LayerProperties>, Vec<vk::ExtensionProperties>), VulkanError> {
-    // let layers: Vec<*const c_char> = Self::VALIDATION_LAYERS.iter().map(|name|
-    // name.as_ptr()).collect();
-    let layers = unsafe { entry.enumerate_instance_layer_properties() }?;
-    let extensions = unsafe { entry.enumerate_instance_extension_properties(None) }?;
-
-    Ok((layers, extensions))
-  }
-
-  fn new_instance(
-    entry: &ash::Entry,
-    display_handle: RawDisplayHandle,
-    validation_status: ValidationStatus,
-  ) -> Result<ash::Instance, VulkanError> {
-    let version = Self::select_version(entry);
-
-    let app_info = vk::ApplicationInfo::default()
-      .api_version(version)
-      .engine_name(c"Foxy Framework")
-      .engine_version(vk::make_api_version(0, 1, 0, 0))
-      .application_name(c"Foxy Framework Application")
-      .application_version(vk::make_api_version(0, 1, 0, 0));
-
-    let (requested_layers, requested_extensions) =
-      Self::request_layers_and_extensions(entry, display_handle, validation_status)?;
-
-    let instance_create_info = vk::InstanceCreateInfo::default()
-      .application_info(&app_info)
-      .enabled_layer_names(&requested_layers)
-      .enabled_extension_names(&requested_extensions);
-
-    let instance = unsafe { entry.create_instance(&instance_create_info, None)? };
-
-    Ok(instance)
-  }
-
-  fn pick_physical_device(surface: &Surface, instance: &ash::Instance) -> Result<vk::PhysicalDevice, VulkanError> {
-    let physical_devices = unsafe { instance.enumerate_physical_devices() }?;
+  fn pick_physical_device(surface: &Surface, instance: &Instance) -> Result<vk::PhysicalDevice, VulkanError> {
+    let physical_devices = unsafe { instance.raw().enumerate_physical_devices() }?;
     info!("Physical device count: {}", physical_devices.len());
 
     let physical_device = physical_devices
@@ -370,7 +213,7 @@ impl Device {
       .filter(|p| Self::is_suitable(surface, instance, **p))
       .min_by_key(|p| unsafe {
         // lower score for preferred device types
-        match instance.get_physical_device_properties(**p).device_type {
+        match instance.raw().get_physical_device_properties(**p).device_type {
           vk::PhysicalDeviceType::DISCRETE_GPU => 0,
           vk::PhysicalDeviceType::INTEGRATED_GPU => 1,
           vk::PhysicalDeviceType::VIRTUAL_GPU => 2,
@@ -381,7 +224,7 @@ impl Device {
       })
       .context("Failed to find valid physical device")?;
 
-    let props = unsafe { instance.get_physical_device_properties(*physical_device) };
+    let props = unsafe { instance.raw().get_physical_device_properties(*physical_device) };
 
     let device_name = unsafe { CStr::from_ptr(props.device_name.as_ptr()) };
     info!("Chosen device: [{:?}]", device_name);
@@ -391,7 +234,7 @@ impl Device {
 
   fn new_logical_device(
     surface: &Surface,
-    instance: &ash::Instance,
+    instance: &Instance,
     physical_device: vk::PhysicalDevice,
   ) -> Result<(ash::Device, vk::Queue, vk::Queue), VulkanError> {
     let indices = Self::find_queue_families(surface, instance, physical_device)?;
@@ -425,7 +268,7 @@ impl Device {
       ..Default::default()
     };
 
-    let device = unsafe { instance.create_device(physical_device, &create_info, None) }
+    let device = unsafe { instance.raw().create_device(physical_device, &create_info, None) }
       .context("Failed to create logical graphics device")?;
 
     let graphics_queue = unsafe { device.get_device_queue(indices.graphics_family, 0) };
@@ -434,11 +277,8 @@ impl Device {
     Ok((device, graphics_queue, present_queue))
   }
 
-  fn device_extensions_supported(
-    instance: &ash::Instance,
-    physical_device: vk::PhysicalDevice,
-  ) -> Result<(), VulkanError> {
-    let supported_extensions = unsafe { instance.enumerate_device_extension_properties(physical_device) }?;
+  fn device_extensions_supported(instance: &Instance, physical_device: vk::PhysicalDevice) -> Result<(), VulkanError> {
+    let supported_extensions = unsafe { instance.raw().enumerate_device_extension_properties(physical_device) }?;
     let supported_extensions = supported_extensions
       .iter()
       .map(|e| e.extension_name_as_c_str().unwrap())
@@ -462,12 +302,13 @@ impl Device {
     Ok(())
   }
 
-  fn device_features_supported(
-    instance: &ash::Instance,
-    physical_device: vk::PhysicalDevice,
-  ) -> Result<(), VulkanError> {
+  fn device_features_supported(instance: &Instance, physical_device: vk::PhysicalDevice) -> Result<(), VulkanError> {
     let mut physical_device_features = vk::PhysicalDeviceFeatures2::default();
-    unsafe { instance.get_physical_device_features2(physical_device, &mut physical_device_features) };
+    unsafe {
+      instance
+        .raw()
+        .get_physical_device_features2(physical_device, &mut physical_device_features)
+    };
 
     // 1.0 features
     let supported_features = physical_device_features.features;
@@ -505,9 +346,9 @@ impl Device {
     Ok(())
   }
 
-  fn is_suitable(surface: &Surface, instance: &ash::Instance, physical_device: vk::PhysicalDevice) -> bool {
+  fn is_suitable(surface: &Surface, instance: &Instance, physical_device: vk::PhysicalDevice) -> bool {
     let indices = Self::find_queue_families(surface, instance, physical_device);
-    let props = unsafe { instance.get_physical_device_properties(physical_device) };
+    let props = unsafe { instance.raw().get_physical_device_properties(physical_device) };
     let device_name = unsafe { CStr::from_ptr(props.device_name.as_ptr()) };
 
     debug!("Checking if suitable: [{:?}]", device_name);
@@ -558,6 +399,7 @@ impl Device {
       let props = unsafe {
         self
           .instance
+          .raw()
           .get_physical_device_format_properties(self.physical, *format)
       };
 
@@ -577,10 +419,14 @@ impl Device {
 
   fn find_queue_families(
     surface: &Surface,
-    instance: &ash::Instance,
+    instance: &Instance,
     physical_device: vk::PhysicalDevice,
   ) -> Result<QueueFamilyIndices, VulkanError> {
-    let queue_families = unsafe { instance.get_physical_device_queue_family_properties(physical_device) };
+    let queue_families = unsafe {
+      instance
+        .raw()
+        .get_physical_device_queue_family_properties(physical_device)
+    };
 
     let mut graphics_family = None;
     let mut present_family = None;
@@ -612,7 +458,7 @@ impl Device {
 
   fn create_command_pool(
     surface: &Surface,
-    instance: &ash::Instance,
+    instance: &Instance,
     logical: &ash::Device,
     physical: vk::PhysicalDevice,
   ) -> Result<vk::CommandPool, VulkanError> {
