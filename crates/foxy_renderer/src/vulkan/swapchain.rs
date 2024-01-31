@@ -123,7 +123,7 @@ impl Swapchain {
       .present_mode(present_mode)
       .image_extent(extent)
       .image_array_layers(1)
-      .image_usage(vk::ImageUsageFlags::COLOR_ATTACHMENT)
+      .image_usage(vk::ImageUsageFlags::COLOR_ATTACHMENT | vk::ImageUsageFlags::TRANSFER_DST)
       .image_sharing_mode(if graphics_family != present_family {
         vk::SharingMode::CONCURRENT
       } else {

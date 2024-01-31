@@ -1,55 +1,51 @@
-use foxy_utils::{
-  time::Time,
-  types::{handle::Handle, primitives::Dimensions},
-};
+use foxy_utils::{time::Time, types::primitives::Dimensions};
 use raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle};
-use tracing::*;
 
 use self::render_data::RenderData;
-use crate::vulkan::{
-  builder::ValidationStatus,
-  error::VulkanError,
-  Vulkan,
-};
+use crate::error::RendererError;
 
 pub mod command;
 pub mod render_data;
 
-pub struct Renderer {
-  // command_buffers: CommandBuffers,
-  // render_pipeline_layout: PipelineLayout,
-  // render_pipeline: SimpleRenderPipeline,
-  // render_data: RenderData,
+pub trait RenderBackend {
+  fn new(window: impl HasRawDisplayHandle + HasRawWindowHandle, window_size: Dimensions) -> Result<Self, RendererError>
+  where
+    Self: Sized;
 
-  // swapchain: Handle<Swapchain>,
-  vulkan: Handle<Vulkan>,
+  fn delete(&mut self);
+
+  fn draw(&mut self, render_time: Time) -> Result<(), RendererError>;
 }
 
-impl Renderer {
+// Renderer is just a thin wrapper to allow for other APIs in the future if I so
+// please
+pub struct Renderer<B: RenderBackend> {
+  backend: B,
+  render_data: RenderData,
+}
+
+impl<B: RenderBackend> Renderer<B> {
   pub fn new(
     window: impl HasRawDisplayHandle + HasRawWindowHandle,
     window_size: Dimensions,
-  ) -> Result<Self, VulkanError> {
-    let device = Vulkan::builder()
-      .with_window(&window, window_size)
-      .with_validation(ValidationStatus::Enabled)
-      .build()?;
+  ) -> Result<Self, RendererError> {
+    let backend = B::new(window, window_size)?;
 
-    Ok(Self { vulkan: device })
+    Ok(Self {
+      backend,
+      render_data: RenderData::default(),
+    })
   }
 
   pub fn delete(&mut self) {
-    self.vulkan.get_mut().delete();
+    self.backend.delete();
   }
 
-  pub fn draw_frame(&mut self, _render_time: Time) -> Result<(), VulkanError> {
-    Ok(())
+  pub fn draw_frame(&mut self, render_time: Time) -> Result<(), RendererError> {
+    self.backend.draw(render_time)
   }
 
-  pub fn update_render_data(&mut self, _render_data: RenderData) -> Result<(), VulkanError> {
-    Ok(())
+  pub fn update_render_data(&mut self, render_data: RenderData) {
+    self.render_data = render_data;
   }
 }
-
-/// Private Implemenation Details
-impl Renderer {}

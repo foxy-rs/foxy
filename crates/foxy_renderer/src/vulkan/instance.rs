@@ -8,11 +8,9 @@ use itertools::Itertools;
 use raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle, RawDisplayHandle};
 use tracing::*;
 
+use super::ValidationStatus;
 use crate::{
-  vulkan::{
-    builder::ValidationStatus,
-    error::{Debug, VulkanError},
-  },
+  vulkan::error::{Debug, VulkanError},
   vulkan_unsupported_error,
 };
 

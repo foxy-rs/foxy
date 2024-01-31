@@ -1,13 +1,10 @@
 #![deny(unsafe_op_in_unsafe_fn)]
 
-use ash::vk;
 use foxy_utils::{log::LogErr, types::handle::Handle};
-use itertools::Itertools;
 use raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle};
 use tracing::*;
 
 use self::{
-  builder::{DeviceBuilder, MissingWindow, VulkanCreateInfo},
   device::Device,
   error::VulkanError,
   frame_data::FrameData,
@@ -17,11 +14,10 @@ use self::{
   swapchain::Swapchain,
 };
 use crate::{
+  renderer::RenderBackend,
   vulkan::swapchain::image_format::{ColorSpace, ImageFormat, PresentMode},
-  vulkan_error,
 };
 
-pub mod builder;
 pub mod device;
 pub mod error;
 pub mod frame_data;
@@ -30,7 +26,13 @@ pub mod queue;
 pub mod shader;
 pub mod surface;
 pub mod swapchain;
-pub mod sync_objects;
+
+#[derive(Default, PartialEq, Eq, Clone, Copy)]
+pub enum ValidationStatus {
+  Enabled,
+  #[default]
+  Disabled,
+}
 
 pub struct Vulkan {
   shader_store: ShaderStore,
@@ -44,8 +46,49 @@ pub struct Vulkan {
   instance: Handle<Instance>,
 }
 
-impl Vulkan {
-  pub fn delete(&mut self) {
+impl RenderBackend for Vulkan {
+  fn new(
+    window: impl HasRawDisplayHandle + HasRawWindowHandle,
+    window_size: foxy_utils::types::prelude::Dimensions,
+  ) -> Result<Self, crate::error::RendererError>
+  where
+    Self: Sized,
+  {
+    trace!("Initializing Vulkan");
+    let instance = Handle::new(Instance::new(
+      &window,
+      if cfg!(debug_assertions) {
+        ValidationStatus::Enabled
+      } else {
+        ValidationStatus::Disabled
+      },
+    )?);
+
+    let surface = Surface::new(&window, &instance.get())?;
+    let device = Handle::new(Device::new(&surface, instance.clone())?);
+
+    let swapchain = Handle::new(Swapchain::new(&instance, &surface, device.clone(), window_size, ImageFormat {
+      color_space: ColorSpace::Unorm,
+      present_mode: PresentMode::AutoImmediate,
+    })?);
+    let frame_data = (0..FrameData::FRAME_OVERLAP)
+      .map(|_| FrameData::new(&surface, &instance.get(), &device.get()))
+      .collect::<Result<Vec<_>, VulkanError>>()?;
+
+    let shader_store = ShaderStore::new(device.clone());
+
+    Ok(Self {
+      instance,
+      surface,
+      device,
+      swapchain,
+      frame_data,
+      frame_index: 0,
+      shader_store,
+    })
+  }
+
+  fn delete(&mut self) {
     trace!("Waiting for GPU to finish...");
     let _ = unsafe { self.device.get().logical().device_wait_idle() }.log_error();
 
@@ -62,46 +105,16 @@ impl Vulkan {
     self.surface.delete();
     self.instance.get_mut().delete();
   }
+
+  fn draw(
+    &mut self,
+    render_time: foxy_utils::time::Time,
+  ) -> Result<(), crate::error::RendererError> {
+    Ok(())
+  }
 }
 
 impl Vulkan {
-  pub fn builder() -> DeviceBuilder<MissingWindow> {
-    Default::default()
-  }
-
-  pub(crate) fn new<W: HasRawDisplayHandle + HasRawWindowHandle>(
-    create_info: VulkanCreateInfo<W>,
-  ) -> Result<Self, VulkanError> {
-    trace!("Initializing Vulkan");
-    let instance = Handle::new(Instance::new(&create_info.window, create_info.validation_status)?);
-    let surface = Surface::new(&create_info.window, &instance.get())?;
-    let device = Handle::new(Device::new(&surface, instance.clone())?);
-
-    let swapchain = Handle::new(Swapchain::new(
-      &instance,
-      &surface,
-      device.clone(),
-      create_info.size,
-      ImageFormat {
-        color_space: ColorSpace::Unorm,
-        present_mode: PresentMode::AutoImmediate,
-      },
-    )?);
-    let frame_data = Self::new_frame_data(&surface, &instance.get(), &device.get())?;
-
-    let shader_store = ShaderStore::new(device.clone());
-
-    Ok(Self {
-      instance,
-      surface,
-      device,
-      swapchain,
-      frame_data,
-      frame_index: 0,
-      shader_store,
-    })
-  }
-
   pub fn instance(&self) -> Handle<Instance> {
     self.instance.clone()
   }
@@ -124,32 +137,5 @@ impl Vulkan {
 
   pub fn current_frame(&self) -> Option<&FrameData> {
     self.frame_data.get(self.frame_index)
-  }
-
-  fn new_frame_data(surface: &Surface, instance: &Instance, device: &Device) -> Result<Vec<FrameData>, VulkanError> {
-    let create_info = vk::CommandPoolCreateInfo::default()
-      .queue_family_index(device.graphics().family())
-      .flags(vk::CommandPoolCreateFlags::TRANSIENT | vk::CommandPoolCreateFlags::RESET_COMMAND_BUFFER);
-
-    (0..FrameData::FRAME_OVERLAP)
-      .map(|_| {
-        let command_pool = unsafe { device.logical().create_command_pool(&create_info, None) }?;
-
-        let buffer_info = vk::CommandBufferAllocateInfo::default()
-          .command_pool(command_pool)
-          .command_buffer_count(1)
-          .level(vk::CommandBufferLevel::PRIMARY);
-
-        let master_command_buffer = unsafe { device.logical().allocate_command_buffers(&buffer_info) }?
-          .first()
-          .cloned()
-          .ok_or_else(|| vulkan_error!("invalid command buffers size"))?;
-
-        Ok(FrameData {
-          command_pool,
-          master_command_buffer,
-        })
-      })
-      .collect::<Result<Vec<_>, VulkanError>>()
   }
 }

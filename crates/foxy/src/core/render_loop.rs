@@ -4,7 +4,7 @@ use std::{
 };
 
 use anyhow::anyhow;
-use foxy_renderer::renderer::Renderer;
+use foxy_renderer::{renderer::Renderer, vulkan::Vulkan};
 use foxy_utils::{time::EngineTime, types::thread::ThreadLoop};
 use messaging::Mailbox;
 use tracing::*;
@@ -12,7 +12,7 @@ use tracing::*;
 use super::message::{GameLoopMessage, RenderLoopMessage};
 
 pub struct RenderLoop {
-  pub renderer: Renderer,
+  pub renderer: Renderer<Vulkan>,
   pub messenger: Mailbox<RenderLoopMessage, GameLoopMessage>,
   pub sync_barrier: Arc<Barrier>,
   pub time: EngineTime,
@@ -68,7 +68,7 @@ impl RenderLoop {
     }) {
       Ok(message) => match message {
         GameLoopMessage::RenderData(data) => {
-          self.renderer.update_render_data(data)?;
+          self.renderer.update_render_data(data);
           Ok(false)
         }
         GameLoopMessage::Exit => Ok(true),
