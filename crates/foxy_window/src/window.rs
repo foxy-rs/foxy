@@ -245,22 +245,30 @@ impl Window {
     }
   }
 
-  /// Waits for next window message before returning.
-  ///
-  /// Returns `None` when app is exiting.
-  ///
-  /// Use this if you want the application to only react to window events.
-  #[allow(unused)]
-  pub fn wait(&mut self) -> Option<WindowMessage> {
+  fn next_message<const SHOULD_WAIT: bool>(&mut self) -> Option<WindowMessage> {
     match self.current_stage {
-      Stage::Looping => match self.proc_receiver.recv() {
-        Ok(message) => self.handle_message(message),
-        _ => {
-          error!("channel between main and window was closed!");
-          self.window_thread.join();
-          None
+      Stage::Looping => {
+        if SHOULD_WAIT {
+          match self.proc_receiver.recv() {
+            Ok(message) => self.handle_message(message),
+            _ => {
+              error!("channel between main and window was closed!");
+              self.window_thread.join();
+              None
+            }
+          }
+        } else {
+          match self.proc_receiver.try_recv() {
+            Ok(message) => self.handle_message(message),
+            Err(TryRecvError::Disconnected) => {
+              error!("channel between main and window was closed!");
+              self.window_thread.join();
+              None
+            }
+            _ => Some(WindowMessage::None),
+          }
         }
-      },
+      }
       Stage::Exiting => {
         self.current_stage = Stage::ExitLoop;
         Some(WindowMessage::Closing)
@@ -272,6 +280,16 @@ impl Window {
         None
       }
     }
+  }
+
+  /// Waits for next window message before returning.
+  ///
+  /// Returns `None` when app is exiting.
+  ///
+  /// Use this if you want the application to only react to window events.
+  #[allow(unused)]
+  pub fn wait(&mut self) -> Option<WindowMessage> {
+    self.next_message::<true>()
   }
 }
 
@@ -289,30 +307,7 @@ impl Iterator for Window {
   /// ***Note:** the window message thread will still block until a message is
   /// recieved from Windows.*
   fn next(&mut self) -> Option<Self::Item> {
-    match self.current_stage {
-      // looping state actively reads messages
-      Stage::Looping => match self.proc_receiver.try_recv() {
-        Ok(message) => self.handle_message(message),
-        Err(TryRecvError::Disconnected) => {
-          error!("channel between main and window was closed!");
-          self.window_thread.join();
-          None
-        }
-        _ => Some(WindowMessage::None),
-      },
-      // entering the exiting state is non-reversible.
-      Stage::Exiting => {
-        debug!("exiting");
-        self.current_stage = Stage::ExitLoop;
-        Some(WindowMessage::Closing)
-      }
-      Stage::ExitLoop => {
-        let _ =
-          unsafe { PostMessageW(HWND(self.state.hwnd), Self::MSG_MAIN_CLOSE_REQ, WPARAM(0), LPARAM(0)) }.log_error();
-        self.window_thread.join();
-        None
-      }
-    }
+    self.next_message::<false>()
   }
 }
 
