@@ -1,11 +1,15 @@
 #![deny(unsafe_op_in_unsafe_fn)]
 
+use std::time::Duration;
+
 use ash::vk;
 use foxy_utils::{log::LogErr, types::handle::Handle};
 use raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle};
 use tracing::*;
+use vk_mem::{Allocator, AllocatorCreateInfo};
 
 use self::{
+  deletion_queue::DeletionQueue,
   device::Device,
   error::VulkanError,
   frame_data::FrameData,
@@ -21,6 +25,7 @@ use crate::{
   vulkan_error,
 };
 
+pub mod deletion_queue;
 pub mod device;
 pub mod error;
 pub mod frame_data;
@@ -38,7 +43,10 @@ pub enum ValidationStatus {
 }
 
 pub struct Vulkan {
+  deletion_queue: DeletionQueue,
   shader_store: Handle<ShaderStore>,
+
+  // allocator: Allocator,
 
   frame_index: usize,
   frame_data: Vec<FrameData>,
@@ -58,6 +66,8 @@ impl RenderBackend for Vulkan {
     Self: Sized,
   {
     trace!("Initializing Vulkan");
+    let deletion_queue = DeletionQueue::new();
+
     let instance = Instance::new(
       &window,
       if cfg!(debug_assertions) {
@@ -81,15 +91,19 @@ impl RenderBackend for Vulkan {
       .collect::<Result<Vec<_>, VulkanError>>()
       .map_err(|e| RendererError::Unrecoverable(e.into()))?;
 
+    // let allocator = Allocator::new(AllocatorCreateInfo::new(instance.raw(), device, physical_device));
+
     let shader_store = Handle::new(ShaderStore::new(device.clone()));
 
     Ok(Self {
+      deletion_queue,
       instance,
       surface,
       device,
       swapchain,
       frame_data,
       frame_index: 0,
+      // allocator,
       shader_store,
     })
   }
@@ -99,6 +113,8 @@ impl RenderBackend for Vulkan {
     let _ = unsafe { self.device.logical().device_wait_idle() }.log_error();
 
     trace!("Cleaning up Vulkan resources...");
+
+    self.deletion_queue.flush();
 
     self.shader_store.get_mut().delete();
 
@@ -120,9 +136,16 @@ impl RenderBackend for Vulkan {
       .map_err(|e| RendererError::Unrecoverable(e.into()))?;
 
     let fences = &[current_frame.render_fence];
-    unsafe { self.device.logical().wait_for_fences(fences, true, u64::MAX) }
-      .map_err(|e| RendererError::Unrecoverable(e.into()))?;
+    unsafe {
+      self
+        .device
+        .logical()
+        .wait_for_fences(fences, true, Duration::from_secs(1).as_nanos() as u64)
+    }
+    .map_err(|e| RendererError::Unrecoverable(e.into()))?;
     unsafe { self.device.logical().reset_fences(fences) }.map_err(|e| RendererError::Unrecoverable(e.into()))?;
+
+    current_frame.deletion_queue.flush();
 
     let (image_index, is_suboptimal) = self
       .swapchain
@@ -143,7 +166,7 @@ impl RenderBackend for Vulkan {
     }
     .map_err(|e| RendererError::Unrecoverable(e.into()))?;
 
-    let cmd_begin_info = vk::CommandBufferBeginInfo::default().flags(vk::CommandBufferUsageFlags::ONE_TIME_SUBMIT);
+    let cmd_begin_info = vk::CommandBufferBeginInfo::builder().flags(vk::CommandBufferUsageFlags::ONE_TIME_SUBMIT);
 
     unsafe { self.device.logical().begin_command_buffer(cmd, &cmd_begin_info) }
       .map_err(|e| RendererError::Unrecoverable(e.into()))?;
@@ -208,14 +231,14 @@ impl RenderBackend for Vulkan {
     let swapchains = &[self.swapchain.khr()];
     let wait_semaphores = &[current_frame.render_semaphore];
     let image_indices = &[image_index as u32];
-    let present_info = vk::PresentInfoKHR::default()
+    let present_info = vk::PresentInfoKHR::builder()
       .swapchains(swapchains)
       .wait_semaphores(wait_semaphores)
       .image_indices(image_indices);
 
     let _is_suboptimal = self
       .swapchain
-      .present(self.device.graphics().queue(), present_info)
+      .present(self.device.graphics().queue(), *present_info)
       .map_err(|e| RendererError::Unrecoverable(e.into()))?;
 
     self.frame_index = (self.frame_index + 1) % FrameData::FRAME_OVERLAP;
@@ -225,7 +248,7 @@ impl RenderBackend for Vulkan {
 }
 
 impl Vulkan {
-  fn transition_image(
+  pub fn transition_image(
     device: &Device,
     cmd: vk::CommandBuffer,
     image: vk::Image,
@@ -238,7 +261,7 @@ impl Vulkan {
       vk::ImageAspectFlags::COLOR
     };
 
-    let image_barrier = vk::ImageMemoryBarrier2::default()
+    let image_barrier = vk::ImageMemoryBarrier2::builder()
       .src_stage_mask(vk::PipelineStageFlags2::ALL_COMMANDS)
       .src_access_mask(vk::AccessFlags2::MEMORY_WRITE)
       .dst_stage_mask(vk::PipelineStageFlags2::ALL_COMMANDS)
@@ -248,14 +271,14 @@ impl Vulkan {
       .subresource_range(Self::image_subresource_range(aspect_mask))
       .image(image);
 
-    let image_barriers = &[image_barrier];
-    let dependency_info = vk::DependencyInfo::default().image_memory_barriers(image_barriers);
+    let image_barriers = &[*image_barrier];
+    let dependency_info = vk::DependencyInfo::builder().image_memory_barriers(image_barriers);
 
     unsafe { device.logical().cmd_pipeline_barrier2(cmd, &dependency_info) };
   }
 
-  fn image_subresource_range(aspect_mask: vk::ImageAspectFlags) -> vk::ImageSubresourceRange {
-    vk::ImageSubresourceRange::default()
+  pub fn image_subresource_range(aspect_mask: vk::ImageAspectFlags) -> vk::ImageSubresourceRange {
+    *vk::ImageSubresourceRange::builder()
       .aspect_mask(aspect_mask)
       .base_mip_level(0)
       .level_count(vk::REMAINING_MIP_LEVELS)
@@ -263,29 +286,29 @@ impl Vulkan {
       .layer_count(vk::REMAINING_ARRAY_LAYERS)
   }
 
-  fn semaphore_submit_info<'a>(
+  pub fn semaphore_submit_info<'a>(
     semaphore: vk::Semaphore,
     stage_mask: vk::PipelineStageFlags2,
-  ) -> vk::SemaphoreSubmitInfo<'a> {
-    vk::SemaphoreSubmitInfo::default()
+  ) -> vk::SemaphoreSubmitInfo {
+    *vk::SemaphoreSubmitInfo::builder()
       .semaphore(semaphore)
       .stage_mask(stage_mask)
       .device_index(0)
       .value(1)
   }
 
-  fn command_buffer_submit_info<'a>(command_buffer: vk::CommandBuffer) -> vk::CommandBufferSubmitInfo<'a> {
-    vk::CommandBufferSubmitInfo::default()
+  pub fn command_buffer_submit_info<'a>(command_buffer: vk::CommandBuffer) -> vk::CommandBufferSubmitInfo {
+    *vk::CommandBufferSubmitInfo::builder()
       .command_buffer(command_buffer)
       .device_mask(0)
   }
 
-  fn submit_info<'a>(
-    command_buffer_infos: &'a [vk::CommandBufferSubmitInfo<'a>],
-    wait_semaphore_infos: &'a [vk::SemaphoreSubmitInfo<'a>],
-    signal_semaphore_infos: &'a [vk::SemaphoreSubmitInfo<'a>],
-  ) -> vk::SubmitInfo2<'a> {
-    vk::SubmitInfo2::default()
+  pub fn submit_info<'a>(
+    command_buffer_infos: &'a [vk::CommandBufferSubmitInfo],
+    wait_semaphore_infos: &'a [vk::SemaphoreSubmitInfo],
+    signal_semaphore_infos: &'a [vk::SemaphoreSubmitInfo],
+  ) -> vk::SubmitInfo2 {
+    *vk::SubmitInfo2::builder()
       .command_buffer_infos(command_buffer_infos)
       .wait_semaphore_infos(wait_semaphore_infos)
       .signal_semaphore_infos(signal_semaphore_infos)

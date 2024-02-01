@@ -23,9 +23,9 @@ pub struct Instance {
 
 impl Instance {
   const INSTANCE_EXTENSIONS: &'static [&'static CStr] = &[
-    khr::Surface::NAME,
+    khr::Surface::name(),
     #[cfg(debug_assertions)]
-    ext::DebugUtils::NAME,
+    ext::DebugUtils::name(),
   ];
   const VALIDATION_LAYERS: &'static [&'static CStr] = &[
     #[cfg(debug_assertions)]
@@ -65,7 +65,7 @@ impl Instance {
   ) -> Result<ash::Instance, VulkanError> {
     let version = Self::select_version(entry);
 
-    let app_info = vk::ApplicationInfo::default()
+    let app_info = vk::ApplicationInfo::builder()
       .api_version(version)
       .engine_name(c"Foxy Framework")
       .engine_version(vk::make_api_version(0, 1, 0, 0))
@@ -75,7 +75,7 @@ impl Instance {
     let (requested_layers, requested_extensions) =
       Self::request_layers_and_extensions(entry, display_handle, validation_status)?;
 
-    let instance_create_info = vk::InstanceCreateInfo::default()
+    let instance_create_info = vk::InstanceCreateInfo::builder()
       .application_info(&app_info)
       .enabled_layer_names(&requested_layers)
       .enabled_extension_names(&requested_extensions);
@@ -86,19 +86,21 @@ impl Instance {
   }
 
   fn select_version(entry: &ash::Entry) -> u32 {
-    let (variant, major, minor, patch) =
-      match unsafe { entry.try_enumerate_instance_version() }.expect("should always return VK_SUCCESS") {
-        // Vulkan 1.1+
-        Some(version) => {
-          let variant = vk::api_version_variant(version);
-          let major = vk::api_version_major(version);
-          let minor = vk::api_version_minor(version);
-          let patch = vk::api_version_patch(version);
-          (variant, major, minor, patch)
-        }
-        // Vulkan 1.0
-        None => (0, 1, 0, 0),
-      };
+    let (variant, major, minor, patch) = match entry
+      .try_enumerate_instance_version()
+      .expect("should always return VK_SUCCESS")
+    {
+      // Vulkan 1.1+
+      Some(version) => {
+        let variant = vk::api_version_variant(version);
+        let major = vk::api_version_major(version);
+        let minor = vk::api_version_minor(version);
+        let patch = vk::api_version_patch(version);
+        (variant, major, minor, patch)
+      }
+      // Vulkan 1.0
+      None => (0, 1, 0, 0),
+    };
 
     info!("Driver version: Vulkan {major}.{minor}.{patch}.{variant}");
 
@@ -124,11 +126,11 @@ impl Instance {
     let (supported_layers, supported_extensions) = Self::supported(entry)?;
     let supported_layers = supported_layers
       .iter()
-      .map(|l| l.layer_name_as_c_str().unwrap())
+      .map(|l| unsafe { CStr::from_ptr(l.layer_name.as_ptr()) })
       .collect_vec();
     let supported_extensions = supported_extensions
       .iter()
-      .map(|e| e.extension_name_as_c_str().unwrap())
+      .map(|e| unsafe { CStr::from_ptr(e.extension_name.as_ptr()) })
       .collect_vec();
 
     debug!("Supported layers:\n{:#?}", supported_layers);

@@ -26,7 +26,7 @@ pub struct Device {
 }
 
 impl Device {
-  const DEVICE_EXTENSIONS: &'static [&'static CStr] = &[khr::Swapchain::NAME];
+  const DEVICE_EXTENSIONS: &'static [&'static CStr] = &[khr::Swapchain::name()];
 
   pub fn new(surface: &Surface, instance: Instance) -> Result<Self, VulkanError> {
     let physical = Self::pick_physical_device(surface, &instance)?;
@@ -149,11 +149,11 @@ impl Device {
       queue_create_infos.push(queue_create_info);
     }
 
-    let mut features_13 = vk::PhysicalDeviceVulkan13Features::default()
+    let mut features_13 = vk::PhysicalDeviceVulkan13Features::builder()
       .dynamic_rendering(true)
       .synchronization2(true);
 
-    let mut features_12 = vk::PhysicalDeviceVulkan12Features::default()
+    let mut features_12 = vk::PhysicalDeviceVulkan12Features::builder()
       .buffer_device_address(true)
       .descriptor_indexing(true);
     features_12.p_next = std::ptr::addr_of_mut!(features_13) as *mut c_void;
@@ -163,11 +163,11 @@ impl Device {
       ..Default::default()
     };
 
-    let device_features = vk::PhysicalDeviceFeatures::default().sampler_anisotropy(true);
+    let device_features = vk::PhysicalDeviceFeatures::builder().sampler_anisotropy(true);
 
     let enabled_device_extensions = Self::DEVICE_EXTENSIONS.iter().map(|e| e.as_ptr()).collect_vec();
 
-    let create_info = vk::DeviceCreateInfo::default()
+    let create_info = vk::DeviceCreateInfo::builder()
       .queue_create_infos(&queue_create_infos)
       .enabled_extension_names(&enabled_device_extensions)
       .enabled_features(&device_features)
@@ -189,7 +189,7 @@ impl Device {
     let supported_extensions = unsafe { instance.raw().enumerate_device_extension_properties(physical_device) }?;
     let supported_extensions = supported_extensions
       .iter()
-      .map(|e| e.extension_name_as_c_str().unwrap())
+      .map(|e| unsafe { CStr::from_ptr(e.extension_name.as_ptr()) })
       .collect_vec();
 
     debug!("Supported device extensions:\n{:#?}", supported_extensions);

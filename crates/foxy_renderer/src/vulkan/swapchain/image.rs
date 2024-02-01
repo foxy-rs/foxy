@@ -31,7 +31,7 @@ impl Image {
 
     let memory_reqs = unsafe { device.get().logical().get_image_memory_requirements(image) };
 
-    let allocation_info = vk::MemoryAllocateInfo::default()
+    let allocation_info = vk::MemoryAllocateInfo::builder()
       .memory_type_index(
         device
           .get()

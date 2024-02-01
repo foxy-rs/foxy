@@ -46,8 +46,7 @@ impl Buffer {
         .find_memory_type(memory_reqs.memory_type_bits, properties)
         .heap_index,
       ..Default::default()
-    }
-    .allocation_size(memory_reqs.size);
+    };
 
     let memory = match unsafe { device.get().logical().allocate_memory(&memory_create_info, None) }
       .context("Failed to allocate buffer memory")

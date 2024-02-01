@@ -1,3 +1,5 @@
+use std::ffi::CStr;
+
 use ash::{extensions::ext, vk};
 use thiserror::Error;
 
@@ -72,7 +74,7 @@ impl Debug {
     if cfg!(debug_assertions) {
       let debug_utils = ext::DebugUtils::new(entry, instance);
 
-      let create_info = vk::DebugUtilsMessengerCreateInfoEXT::default()
+      let create_info = vk::DebugUtilsMessengerCreateInfoEXT::builder()
         .message_severity(vk::DebugUtilsMessageSeverityFlagsEXT::ERROR | vk::DebugUtilsMessageSeverityFlagsEXT::WARNING)
         .message_type(
           vk::DebugUtilsMessageTypeFlagsEXT::DEVICE_ADDRESS_BINDING
@@ -107,12 +109,13 @@ impl Debug {
 unsafe extern "system" fn debug_callback(
   message_severity: vk::DebugUtilsMessageSeverityFlagsEXT,
   message_types: vk::DebugUtilsMessageTypeFlagsEXT,
-  p_callback_data: *const vk::DebugUtilsMessengerCallbackDataEXT<'_>,
+  p_callback_data: *const vk::DebugUtilsMessengerCallbackDataEXT,
   _p_user_data: *mut std::ffi::c_void,
 ) -> vk::Bool32 {
   let callback_data = unsafe { *p_callback_data };
+  let message = unsafe { CStr::from_ptr(callback_data.p_message) };
   // let message_id_name = unsafe { callback_data.message_id_name_as_c_str() };
-  if let Some(message) = unsafe { callback_data.message_as_c_str() } {
+  // if let Some(message) =  {
     match message_types {
       vk::DebugUtilsMessageTypeFlagsEXT::VALIDATION => match message_severity {
         vk::DebugUtilsMessageSeverityFlagsEXT::ERROR => {
@@ -143,7 +146,7 @@ unsafe extern "system" fn debug_callback(
       },
       _ => {}
     }
-  }
+  // }
 
   false.into()
 }

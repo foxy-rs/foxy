@@ -48,10 +48,11 @@ impl Swapchain {
     preferred_image_format: ImageFormat,
   ) -> Result<Self, VulkanError> {
     debug!("Window extent: {extent:?}");
-    let extent = vk::Extent2D::default()
+    let extent = vk::Extent2D::builder()
       .width(extent.width as u32)
-      .height(extent.height as u32);
-    debug!("Window extent (true): {extent:?}");
+      .height(extent.height as u32)
+      .build();
+    // debug!("Window extent (true): {extent:?}");
 
     let swapchain_loader = khr::Swapchain::new(instance.raw(), device.logical());
     let (swapchain, images, image_format) =
@@ -151,7 +152,7 @@ impl Swapchain {
     let present_family = device.present().family();
     let queue_family_indices = &[graphics_family, present_family];
 
-    let create_info = vk::SwapchainCreateInfoKHR::default()
+    let create_info = vk::SwapchainCreateInfoKHR::builder()
       .surface(*surface.surface())
       .min_image_count(image_count)
       .image_format(surface_format.format)
@@ -189,18 +190,17 @@ impl Swapchain {
     let image_views = images
       .iter()
       .map(|&i| {
-        let view_info = vk::ImageViewCreateInfo::default()
+        let subrange = vk::ImageSubresourceRange::builder()
+          .aspect_mask(vk::ImageAspectFlags::COLOR)
+          .base_mip_level(0)
+          .level_count(1)
+          .base_array_layer(0)
+          .layer_count(1);
+        let view_info = vk::ImageViewCreateInfo::builder()
           .image(i)
           .view_type(vk::ImageViewType::TYPE_2D)
           .format(image_format)
-          .subresource_range(
-            vk::ImageSubresourceRange::default()
-              .aspect_mask(vk::ImageAspectFlags::COLOR)
-              .base_mip_level(0)
-              .level_count(1)
-              .base_array_layer(0)
-              .layer_count(1),
-          );
+          .subresource_range(*subrange);
 
         unsafe { device.logical().create_image_view(&view_info, None) }
       })
@@ -275,7 +275,7 @@ impl Swapchain {
     if available_extents.current_extent.width != u32::MAX {
       available_extents.current_extent
     } else {
-      vk::Extent2D::default()
+      vk::Extent2D::builder()
         .width(window_extent.width.clamp(
           available_extents.min_image_extent.width,
           available_extents.max_image_extent.width,
@@ -284,6 +284,7 @@ impl Swapchain {
           available_extents.min_image_extent.height,
           available_extents.max_image_extent.height,
         ))
+        .build()
     }
   }
 }

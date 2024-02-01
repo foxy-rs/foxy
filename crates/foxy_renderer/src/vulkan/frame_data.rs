@@ -1,10 +1,11 @@
 use ash::vk;
 
-use super::{device::Device, error::VulkanError};
+use super::{deletion_queue::DeletionQueue, device::Device, error::VulkanError};
 use crate::vulkan_error;
 
-#[derive(Debug, Default)]
+#[derive(Default)]
 pub struct FrameData {
+  pub deletion_queue: DeletionQueue,
   pub command_pool: vk::CommandPool,
   pub master_command_buffer: vk::CommandBuffer,
   pub render_fence: vk::Fence,
@@ -16,13 +17,15 @@ impl FrameData {
   pub const FRAME_OVERLAP: usize = 2;
 
   pub fn new(device: &Device) -> Result<FrameData, VulkanError> {
-    let create_info = vk::CommandPoolCreateInfo::default()
+    let deletion_queue = DeletionQueue::new();
+
+    let create_info = vk::CommandPoolCreateInfo::builder()
       .queue_family_index(device.graphics().family())
       .flags(vk::CommandPoolCreateFlags::TRANSIENT | vk::CommandPoolCreateFlags::RESET_COMMAND_BUFFER);
 
     let command_pool = unsafe { device.logical().create_command_pool(&create_info, None) }?;
 
-    let buffer_info = vk::CommandBufferAllocateInfo::default()
+    let buffer_info = vk::CommandBufferAllocateInfo::builder()
       .command_pool(command_pool)
       .command_buffer_count(1)
       .level(vk::CommandBufferLevel::PRIMARY);
@@ -32,14 +35,15 @@ impl FrameData {
       .cloned()
       .ok_or_else(|| vulkan_error!("invalid command buffers size"))?;
 
-    let fence_info = vk::FenceCreateInfo::default().flags(vk::FenceCreateFlags::SIGNALED);
+    let fence_info = vk::FenceCreateInfo::builder().flags(vk::FenceCreateFlags::SIGNALED);
     let render_fence = unsafe { device.logical().create_fence(&fence_info, None) }?;
 
-    let semaphore_info = vk::SemaphoreCreateInfo::default();
+    let semaphore_info = vk::SemaphoreCreateInfo::builder();
     let swapchain_semaphore = unsafe { device.logical().create_semaphore(&semaphore_info, None) }?;
     let render_semaphore = unsafe { device.logical().create_semaphore(&semaphore_info, None) }?;
 
     Ok(FrameData {
+      deletion_queue,
       command_pool,
       master_command_buffer,
       render_fence,

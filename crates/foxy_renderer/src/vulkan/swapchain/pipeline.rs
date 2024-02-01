@@ -68,7 +68,7 @@ impl RenderPipeline for SimpleRenderPipeline {
     let depth_stencil_info = config.depth_stencil_info();
     let color_blend_info = config.color_blend_info();
 
-    let pipeline_create_info = vk::GraphicsPipelineCreateInfo::default()
+    let pipeline_create_info = vk::GraphicsPipelineCreateInfo::builder()
       .stages(shader_stage_create_infos)
       .vertex_input_state(&vertex_input_info)
       .input_assembly_state(&input_assembly_info)
@@ -85,7 +85,7 @@ impl RenderPipeline for SimpleRenderPipeline {
       device
         .get()
         .logical()
-        .create_graphics_pipelines(vk::PipelineCache::null(), &[pipeline_create_info], None)
+        .create_graphics_pipelines(vk::PipelineCache::null(), &[*pipeline_create_info], None)
         .map(|pipelines| pipelines.first().cloned())
         .map_err(|err| vulkan_unsupported_error!("failed to create graphics pipelines: {err:?}"))
     }?

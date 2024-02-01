@@ -22,22 +22,24 @@ pub struct RenderPipelineConfig<L, R> {
 
 impl RenderPipelineConfig<MissingLayout, MissingRenderPass> {
   pub fn new(size: Dimensions) -> Result<Self, VulkanError> {
-    let viewports = vec![vk::Viewport::default()
+    let viewports = vec![vk::Viewport::builder()
       .x(0.)
       .y(0.)
       .width(size.width as f32)
       .height(size.height as f32)
       .min_depth(0.)
-      .max_depth(1.)];
+      .max_depth(1.)
+      .build()];
 
-    let scissors = vec![vk::Rect2D::default()
+    let scissors = vec![vk::Rect2D::builder()
       .offset(vk::Offset2D { x: 0, y: 0 })
       .extent(vk::Extent2D {
         width: size.width as u32,
         height: size.height as u32,
-      })];
+      })
+      .build()];
 
-    let color_blend_attachments = vec![vk::PipelineColorBlendAttachmentState::default()
+    let color_blend_attachments = vec![vk::PipelineColorBlendAttachmentState::builder()
       .blend_enable(true)
       .src_color_blend_factor(vk::BlendFactor::SRC_COLOR)
       .dst_color_blend_factor(vk::BlendFactor::DST_COLOR)
@@ -45,7 +47,8 @@ impl RenderPipelineConfig<MissingLayout, MissingRenderPass> {
       .src_alpha_blend_factor(vk::BlendFactor::SRC_ALPHA)
       .dst_alpha_blend_factor(vk::BlendFactor::ONE_MINUS_SRC_ALPHA)
       .alpha_blend_op(vk::BlendOp::ADD)
-      .color_write_mask(vk::ColorComponentFlags::RGBA)];
+      .color_write_mask(vk::ColorComponentFlags::RGBA)
+      .build()];
 
     // let pipeline_layout = PipelineLayout::;
 
@@ -98,39 +101,46 @@ impl RenderPipelineConfig<HasLayout, HasRenderPass> {
   }
 
   pub fn viewport_info(&self) -> vk::PipelineViewportStateCreateInfo {
-    vk::PipelineViewportStateCreateInfo::default()
+    vk::PipelineViewportStateCreateInfo::builder()
       .viewports(&self.viewports)
       .scissors(&self.scissors)
+      .build()
   }
 
   pub fn input_assembly_info(&self) -> vk::PipelineInputAssemblyStateCreateInfo {
-    vk::PipelineInputAssemblyStateCreateInfo::default().topology(vk::PrimitiveTopology::TRIANGLE_LIST)
+    vk::PipelineInputAssemblyStateCreateInfo::builder()
+      .topology(vk::PrimitiveTopology::TRIANGLE_LIST)
+      .build()
   }
 
   pub fn rasterization_info(&self) -> vk::PipelineRasterizationStateCreateInfo {
-    vk::PipelineRasterizationStateCreateInfo::default()
+    vk::PipelineRasterizationStateCreateInfo::builder()
       .cull_mode(vk::CullModeFlags::BACK)
       .line_width(1.0)
+      .build()
   }
 
   pub fn multisample_info(&self) -> vk::PipelineMultisampleStateCreateInfo {
-    vk::PipelineMultisampleStateCreateInfo::default()
+    vk::PipelineMultisampleStateCreateInfo::builder()
       .rasterization_samples(vk::SampleCountFlags::TYPE_1)
       .min_sample_shading(1.0)
+      .build()
   }
 
   pub fn color_blend_info(&self) -> vk::PipelineColorBlendStateCreateInfo {
-    vk::PipelineColorBlendStateCreateInfo::default()
+    vk::PipelineColorBlendStateCreateInfo::builder()
       .logic_op(vk::LogicOp::COPY)
       .attachments(&self.color_blend_attachments)
       .blend_constants([0.0, 0.0, 0.0, 0.0])
+      .build()
   }
 
   pub fn depth_stencil_info(&self) -> vk::PipelineDepthStencilStateCreateInfo {
-    vk::PipelineDepthStencilStateCreateInfo::default()
+    vk::PipelineDepthStencilStateCreateInfo::builder()
       .depth_test_enable(true)
       .depth_write_enable(true)
       .depth_compare_op(vk::CompareOp::LESS)
       .max_depth_bounds(1.0)
+      .build()
   }
 }

@@ -74,10 +74,11 @@ impl<Stage: StageInfo> Shader<Stage> {
   }
 
   pub fn pipeline_info(&self) -> vk::PipelineShaderStageCreateInfo {
-    vk::PipelineShaderStageCreateInfo::default()
+    vk::PipelineShaderStageCreateInfo::builder()
       .stage(Stage::kind().into())
       .module(self.module.module)
       .name(&self.shader_entry_point)
+      .build()
   }
 
   fn build_shader_module(
@@ -90,7 +91,7 @@ impl<Stage: StageInfo> Shader<Stage> {
         trace!("[{:?}] Building module... {:?}", Stage::kind(), path);
         // debug!("Words: {:08X?}", words);
         let shader_module = {
-          let shader_module_create_info = vk::ShaderModuleCreateInfo::default().code(words);
+          let shader_module_create_info = vk::ShaderModuleCreateInfo::builder().code(words);
 
           match unsafe { device.logical().create_shader_module(&shader_module_create_info, None) } {
             Ok(module) => module,

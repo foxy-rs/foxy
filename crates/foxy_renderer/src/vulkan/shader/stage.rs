@@ -49,7 +49,7 @@ impl From<ShaderKind> for vk::ShaderStageFlags {
       ShaderKind::Fragment => vk::ShaderStageFlags::FRAGMENT,
       ShaderKind::Compute => vk::ShaderStageFlags::COMPUTE,
       ShaderKind::Geometry => vk::ShaderStageFlags::GEOMETRY,
-      ShaderKind::Mesh => vk::ShaderStageFlags::MESH_EXT,
+      ShaderKind::Mesh => vk::ShaderStageFlags::MESH_NV,
     }
   }
 }
