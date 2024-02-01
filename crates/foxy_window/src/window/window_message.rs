@@ -19,8 +19,8 @@ use crate::{hiword, lobyte, loword};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum MessagePriority {
-  High,
   Low,
+  High,
 }
 
 #[derive(Debug, Default, PartialEq, Eq, Clone, Hash)]

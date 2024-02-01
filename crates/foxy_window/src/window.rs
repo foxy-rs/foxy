@@ -63,7 +63,7 @@ pub struct Window {
   state: WindowState,
   window_thread: LoopHandle<WindowLoop, WindowThreadCreateInfo>,
   proc_receiver: Receiver<WindowMessage>,
-  input_queue: PriorityQueue<WindowMessage, MessagePriority>,
+  // input_queue: PriorityQueue<WindowMessage, MessagePriority>,
   current_stage: Stage,
 }
 
@@ -76,8 +76,6 @@ impl Drop for Window {
 impl Window {
   pub const MSG_EXIT_LOOP: u32 = WM_USER + 69;
   pub const MSG_MAIN_CLOSE_REQ: u32 = WM_USER + 11;
-  // pub const MSG_MAIN_CLOSING: u32 = WM_USER + 12;
-  // pub const MSG_MAIN_EXIT: u32 = WM_USER + 13;
   pub const WINDOW_SUBCLASS_ID: usize = 0;
   pub const WINDOW_THREAD_ID: &'static str = "window";
 
@@ -130,7 +128,7 @@ impl Window {
         state,
         window_thread,
         proc_receiver,
-        input_queue: Default::default(),
+        // input_queue: Default::default(),
         current_stage: Stage::Looping,
       };
 
@@ -198,9 +196,14 @@ impl Window {
     //   _ => debug!("{message:?}"),
     // }
 
+    // self.enqueue_message(message);
+
+    // let (message, _priority) = self.input_queue.pop()?;
+
     match message {
       WindowMessage::CloseRequested => {
         // TODO: Add manual custom close behavior back
+        debug!("Close Requested");
         self.close();
       }
       // WindowMessage::CloseRequested => {
@@ -236,14 +239,16 @@ impl Window {
     Some(message)
   }
 
-  fn enqueue_message(&mut self, message: WindowMessage) {
-    match message {
-      WindowMessage::CloseRequested => {}
-      WindowMessage::Keyboard(KeyboardMessage::Key { .. }) => {}
-      WindowMessage::Mouse(MouseMessage::Button { .. }) => {}
-      _ => {}
-    }
-  }
+  // fn enqueue_message(&mut self, message: WindowMessage) {
+  //   let priority = match message {
+  //     WindowMessage::CloseRequested => MessagePriority::High,
+  //     WindowMessage::Keyboard(KeyboardMessage::Key { .. }) => MessagePriority::High,
+  //     WindowMessage::Mouse(MouseMessage::Button { .. }) => MessagePriority::High,
+  //     _ => MessagePriority::Low,
+  //   };
+
+  //   self.input_queue.push(message, priority);
+  // }
 
   fn next_message<const SHOULD_WAIT: bool>(&mut self) -> Option<WindowMessage> {
     match self.current_stage {
