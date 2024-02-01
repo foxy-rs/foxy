@@ -258,8 +258,8 @@ impl Window {
             Ok(message) => self.handle_message(message),
             _ => {
               error!("channel between main and window was closed!");
-              self.window_thread.join();
-              None
+              self.current_stage = Stage::Exiting;
+              Some(WindowMessage::None)
             }
           }
         } else {
@@ -267,8 +267,8 @@ impl Window {
             Ok(message) => self.handle_message(message),
             Err(TryRecvError::Disconnected) => {
               error!("channel between main and window was closed!");
-              self.window_thread.join();
-              None
+              self.current_stage = Stage::Exiting;
+              Some(WindowMessage::None)
             }
             _ => Some(WindowMessage::None),
           }
