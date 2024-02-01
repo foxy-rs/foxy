@@ -30,20 +30,12 @@ pub extern "system" fn subclass_proc(
 
   let win_message = WindowMessage::new(hwnd, message, w_param, l_param);
   match win_message {
-    WindowMessage::State(StateMessage::Moving) => {}
-    WindowMessage::State(StateMessage::Resizing) => {}
+    // WindowMessage::State(StateMessage::Moving) => {}
+    // WindowMessage::State(StateMessage::Resizing) => {}
     _ => {
       let _ = data.sender.send(win_message).log_error();
     }
   };
-  // if matches!(
-  //   win_message,
-  //   WindowMessage::Other { .. } | WindowMessage::Moved | WindowMessage::Resized
-  // { .. } ) {
-  //   let _ = data.sender.send(win_message).log_error();
-  // } else {
-  //   let _ = data.priority_sender.send(win_message).log_error();
-  // }
 
   match message {
     WM_CLOSE => LRESULT(0),
