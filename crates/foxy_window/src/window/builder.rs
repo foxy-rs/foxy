@@ -1,6 +1,7 @@
 use foxy_utils::types::behavior::{CloseBehavior, ColorMode, Visibility};
 
 use super::Window;
+use crate::debug::error::WindowError;
 
 #[derive(Debug, Clone)]
 pub struct HasTitle(pub &'static str);
@@ -18,7 +19,6 @@ pub struct WindowCreateInfo<Title, Size> {
   pub title: Title,
   pub size: Size,
   pub color_mode: ColorMode,
-  pub close_behavior: CloseBehavior,
   pub visibility: Visibility,
 }
 
@@ -39,7 +39,6 @@ impl Default for WindowBuilder<MissingTitle, MissingSize> {
         title: MissingTitle,
         size: MissingSize,
         color_mode: ColorMode::Dark,
-        close_behavior: CloseBehavior::Default,
         visibility: Visibility::Shown,
       },
     }
@@ -53,7 +52,6 @@ impl<Size> WindowBuilder<MissingTitle, Size> {
         title: HasTitle(title),
         size: self.create_info.size,
         color_mode: self.create_info.color_mode,
-        close_behavior: self.create_info.close_behavior,
         visibility: self.create_info.visibility,
       },
     }
@@ -67,7 +65,6 @@ impl<Title> WindowBuilder<Title, MissingSize> {
         title: self.create_info.title,
         size: HasSize { width, height },
         color_mode: self.create_info.color_mode,
-        close_behavior: self.create_info.close_behavior,
         visibility: self.create_info.visibility,
       },
     }
@@ -81,7 +78,6 @@ impl<Title, Size> WindowBuilder<Title, Size> {
         title: self.create_info.title,
         size: self.create_info.size,
         color_mode,
-        close_behavior: self.create_info.close_behavior,
         visibility: self.create_info.visibility,
       },
     }
@@ -93,7 +89,6 @@ impl<Title, Size> WindowBuilder<Title, Size> {
         title: self.create_info.title,
         size: self.create_info.size,
         color_mode: self.create_info.color_mode,
-        close_behavior,
         visibility: self.create_info.visibility,
       },
     }
@@ -105,7 +100,6 @@ impl<Title, Size> WindowBuilder<Title, Size> {
         title: self.create_info.title,
         size: self.create_info.size,
         color_mode: self.create_info.color_mode,
-        close_behavior: self.create_info.close_behavior,
         visibility,
       },
     }
@@ -113,7 +107,7 @@ impl<Title, Size> WindowBuilder<Title, Size> {
 }
 
 impl WindowBuilder<HasTitle, HasSize> {
-  pub fn build(self) -> anyhow::Result<Window> {
+  pub fn build(self) -> Result<Window, WindowError> {
     Window::new(self.create_info)
   }
 }

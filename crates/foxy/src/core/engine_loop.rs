@@ -7,8 +7,9 @@ use std::{
 use foxy_renderer::renderer::{render_data::RenderData, Renderer};
 use foxy_utils::{
   log::LogErr,
+  thread::handle::LoopHandle,
   time::{timer::Timer, EngineTime},
-  types::{behavior::Polling, thread::EngineThread},
+  types::behavior::Polling,
 };
 use foxy_window::prelude::*;
 use messaging::Mailbox;
@@ -26,7 +27,7 @@ pub struct Framework<'a> {
   polling_strategy: Polling,
   debug_info: DebugInfo,
 
-  render_thread: EngineThread<RenderLoop>,
+  render_thread: LoopHandle<RenderLoop, ()>,
   game_mailbox: Mailbox<GameLoopMessage, RenderLoopMessage>,
   sync_barrier: Arc<Barrier>,
 
@@ -40,6 +41,8 @@ pub struct Framework<'a> {
 }
 
 impl Framework<'_> {
+  pub const RENDER_THREAD_ID: &'static str = "render";
+
   pub fn builder() -> FoxyBuilder<MissingTitle, MissingSize> {
     Default::default()
   }
@@ -65,12 +68,17 @@ impl Framework<'_> {
     let sync_barrier = Arc::new(Barrier::new(2));
 
     let (renderer_mailbox, game_mailbox) = Mailbox::new_entangled_pair();
-    let render_thread = EngineThread::new(RenderLoop {
-      renderer,
-      messenger: renderer_mailbox,
-      sync_barrier: sync_barrier.clone(),
-      time: render_time,
-    });
+    let render_thread = LoopHandle::new(
+      Self::RENDER_THREAD_ID,
+      RenderLoop {
+        renderer,
+        messenger: renderer_mailbox,
+        sync_barrier: sync_barrier.clone(),
+        time: render_time,
+        should_exit: false,
+      },
+      (),
+    );
 
     let current_stage = StageDiscriminants::Initialize;
     let foxy = Foxy::new(time, window);
@@ -93,11 +101,37 @@ impl Framework<'_> {
     &mut self.foxy
   }
 
+  fn close(&mut self) {
+    let _ = self.game_mailbox.send(GameLoopMessage::Exit).log_error();
+    self.render_thread.join();
+    self.foxy.window_mut().close();
+  }
+
   fn next_window_message(&mut self) -> Option<WindowMessage> {
     if let Polling::Wait = self.polling_strategy {
-      self.foxy.window_mut().wait()
+      match self.foxy.window_mut().wait() {
+        Some(message) => {
+          if let WindowMessage::CloseRequested = &message {
+            self.close();
+            None
+          } else {
+            Some(message)
+          }
+        }
+        None => None,
+      }
     } else {
-      self.foxy.window_mut().next()
+      match self.foxy.window_mut().next() {
+        Some(message) => {
+          if let WindowMessage::CloseRequested = &message {
+            self.close();
+            None
+          } else {
+            Some(message)
+          }
+        }
+        None => None,
+      }
     }
   }
 
@@ -110,7 +144,7 @@ impl Framework<'_> {
       StageDiscriminants::Initialize => {
         // Start
         info!("KON KON KITSUNE!");
-        self.render_thread.run(());
+        self.render_thread.run();
         Stage::Start { foxy: &mut self.foxy }
       }
       StageDiscriminants::Start => {
@@ -127,12 +161,20 @@ impl Framework<'_> {
       }
       StageDiscriminants::BeginFrame => {
         // Early Update
-        self.sync_barrier.wait();
-        self.foxy.time.update();
+        match self.game_mailbox.send_and_wait(GameLoopMessage::Sync).log_error() {
+          Ok(render_response) => match render_response {
+            RenderLoopMessage::EmergencyExit => Stage::Exiting { foxy: &mut self.foxy },
+            RenderLoopMessage::Response { .. } => {
+              // self.sync_barrier.wait();
+              self.foxy.time.update();
 
-        Stage::EarlyUpdate {
-          foxy: &mut self.foxy,
-          message: &mut self.current_message,
+              Stage::EarlyUpdate {
+                foxy: &mut self.foxy,
+                message: &mut self.current_message,
+              }
+            }
+          },
+          Err(_) => Stage::Exiting { foxy: &mut self.foxy },
         }
       }
       StageDiscriminants::EarlyUpdate => {
@@ -166,22 +208,25 @@ impl Framework<'_> {
           .send_and_wait(GameLoopMessage::RenderData(RenderData {}))
           .log_error()
         {
-          Ok(render_response) => {
-            if self.fps_timer.has_elapsed(Duration::from_millis(300)) {
-              if let DebugInfo::Shown = self.debug_info {
-                let fps = 1.0 / self.foxy.time().average_delta_secs();
-                self
-                  .foxy
-                  .window()
-                  .set_title(&format!("{} | FPS: {:.2}", self.foxy.window().title(), fps,));
+          Ok(render_response) => match render_response {
+            RenderLoopMessage::EmergencyExit => Stage::Exiting { foxy: &mut self.foxy },
+            RenderLoopMessage::Response { .. } => {
+              if self.fps_timer.has_elapsed(Duration::from_millis(300)) {
+                if let DebugInfo::Shown = self.debug_info {
+                  let fps = 1.0 / self.foxy.time().average_delta_secs();
+                  self
+                    .foxy
+                    .window()
+                    .set_title(&format!("{} | FPS: {:.2}", self.foxy.window().title(), fps,));
+                }
+              }
+              Stage::EndFrame {
+                foxy: &mut self.foxy,
+                message: &mut self.current_message,
+                render_response,
               }
             }
-            Stage::EndFrame {
-              foxy: &mut self.foxy,
-              message: &mut self.current_message,
-              render_response,
-            }
-          }
+          },
           Err(_) => Stage::Exiting { foxy: &mut self.foxy },
         }
       }
@@ -198,11 +243,7 @@ impl Framework<'_> {
         }
       }
       StageDiscriminants::Exiting => {
-        // Exit Loop
-        let _ = self.game_mailbox.send(GameLoopMessage::Exit).log_error();
-        self.sync_barrier.wait();
-
-        self.render_thread.join();
+        // Anything
         Stage::ExitLoop
       }
       StageDiscriminants::ExitLoop => {
@@ -216,6 +257,8 @@ impl Framework<'_> {
 
     Some(new_state)
   }
+
+  fn signal_render_exit(&mut self) {}
 }
 
 impl<'a> Iterator for Framework<'a> {

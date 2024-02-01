@@ -12,6 +12,7 @@ use self::timer::Timer;
 
 #[derive(Debug, Clone, Copy)]
 pub struct Time {
+  start_time: Instant,
   delta_time: Duration,
   tick_delta_time: Duration,
   average_delta_time: Duration,
@@ -19,6 +20,10 @@ pub struct Time {
 
 #[allow(unused)]
 impl Time {
+  pub fn since_start(&self) -> Duration {
+    Instant::now() - self.start_time
+  }
+
   pub fn delta(&self) -> &Duration {
     &self.delta_time
   }
@@ -55,6 +60,8 @@ pub struct EngineTime {
   step_count: u32,
   bail_threshold: u32,
 
+  start_time: Instant,
+
   previous_frame: Instant,
   current_frame: Instant,
   delta_time: Duration,
@@ -81,6 +88,7 @@ impl Default for EngineTime {
       lag_time: Default::default(),
       step_count: 0,
       bail_threshold: BAIL_THRESHOLD,
+      start_time: Instant::now(),
       previous_frame: Instant::now(),
       current_frame: Instant::now(),
       delta_time: Default::default(),
@@ -115,6 +123,7 @@ impl EngineTime {
 
   pub fn time(&self) -> Time {
     Time {
+      start_time: self.start_time,
       delta_time: self.delta_time,
       tick_delta_time: self.tick_delta_time,
       average_delta_time: self.frame_time_sum.checked_div(self.frame_count).unwrap_or_default(),

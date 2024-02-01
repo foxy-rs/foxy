@@ -1,17 +1,18 @@
 // Reference for multithreaded input processing:
 //   * https://www.jendrikillner.com/post/rust-game-part-3/
 //   * https://github.com/jendrikillner/RustMatch3/blob/rust-game-part-3/
-use std::{os::raw::c_void, sync::mpsc::channel};
+use std::os::raw::c_void;
 
+use crossbeam::channel::TryRecvError;
 use foxy_utils::{
   log::LogErr,
+  mailbox::{Mailbox, MessagingError},
+  thread::handle::LoopHandle,
   types::{
-    behavior::{CloseBehavior, ColorMode, Visibility},
+    behavior::{ColorMode, Visibility},
     primitives::Dimensions,
-    thread::EngineThread,
   },
 };
-use messaging::Mailbox;
 use raw_window_handle::{
   HasRawDisplayHandle,
   HasRawWindowHandle,
@@ -22,7 +23,7 @@ use raw_window_handle::{
 };
 use tracing::*;
 use windows::{
-  core::*,
+  core::HSTRING,
   Win32::{
     Foundation::*,
     Graphics::Dwm::{DwmSetWindowAttribute, DWMWA_USE_IMMERSIVE_DARK_MODE},
@@ -30,29 +31,33 @@ use windows::{
   },
 };
 
-use self::window_loop::{WindowLoop, WindowLoopCreateInfo};
+use self::{
+  main_message::MainMessage,
+  window_loop::{WindowLoop, WindowThreadCreateInfo},
+};
 use crate::{
-  debug::validation::ValidationLayer,
+  debug::{error::WindowError, validation::ValidationLayer},
   window::{
     builder::{HasSize, HasTitle, MissingSize, MissingTitle, WindowBuilder, WindowCreateInfo},
     input::Input,
-    message::{AppMessage, KeyboardMessage, MouseMessage, WindowMessage},
     state::WindowState,
+    window_message::{KeyboardMessage, MouseMessage, WindowMessage},
   },
 };
 
 pub mod builder;
 pub mod input;
-pub mod message;
+pub mod main_message;
 pub mod procs;
 pub mod state;
-mod window_loop;
+pub mod window_loop;
+pub mod window_message;
 
 #[allow(unused)]
 pub struct Window {
-  app_mailbox: Mailbox<AppMessage, WindowMessage>,
+  mailbox: Mailbox<MainMessage, WindowMessage>,
   state: WindowState,
-  window_thread: EngineThread<WindowLoop>,
+  window_thread: LoopHandle<WindowLoop, WindowThreadCreateInfo>,
 }
 
 impl Drop for Window {
@@ -62,8 +67,8 @@ impl Drop for Window {
 }
 
 impl Window {
-  pub const MSG_APP_MESSAGE: u32 = WM_USER + 11;
   pub const MSG_EXIT_LOOP: u32 = WM_USER + 69;
+  pub const MSG_MESSAGE_FROM_MAIN: u32 = WM_USER + 11;
   pub const WINDOW_SUBCLASS_ID: usize = 0;
   pub const WINDOW_THREAD_ID: &'static str = "window";
 
@@ -71,69 +76,56 @@ impl Window {
     Default::default()
   }
 
-  pub fn new(create_info: WindowCreateInfo<HasTitle, HasSize>) -> anyhow::Result<Self> {
+  pub fn new(create_info: WindowCreateInfo<HasTitle, HasSize>) -> Result<Self, WindowError> {
     ValidationLayer::instance().init();
 
-    let (mut app_mailbox, win32_mailbox) = Mailbox::new_entangled_pair();
-    let (proc_sender, proc_receiver) = channel::<WindowMessage>();
-    let mut window_thread = EngineThread::new(WindowLoop::new(win32_mailbox, proc_receiver));
+    let (main_mailbox, window_mailbox) = Mailbox::new_entangled_pair();
+    let (proc_sender, proc_receiver) = crossbeam::channel::unbounded();
 
-    window_thread.run(WindowLoopCreateInfo::new(create_info.clone(), proc_sender));
+    let winloop = WindowLoop::new(window_mailbox, proc_receiver);
+    let wincreate_info = WindowThreadCreateInfo::new(create_info.clone(), proc_sender);
+    let mut window_thread = LoopHandle::new(Self::WINDOW_THREAD_ID, winloop, wincreate_info);
+
+    window_thread.run();
 
     // block until first message sent (which will be the window opening)
-    match app_mailbox.wait()? {
-      WindowMessage::Ready { hwnd, hinstance } => {
-        let input = Input::new();
+    if let WindowMessage::Ready { hwnd, hinstance } = main_mailbox.recv().map_err(anyhow::Error::from)? {
+      let input = Input::new();
 
-        let mut window_rect = RECT::default();
-        let _ = unsafe { GetWindowRect(hwnd, std::ptr::addr_of_mut!(window_rect)) }.log_error();
-        let mut client_rect = RECT::default();
-        let _ = unsafe { GetClientRect(hwnd, std::ptr::addr_of_mut!(client_rect)) }.log_error();
+      let mut window_rect = RECT::default();
+      let _ = unsafe { GetWindowRect(hwnd, std::ptr::addr_of_mut!(window_rect)) }.log_error();
+      let mut client_rect = RECT::default();
+      let _ = unsafe { GetClientRect(hwnd, std::ptr::addr_of_mut!(client_rect)) }.log_error();
 
-        let state = WindowState {
-          hwnd,
-          hinstance,
-          size: Dimensions {
-            width: window_rect.right - window_rect.left,
-            height: window_rect.bottom - window_rect.top,
-          },
-          inner_size: Dimensions {
-            width: client_rect.right - client_rect.left,
-            height: client_rect.bottom - client_rect.top,
-          },
-          title: String::from(create_info.title.0),
-          color_mode: create_info.color_mode,
-          close_behavior: create_info.close_behavior,
-          visibility: create_info.visibility,
-          input,
-        };
+      let state = WindowState {
+        hwnd,
+        hinstance,
+        size: Dimensions {
+          width: window_rect.right - window_rect.left,
+          height: window_rect.bottom - window_rect.top,
+        },
+        inner_size: Dimensions {
+          width: client_rect.right - client_rect.left,
+          height: client_rect.bottom - client_rect.top,
+        },
+        title: String::from(create_info.title.0),
+        color_mode: create_info.color_mode,
+        visibility: create_info.visibility,
+        input,
+      };
 
-        let mut window = Self {
-          app_mailbox,
-          state,
-          window_thread,
-        };
+      let mut window = Self {
+        mailbox: main_mailbox,
+        state,
+        window_thread,
+      };
 
-        window.set_color_mode(window.state.color_mode);
-        window.set_visibility(window.state.visibility);
+      window.set_color_mode(window.state.color_mode);
+      window.set_visibility(window.state.visibility);
 
-        Ok(window)
-      }
-      _ => Err(anyhow::format_err!("Invalid message")),
-    }
-  }
-
-  fn send_message_to_window(&self, message: AppMessage) -> anyhow::Result<()> {
-    self.app_mailbox.send(message)?;
-    unsafe {
-      SendMessageW(self.state.hwnd, Self::MSG_APP_MESSAGE, WPARAM(0), LPARAM(0));
-    }
-    Ok(())
-  }
-
-  pub fn exit(&mut self) {
-    if let Err(error) = self.send_message_to_window(AppMessage::DestroyWindow { hwnd: self.state.hwnd }) {
-      error!("{error}");
+      Ok(window)
+    } else {
+      Err(anyhow::format_err!("Invalid message").into())
     }
   }
 
@@ -168,9 +160,7 @@ impl Window {
 
   pub fn set_title(&self, title: &str) {
     unsafe {
-      if let Err(error) = SetWindowTextW(self.state.hwnd, &HSTRING::from(title)) {
-        error!("{error}");
-      }
+      let _ = SetWindowTextW(self.state.hwnd, &HSTRING::from(title)).log_error();
     }
   }
 
@@ -182,6 +172,41 @@ impl Window {
     self.state.inner_size
   }
 
+  pub fn close(&mut self) {
+    let _ = self.send_message_to_window(MainMessage::Close).log_error();
+    loop {
+      // consume all messages until closed or error encountered
+      match self.mailbox.recv().log_error() {
+        Ok(WindowMessage::Closing) => break,
+        Ok(_) => {}
+        Err(_) => {
+          error!("never received Closing message! breaking!");
+          break;
+        }
+      }
+    }
+    self.window_thread.join();
+
+    // match self.mailbox.recv() {
+    //   Ok(WindowMessage::Closing) => {
+    //     // next message MUST be Closing
+    //     let _ = self.send_message_to_window(MainMessage::Exit).log_error();
+    //   }
+    //   Ok(_) => panic!("expected window closing message!"),
+    //   Err(error) => error!("{error}"),
+    // }
+  }
+
+  fn send_message_to_window(&self, message: MainMessage) -> Result<(), WindowError> {
+    self.mailbox.send(message).map_err(anyhow::Error::from)?;
+    unsafe {
+      // This isn't sending data, just prompting the wndproc to wake up and process
+      // the message in the mailbox
+      SendMessageW(self.state.hwnd, Self::MSG_MESSAGE_FROM_MAIN, WPARAM(0), LPARAM(0));
+    }
+    Ok(())
+  }
+
   /// Handles windows messages and then passes most onto the user
   fn intercept_message(&mut self, message: WindowMessage) -> Option<WindowMessage> {
     match message {
@@ -189,7 +214,6 @@ impl Window {
         self.window_thread.join();
         return None;
       }
-      WindowMessage::CloseRequested if CloseBehavior::Default == self.state.close_behavior => self.exit(),
       WindowMessage::Resized {
         window_rect,
         client_rect,
@@ -222,9 +246,10 @@ impl Window {
   /// Use this if you want the application to only react to window events.
   #[allow(unused)]
   pub fn wait(&mut self) -> Option<WindowMessage> {
-    if let Ok(message) = self.app_mailbox.wait() {
+    if let Ok(message) = self.mailbox.recv() {
       self.intercept_message(message)
     } else {
+      error!("channel between main and window was closed!");
       None
     }
   }
@@ -244,11 +269,15 @@ impl Iterator for Window {
   /// ***Note:** the window message thread will still block until a message is
   /// recieved from Windows.*
   fn next(&mut self) -> Option<Self::Item> {
-    if let Ok(message) = self.app_mailbox.poll() {
-      // info!("{message:?}");
-      self.intercept_message(message)
-    } else {
-      Some(WindowMessage::None)
+    match self.mailbox.try_recv() {
+      Ok(message) => self.intercept_message(message),
+      Err(MessagingError::TryRecvError {
+        error: TryRecvError::Disconnected,
+      }) => {
+        error!("channel between main and window was closed!");
+        None
+      }
+      _ => Some(WindowMessage::None),
     }
   }
 }

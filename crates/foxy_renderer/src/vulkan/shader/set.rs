@@ -3,10 +3,9 @@ use std::sync::RwLockReadGuard;
 use foxy_utils::types::handle::Handle;
 
 use super::{
-  stage::{compute::Compute, fragment::Fragment, geometry::Geometry, mesh::Mesh, vertex::Vertex},
-  Shader,
+  stage::{compute::Compute, fragment::Fragment, geometry::Geometry, mesh::Mesh, vertex::Vertex}, storage::ShaderStore, Shader
 };
-use crate::vulkan::Vulkan;
+use crate::vulkan::{device::Device, Vulkan};
 
 #[derive(Clone)]
 pub struct NoVertex;
@@ -35,7 +34,7 @@ pub struct HasMesh(Handle<Shader<Mesh>>);
 
 #[derive(Clone)]
 pub struct ShaderSet<V, F, C, G, M> {
-  device: Handle<Vulkan>,
+  store: Handle<ShaderStore>,
   vertex: V,
   fragment: F,
   compute: C,
@@ -44,9 +43,9 @@ pub struct ShaderSet<V, F, C, G, M> {
 }
 
 impl ShaderSet<NoVertex, NoFragment, NoCompute, NoGeometry, NoMesh> {
-  pub fn new(device: Handle<Vulkan>) -> Self {
+  pub fn new(store: Handle<ShaderStore>,) -> Self {
     Self {
-      device,
+      store,
       vertex: NoVertex,
       fragment: NoFragment,
       compute: NoCompute,
@@ -58,9 +57,9 @@ impl ShaderSet<NoVertex, NoFragment, NoCompute, NoGeometry, NoMesh> {
 
 impl<F, C, G, M> ShaderSet<NoVertex, F, C, G, M> {
   pub fn with_vertex(mut self, vertex: &'static str) -> ShaderSet<HasVertex, F, C, G, M> {
-    let vertex = HasVertex(self.device.get_mut().shaders().get_vertex(vertex));
+    let vertex = HasVertex(self.store.get_mut().get_vertex(vertex));
     ShaderSet {
-      device: self.device,
+      store: self.store,
       vertex,
       fragment: self.fragment,
       compute: self.compute,
@@ -78,9 +77,9 @@ impl<F, C, G, M> ShaderSet<HasVertex, F, C, G, M> {
 
 impl<V, C, G, M> ShaderSet<V, NoFragment, C, G, M> {
   pub fn with_fragment(mut self, fragment: &'static str) -> ShaderSet<V, HasFragment, C, G, M> {
-    let fragment = HasFragment(self.device.get_mut().shaders().get_fragment(fragment));
+    let fragment = HasFragment(self.store.get_mut().get_fragment(fragment));
     ShaderSet {
-      device: self.device,
+      store: self.store,
       vertex: self.vertex,
       fragment,
       compute: self.compute,
@@ -98,9 +97,9 @@ impl<V, C, G, M> ShaderSet<V, HasFragment, C, G, M> {
 
 impl<V, F, G, M> ShaderSet<V, F, NoCompute, G, M> {
   pub fn with_compute(mut self, compute: &'static str) -> ShaderSet<V, F, HasCompute, G, M> {
-    let compute = HasCompute(self.device.get_mut().shaders().get_compute(compute));
+    let compute = HasCompute(self.store.get_mut().get_compute(compute));
     ShaderSet {
-      device: self.device,
+      store: self.store,
       vertex: self.vertex,
       fragment: self.fragment,
       compute,
@@ -118,9 +117,9 @@ impl<V, F, G, M> ShaderSet<V, F, HasCompute, G, M> {
 
 impl<V, F, C, M> ShaderSet<V, F, C, NoGeometry, M> {
   pub fn with_geometry(mut self, geometry: &'static str) -> ShaderSet<V, F, C, HasGeometry, M> {
-    let geometry = HasGeometry(self.device.get_mut().shaders().get_geometry(geometry));
+    let geometry = HasGeometry(self.store.get_mut().get_geometry(geometry));
     ShaderSet {
-      device: self.device,
+      store: self.store,
       vertex: self.vertex,
       fragment: self.fragment,
       compute: self.compute,
@@ -138,9 +137,9 @@ impl<V, F, C, M> ShaderSet<V, F, C, HasGeometry, M> {
 
 impl<V, F, C, G> ShaderSet<V, F, C, G, NoMesh> {
   pub fn with_mesh(mut self, mesh: &'static str) -> ShaderSet<V, F, C, G, HasMesh> {
-    let mesh = HasMesh(self.device.get_mut().shaders().get_mesh(mesh));
+    let mesh = HasMesh(self.store.get_mut().get_mesh(mesh));
     ShaderSet {
-      device: self.device,
+      store: self.store,
       vertex: self.vertex,
       fragment: self.fragment,
       compute: self.compute,

@@ -7,7 +7,7 @@ use super::{device::Device, instance::Instance, surface::Surface};
 use crate::vulkan::error::VulkanError;
 
 pub struct Swapchain {
-  device: Handle<Device>,
+  device: Device,
 
   extent: vk::Extent2D,
   image_format: vk::Format,
@@ -29,7 +29,7 @@ impl Swapchain {
     unsafe {
       // image views
       for &image_view in self.image_views.iter() {
-        self.device.get().logical().destroy_image_view(image_view, None);
+        self.device.logical().destroy_image_view(image_view, None);
       }
       self.image_views.clear();
 
@@ -41,9 +41,9 @@ impl Swapchain {
 
 impl Swapchain {
   pub fn new(
-    instance: &Handle<Instance>,
+    instance: &Instance,
     surface: &Surface,
-    device: Handle<Device>,
+    device: Device,
     extent: Dimensions,
     preferred_image_format: ImageFormat,
   ) -> Result<Self, VulkanError> {
@@ -53,11 +53,11 @@ impl Swapchain {
       .height(extent.height as u32);
     debug!("Window extent (true): {extent:?}");
 
-    let swapchain_loader = khr::Swapchain::new(instance.get().raw(), device.get().logical());
+    let swapchain_loader = khr::Swapchain::new(instance.raw(), device.logical());
     let (swapchain, images, image_format) =
-      Self::create_swap_chain(surface, device.clone(), &swapchain_loader, preferred_image_format, extent)?;
+      Self::create_swap_chain(surface, &device, &swapchain_loader, preferred_image_format, extent)?;
 
-    let image_views = Self::create_image_views(device.clone(), &images, image_format)?;
+    let image_views = Self::create_image_views(&device, &images, image_format)?;
 
     Ok(Self {
       device,
@@ -81,6 +81,15 @@ impl Swapchain {
     }
   }
 
+  pub fn khr(&self) -> vk::SwapchainKHR {
+    self.swapchain
+  }
+
+  pub fn present(&self, queue: vk::Queue, info: vk::PresentInfoKHR) -> Result<bool, VulkanError> {
+    let result = unsafe { self.swapchain_loader.queue_present(queue, &info) }?;
+    Ok(result)
+  }
+
   pub fn image_format(&self) -> vk::Format {
     self.image_format
   }
@@ -93,14 +102,44 @@ impl Swapchain {
     self.image_views.get(index).cloned()
   }
 
+  pub fn image(&self, index: usize) -> Option<vk::Image> {
+    self.images.get(index).cloned()
+  }
+
+  pub fn find_depth_format(device: Handle<Device>) -> vk::Format {
+    let candidates = &[
+      vk::Format::D32_SFLOAT,
+      vk::Format::D32_SFLOAT_S8_UINT,
+      vk::Format::D24_UNORM_S8_UINT,
+    ];
+    device.get().find_supported_format(
+      candidates,
+      vk::ImageTiling::OPTIMAL,
+      vk::FormatFeatureFlags::DEPTH_STENCIL_ATTACHMENT,
+    )
+  }
+  
+  pub fn acquire_next_image(&mut self, semaphore: vk::Semaphore) -> Result<(usize, bool), VulkanError> {
+    let result = unsafe {
+      self.swapchain_loader.acquire_next_image(
+        self.swapchain,
+        u64::MAX,
+        semaphore,
+        vk::Fence::null(),
+      )
+    }?;
+
+    Ok((result.0 as usize, result.1))
+  }
+
   fn create_swap_chain(
     surface: &Surface,
-    device: Handle<Device>,
+    device: &Device,
     swapchain_loader: &khr::Swapchain,
     preferred_image_format: ImageFormat,
     window_extent: vk::Extent2D,
   ) -> Result<(vk::SwapchainKHR, Vec<vk::Image>, vk::Format), VulkanError> {
-    let swapchain_support = surface.swapchain_support(*device.get().physical())?;
+    let swapchain_support = surface.swapchain_support(*device.physical())?;
 
     let surface_format =
       Self::choose_swap_surface_format(swapchain_support.formats, preferred_image_format.color_space);
@@ -111,8 +150,8 @@ impl Swapchain {
     let image_count =
       (swapchain_support.capabilities.min_image_count + 1).clamp(0, swapchain_support.capabilities.max_image_count);
 
-    let graphics_family = device.get().graphics().family();
-    let present_family = device.get().present().family();
+    let graphics_family = device.graphics().family();
+    let present_family = device.present().family();
     let queue_family_indices = &[graphics_family, present_family];
 
     let create_info = vk::SwapchainCreateInfoKHR::default()
@@ -146,7 +185,7 @@ impl Swapchain {
   }
 
   fn create_image_views(
-    device: Handle<Device>,
+    device: &Device,
     images: &[vk::Image],
     image_format: vk::Format,
   ) -> Result<Vec<vk::ImageView>, VulkanError> {
@@ -166,7 +205,7 @@ impl Swapchain {
               .layer_count(1),
           );
 
-        unsafe { device.get().logical().create_image_view(&view_info, None) }
+        unsafe { device.logical().create_image_view(&view_info, None) }
       })
       .collect::<Result<Vec<_>, _>>()?;
 
@@ -249,18 +288,5 @@ impl Swapchain {
           available_extents.max_image_extent.height,
         ))
     }
-  }
-
-  pub fn find_depth_format(device: Handle<Device>) -> vk::Format {
-    let candidates = &[
-      vk::Format::D32_SFLOAT,
-      vk::Format::D32_SFLOAT_S8_UINT,
-      vk::Format::D24_UNORM_S8_UINT,
-    ];
-    device.get().find_supported_format(
-      candidates,
-      vk::ImageTiling::OPTIMAL,
-      vk::FormatFeatureFlags::DEPTH_STENCIL_ATTACHMENT,
-    )
   }
 }

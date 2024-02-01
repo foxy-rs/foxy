@@ -1,10 +1,11 @@
-use std::{
-  sync::mpsc::{Receiver, Sender, TryRecvError},
-  thread::JoinHandle,
-};
+use std::thread::JoinHandle;
 
-use foxy_utils::{log::LogErr, types::thread::ThreadLoop};
-use messaging::{Mailbox, MessagingError};
+use crossbeam::channel::{Receiver, Sender, TryRecvError};
+use foxy_utils::{
+  log::LogErr,
+  mailbox::{Mailbox, MessagingError},
+  thread::{error::ThreadError, handle::ThreadLoop},
+};
 use tracing::*;
 use windows::{
   core::{HSTRING, PCWSTR},
@@ -34,16 +35,17 @@ use windows::{
 
 use super::{
   builder::{HasSize, HasTitle, WindowCreateInfo},
-  message::{AppMessage, WindowMessage},
+  main_message::MainMessage,
+  window_message::WindowMessage,
 };
 use crate::window::Window;
 
-pub struct WindowLoopCreateInfo {
+pub struct WindowThreadCreateInfo {
   create_info: WindowCreateInfo<HasTitle, HasSize>,
   proc_sender: Sender<WindowMessage>,
 }
 
-impl WindowLoopCreateInfo {
+impl WindowThreadCreateInfo {
   pub fn new(create_info: WindowCreateInfo<HasTitle, HasSize>, proc_sender: Sender<WindowMessage>) -> Self {
     Self {
       create_info,
@@ -53,20 +55,18 @@ impl WindowLoopCreateInfo {
 }
 
 pub struct WindowLoop {
-  mailbox: Mailbox<WindowMessage, AppMessage>,
+  mailbox: Mailbox<WindowMessage, MainMessage>,
   proc_receiver: Receiver<WindowMessage>,
 }
 
 impl ThreadLoop for WindowLoop {
-  type Params = WindowLoopCreateInfo;
+  type Params = WindowThreadCreateInfo;
 
-  const THREAD_ID: &'static str = "window";
-
-  fn run(mut self, info: Self::Params) -> anyhow::Result<JoinHandle<anyhow::Result<()>>> {
+  fn run(mut self, thread_id: String, info: Self::Params) -> Result<JoinHandle<Result<(), ThreadError>>, ThreadError> {
     std::thread::Builder::new()
-      .name(Self::THREAD_ID.into())
-      .spawn(move || -> anyhow::Result<()> {
-        let hinstance: HINSTANCE = unsafe { GetModuleHandleW(None)? }.into();
+      .name(thread_id)
+      .spawn(move || -> Result<(), ThreadError> {
+        let hinstance: HINSTANCE = unsafe { GetModuleHandleW(None).map_err(anyhow::Error::from)? }.into();
         debug_assert_ne!(hinstance.0, 0);
         let htitle = HSTRING::from(info.create_info.title.0);
         let window_class = htitle.clone();
@@ -77,7 +77,7 @@ impl ThreadLoop for WindowLoop {
           cbWndExtra: std::mem::size_of::<WNDCLASSEXW>() as i32,
           lpfnWndProc: Some(crate::window::procs::wnd_proc),
           hInstance: hinstance,
-          hCursor: unsafe { LoadCursorW(None, IDC_ARROW)? },
+          hCursor: unsafe { LoadCursorW(None, IDC_ARROW).map_err(anyhow::Error::from)? },
           lpszClassName: PCWSTR(window_class.as_ptr()),
           ..Default::default()
         };
@@ -116,27 +116,33 @@ impl ThreadLoop for WindowLoop {
         }
 
         // Send opened message to main function
-        self.mailbox.send(WindowMessage::Ready { hwnd, hinstance })?;
+        self
+          .mailbox
+          .send(WindowMessage::Ready { hwnd, hinstance })
+          .map_err(anyhow::Error::from)?;
 
         loop {
           match self.proc_receiver.try_recv() {
             Ok(message) => {
               let _ = self.mailbox.send(message).log_error_msg("WindowMessage::new");
-
-              match self.mailbox.poll() {
-                Ok(AppMessage::DestroyWindow { hwnd }) => {
+              // NOTE: TRY SWAPPING THE ORDER OF NEXT AND PREV STATEMENT, BUT IF IT BREAKS
+              // THIS IS WHY YOU DUMMY
+              match self.mailbox.try_recv() {
+                Ok(MainMessage::Close) => {
+                  let _ = self.mailbox.send(WindowMessage::Closing).log_error();
                   let _ = unsafe { DestroyWindow(hwnd) }.log_error();
                 }
-                Err(MessagingError::PollError {
+                Err(MessagingError::TryRecvError {
                   error: TryRecvError::Disconnected,
                 }) => {
-                  error!("window loop mailbox disconnected")
+                  error!("channel between main and window was closed!");
                 }
                 _ => {}
               }
             }
             Err(TryRecvError::Disconnected) => {
-              error!("window proc channel disconnected")
+              error!("channel between window and window proc was closed!");
+              break;
             }
             Err(TryRecvError::Empty) => {
               if self.next_message().is_none() {
@@ -147,16 +153,19 @@ impl ThreadLoop for WindowLoop {
         }
 
         // Send exit message to main function
-        self.mailbox.send(WindowMessage::ExitLoop)?;
+        self
+          .mailbox
+          .send(WindowMessage::ExitLoop)
+          .map_err(anyhow::Error::from)?;
 
         Ok(())
       })
-      .map_err(anyhow::Error::from)
+      .map_err(ThreadError::from)
   }
 }
 
 impl WindowLoop {
-  pub fn new(mailbox: Mailbox<WindowMessage, AppMessage>, proc_receiver: Receiver<WindowMessage>) -> Self {
+  pub fn new(mailbox: Mailbox<WindowMessage, MainMessage>, proc_receiver: Receiver<WindowMessage>) -> Self {
     Self { mailbox, proc_receiver }
   }
 

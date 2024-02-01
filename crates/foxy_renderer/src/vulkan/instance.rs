@@ -14,6 +14,7 @@ use crate::{
   vulkan_unsupported_error,
 };
 
+#[derive(Clone)]
 pub struct Instance {
   debug: Debug,
   instance: ash::Instance,

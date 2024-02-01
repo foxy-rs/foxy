@@ -4,8 +4,11 @@ use std::{
 };
 
 use anyhow::anyhow;
-use foxy_renderer::{renderer::Renderer, vulkan::Vulkan};
-use foxy_utils::{time::EngineTime, types::thread::ThreadLoop};
+use foxy_renderer::{error::RendererError, renderer::Renderer, vulkan::Vulkan};
+use foxy_utils::{
+  thread::{error::ThreadError, handle::ThreadLoop},
+  time::EngineTime,
+};
 use messaging::Mailbox;
 use tracing::*;
 
@@ -16,24 +19,24 @@ pub struct RenderLoop {
   pub messenger: Mailbox<RenderLoopMessage, GameLoopMessage>,
   pub sync_barrier: Arc<Barrier>,
   pub time: EngineTime,
+  pub should_exit: bool,
 }
 
 impl ThreadLoop for RenderLoop {
   type Params = ();
 
-  const THREAD_ID: &'static str = "render";
-
-  fn run(mut self, _: Self::Params) -> anyhow::Result<JoinHandle<anyhow::Result<()>>> {
+  fn run(mut self, thread_id: String, _: Self::Params) -> Result<JoinHandle<Result<(), ThreadError>>, ThreadError> {
     std::thread::Builder::new()
-      .name(Self::THREAD_ID.into())
-      .spawn(move || -> anyhow::Result<()> {
+      .name(thread_id)
+      .spawn(move || -> Result<(), ThreadError> {
         trace!("Beginning render");
 
         loop {
-          // if self.renderer_sync_or_exit()? {
-          //   break;
-          // }
-          self.sync_barrier.wait();
+          if self.renderer_sync_or_exit()? {
+            break;
+          }
+
+          // self.sync_barrier.wait();
           self.time.update();
 
           while self.time.should_do_tick_unchecked() {
@@ -42,6 +45,19 @@ impl ThreadLoop for RenderLoop {
 
           if let Err(error) = self.renderer.draw_frame(self.time.time()) {
             error!("{error}");
+            match error {
+              RendererError::Recoverable(_) => {
+                error!("Recovering...");
+              }
+              RendererError::Unrecoverable(_) => {
+                error!("Aborting...");
+                let _ = self
+                  .messenger
+                  .send_and_wait(RenderLoopMessage::EmergencyExit)
+                  .map_err(anyhow::Error::from)?;
+              }
+            }
+            break;
           }
 
           if self.renderer_sync_or_exit()? {
@@ -55,7 +71,7 @@ impl ThreadLoop for RenderLoop {
 
         Ok(())
       })
-      .map_err(anyhow::Error::from)
+      .map_err(ThreadError::from)
   }
 }
 
@@ -67,11 +83,12 @@ impl RenderLoop {
       average_delta_time: *self.time.time().average_delta(),
     }) {
       Ok(message) => match message {
+        GameLoopMessage::Exit => Ok(true),
         GameLoopMessage::RenderData(data) => {
           self.renderer.update_render_data(data);
           Ok(false)
         }
-        GameLoopMessage::Exit => Ok(true),
+        _ => Ok(false),
       },
       Err(error) => {
         if let messaging::MessagingError::PollError {

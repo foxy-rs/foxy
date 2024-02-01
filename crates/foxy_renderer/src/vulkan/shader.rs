@@ -25,7 +25,7 @@ enum BuildAttempt {
 // encapsulate to prevent premature droppage
 #[derive(Clone)]
 struct Module {
-  device: Handle<Device>,
+  device: Device,
   module: vk::ShaderModule,
 }
 
@@ -33,7 +33,7 @@ impl Module {
   pub fn delete(&mut self) {
     debug!("Deleting shader module");
     unsafe {
-      self.device.get().logical().destroy_shader_module(self.module, None);
+      self.device.logical().destroy_shader_module(self.module, None);
     }
   }
 }
@@ -53,7 +53,7 @@ impl<Stage: StageInfo> Shader<Stage> {
 }
 
 impl<Stage: StageInfo> Shader<Stage> {
-  pub fn new<P: Into<PathBuf>>(device: Handle<Device>, path: P) -> Self {
+  pub fn new<P: Into<PathBuf>>(device: Device, path: P) -> Self {
     let source = Source::new::<Stage, _>(path);
     let shader_entry_point = Stage::kind().entry_point_cstring();
     let module =
@@ -82,7 +82,7 @@ impl<Stage: StageInfo> Shader<Stage> {
   }
 
   fn build_shader_module(
-    device: &Handle<Device>,
+    device: &Device,
     source: &Source,
     attempt: BuildAttempt,
   ) -> Result<vk::ShaderModule, VulkanError> {
@@ -95,7 +95,6 @@ impl<Stage: StageInfo> Shader<Stage> {
 
           match unsafe {
             device
-              .get()
               .logical()
               .create_shader_module(&shader_module_create_info, None)
           } {

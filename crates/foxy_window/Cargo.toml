@@ -16,12 +16,12 @@ categories  = ["data-structures"]
 thiserror = "1.0"
 anyhow    = "1.0"
 tracing   = "0.1"
+
+foxy_utils = { version = "0.1", path = "../foxy_utils" }
 strum      = { version = "0.26", features = ["derive"] }
 enumflags2 = "0.7"
 arraydeque = "0.5"
-messaging  = "1.0"
-
-foxy_utils     = { version = "0.1", path = "../foxy_utils" }
+crossbeam  = "0.8"
 
 raw-window-handle = "0.5.2" # using older version for compatibility with ash
 

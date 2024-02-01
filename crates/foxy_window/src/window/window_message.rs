@@ -25,7 +25,6 @@ pub enum WindowMessage {
     hwnd: HWND,
     hinstance: HINSTANCE,
   },
-  CloseRequested,
   Resized {
     window_rect: RECT,
     client_rect: RECT,
@@ -38,7 +37,9 @@ pub enum WindowMessage {
     w_param: WPARAM,
     l_param: LPARAM,
   },
+  CloseRequested,
   Closing,
+  ExitRequested,
   ExitLoop,
 }
 
@@ -224,11 +225,4 @@ impl WindowMessage {
       is_double_click,
     })
   }
-}
-
-#[derive(Debug, PartialEq, Eq)]
-pub enum AppMessage {
-  Empty,
-  DestroyWindow { hwnd: HWND },
-  Exited,
 }

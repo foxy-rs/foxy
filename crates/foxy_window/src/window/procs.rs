@@ -6,7 +6,7 @@ use windows::Win32::{
   UI::{Shell::DefSubclassProc, WindowsAndMessaging::*},
 };
 
-use super::message::WindowMessage;
+use super::window_message::WindowMessage;
 
 pub extern "system" fn wnd_proc(hwnd: HWND, message: u32, w_param: WPARAM, l_param: LPARAM) -> LRESULT {
   match message {

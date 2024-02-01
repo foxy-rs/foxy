@@ -1,6 +1,6 @@
 use ash::vk;
 
-#[derive(Default)]
+#[derive(Default, Clone, Copy)]
 pub struct Queue {
   queue: vk::Queue,
   family: u32,

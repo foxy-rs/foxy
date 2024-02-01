@@ -1,5 +1,5 @@
 use foxy_utils::types::{
-  behavior::{CloseBehavior, ColorMode, Visibility},
+  behavior::{ColorMode, Visibility},
   primitives::Dimensions,
 };
 use windows::Win32::Foundation::{HINSTANCE, HWND};
@@ -14,7 +14,6 @@ pub struct WindowState {
   pub inner_size: Dimensions,
   pub title: String,
   pub color_mode: ColorMode,
-  pub close_behavior: CloseBehavior,
   pub visibility: Visibility,
   pub input: Input,
 }

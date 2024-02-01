@@ -49,6 +49,7 @@ macro_rules! vulkan_error {
   }}
 }
 
+#[derive(Clone)]
 pub struct Debug {
   debug_utils: Option<ext::DebugUtils>,
   debug_messenger: Option<vk::DebugUtilsMessengerEXT>,

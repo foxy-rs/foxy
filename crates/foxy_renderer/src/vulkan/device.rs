@@ -1,8 +1,10 @@
-use std::{collections::HashSet, ffi::CStr};
+use std::{
+  collections::HashSet,
+  ffi::{c_void, CStr},
+};
 
 use anyhow::Context;
 use ash::{extensions::khr, vk};
-use foxy_utils::types::handle::Handle;
 use itertools::Itertools;
 use tracing::*;
 
@@ -14,8 +16,9 @@ use super::{
 };
 use crate::vulkan_unsupported_error;
 
+#[derive(Clone)]
 pub struct Device {
-  instance: Handle<Instance>,
+  instance: Instance,
   physical: vk::PhysicalDevice,
   logical: ash::Device,
   graphics: Queue,
@@ -25,9 +28,9 @@ pub struct Device {
 impl Device {
   const DEVICE_EXTENSIONS: &'static [&'static CStr] = &[khr::Swapchain::NAME];
 
-  pub fn new(surface: &Surface, instance: Handle<Instance>) -> Result<Self, VulkanError> {
-    let physical = Self::pick_physical_device(&surface, &instance.get())?;
-    let (logical, graphics, present) = Self::new_logical_device(&surface, &instance.get(), physical)?;
+  pub fn new(surface: &Surface, instance: Instance) -> Result<Self, VulkanError> {
+    let physical = Self::pick_physical_device(&surface, &instance)?;
+    let (logical, graphics, present) = Self::new_logical_device(&surface, &instance, physical)?;
 
     Ok(Self {
       instance,
@@ -71,7 +74,6 @@ impl Device {
       let props = unsafe {
         self
           .instance
-          .get()
           .raw()
           .get_physical_device_format_properties(self.physical, *format)
       };
@@ -87,13 +89,7 @@ impl Device {
   }
 
   pub fn find_memory_type(&self, type_filter: u32, properties: vk::MemoryPropertyFlags) -> vk::MemoryType {
-    let props = unsafe {
-      self
-        .instance
-        .get()
-        .raw()
-        .get_physical_device_memory_properties(self.physical)
-    };
+    let props = unsafe { self.instance.raw().get_physical_device_memory_properties(self.physical) };
 
     for mem_type in props.memory_types {
       if (type_filter & (1 << mem_type.heap_index)) != 0 && mem_type.property_flags.contains(properties) {
@@ -153,21 +149,29 @@ impl Device {
       queue_create_infos.push(queue_create_info);
     }
 
-    let device_features = vk::PhysicalDeviceFeatures {
-      sampler_anisotropy: vk::TRUE,
+    let mut features_13 = vk::PhysicalDeviceVulkan13Features::default()
+      .dynamic_rendering(true)
+      .synchronization2(true);
+
+    let mut features_12 = vk::PhysicalDeviceVulkan12Features::default()
+      .buffer_device_address(true)
+      .descriptor_indexing(true);
+    features_12.p_next = std::ptr::addr_of_mut!(features_13) as *mut c_void;
+
+    let mut features_11 = vk::PhysicalDeviceVulkan11Features {
+      p_next: std::ptr::addr_of_mut!(features_12) as *mut c_void,
       ..Default::default()
     };
+
+    let device_features = vk::PhysicalDeviceFeatures::default().sampler_anisotropy(true);
 
     let enabled_device_extensions = Self::DEVICE_EXTENSIONS.iter().map(|e| e.as_ptr()).collect_vec();
 
-    let create_info = vk::DeviceCreateInfo {
-      queue_create_info_count: queue_create_infos.len() as u32,
-      p_queue_create_infos: queue_create_infos.as_ptr(),
-      p_enabled_features: &device_features,
-      enabled_extension_count: enabled_device_extensions.len() as u32,
-      pp_enabled_extension_names: enabled_device_extensions.as_ptr(),
-      ..Default::default()
-    };
+    let create_info = vk::DeviceCreateInfo::default()
+      .queue_create_infos(&queue_create_infos)
+      .enabled_extension_names(&enabled_device_extensions)
+      .enabled_features(&device_features)
+      .push_next(&mut features_11);
 
     let device = unsafe { instance.raw().create_device(physical_device, &create_info, None) }
       .context("Failed to create logical graphics device")?;
