@@ -1,4 +1,4 @@
-use foxy_utils::types::behavior::{CloseBehavior, ColorMode, Visibility};
+use foxy_utils::types::behavior::{ColorMode, Visibility};
 
 use super::Window;
 use crate::debug::error::WindowError;
@@ -78,17 +78,6 @@ impl<Title, Size> WindowBuilder<Title, Size> {
         title: self.create_info.title,
         size: self.create_info.size,
         color_mode,
-        visibility: self.create_info.visibility,
-      },
-    }
-  }
-
-  pub fn with_close_behavior(self, close_behavior: CloseBehavior) -> Self {
-    Self {
-      create_info: WindowCreateInfo {
-        title: self.create_info.title,
-        size: self.create_info.size,
-        color_mode: self.create_info.color_mode,
         visibility: self.create_info.visibility,
       },
     }

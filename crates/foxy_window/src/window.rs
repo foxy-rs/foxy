@@ -186,15 +186,6 @@ impl Window {
       }
     }
     self.window_thread.join();
-
-    // match self.mailbox.recv() {
-    //   Ok(WindowMessage::Closing) => {
-    //     // next message MUST be Closing
-    //     let _ = self.send_message_to_window(MainMessage::Exit).log_error();
-    //   }
-    //   Ok(_) => panic!("expected window closing message!"),
-    //   Err(error) => error!("{error}"),
-    // }
   }
 
   fn send_message_to_window(&self, message: MainMessage) -> Result<(), WindowError> {

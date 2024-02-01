@@ -125,8 +125,6 @@ impl ThreadLoop for WindowLoop {
           match self.proc_receiver.try_recv() {
             Ok(message) => {
               let _ = self.mailbox.send(message).log_error_msg("WindowMessage::new");
-              // NOTE: TRY SWAPPING THE ORDER OF NEXT AND PREV STATEMENT, BUT IF IT BREAKS
-              // THIS IS WHY YOU DUMMY
               match self.mailbox.try_recv() {
                 Ok(MainMessage::Close) => {
                   let _ = self.mailbox.send(WindowMessage::Closing).log_error();

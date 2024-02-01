@@ -1,7 +1,4 @@
-use std::{
-  sync::{Arc, Barrier},
-  thread::JoinHandle,
-};
+use std::thread::JoinHandle;
 
 use anyhow::anyhow;
 use foxy_renderer::{error::RendererError, renderer::Renderer, vulkan::Vulkan};
@@ -17,7 +14,6 @@ use super::message::{GameLoopMessage, RenderLoopMessage};
 pub struct RenderLoop {
   pub renderer: Renderer<Vulkan>,
   pub messenger: Mailbox<RenderLoopMessage, GameLoopMessage>,
-  pub sync_barrier: Arc<Barrier>,
   pub time: EngineTime,
   pub should_exit: bool,
 }

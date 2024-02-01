@@ -1,8 +1,4 @@
-use std::{
-  marker::PhantomData,
-  sync::{Arc, Barrier},
-  time::Duration,
-};
+use std::{marker::PhantomData, time::Duration};
 
 use foxy_renderer::renderer::{render_data::RenderData, Renderer};
 use foxy_utils::{
@@ -29,7 +25,6 @@ pub struct Framework<'a> {
 
   render_thread: LoopHandle<RenderLoop, ()>,
   game_mailbox: Mailbox<GameLoopMessage, RenderLoopMessage>,
-  sync_barrier: Arc<Barrier>,
 
   current_stage: StageDiscriminants,
   current_message: WindowMessage,
@@ -58,14 +53,11 @@ impl Framework<'_> {
       .with_title(create_info.title.0)
       .with_size(create_info.size.width, create_info.size.height)
       .with_color_mode(create_info.color_mode)
-      .with_close_behavior(create_info.close_behavior)
       .with_visibility(Visibility::Hidden)
       .build()?;
 
     let renderer = Renderer::new(&window, window.inner_size())?;
     window.set_visibility(Visibility::Shown);
-
-    let sync_barrier = Arc::new(Barrier::new(2));
 
     let (renderer_mailbox, game_mailbox) = Mailbox::new_entangled_pair();
     let render_thread = LoopHandle::new(
@@ -73,7 +65,6 @@ impl Framework<'_> {
       RenderLoop {
         renderer,
         messenger: renderer_mailbox,
-        sync_barrier: sync_barrier.clone(),
         time: render_time,
         should_exit: false,
       },
@@ -87,7 +78,6 @@ impl Framework<'_> {
       current_stage,
       render_thread,
       game_mailbox,
-      sync_barrier,
       polling_strategy: create_info.polling_strategy,
       debug_info: create_info.debug_info,
       foxy,
@@ -257,8 +247,6 @@ impl Framework<'_> {
 
     Some(new_state)
   }
-
-  fn signal_render_exit(&mut self) {}
 }
 
 impl<'a> Iterator for Framework<'a> {
