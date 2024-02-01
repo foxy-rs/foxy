@@ -29,8 +29,8 @@ impl Device {
   const DEVICE_EXTENSIONS: &'static [&'static CStr] = &[khr::Swapchain::NAME];
 
   pub fn new(surface: &Surface, instance: Instance) -> Result<Self, VulkanError> {
-    let physical = Self::pick_physical_device(&surface, &instance)?;
-    let (logical, graphics, present) = Self::new_logical_device(&surface, &instance, physical)?;
+    let physical = Self::pick_physical_device(surface, &instance)?;
+    let (logical, graphics, present) = Self::new_logical_device(surface, &instance, physical)?;
 
     Ok(Self {
       instance,

@@ -3,7 +3,6 @@
 use std::{collections::HashMap, path::PathBuf};
 
 use foxy_utils::types::handle::Handle;
-use tracing::debug;
 
 use super::{
   stage::{compute::Compute, fragment::Fragment, geometry::Geometry, mesh::Mesh, vertex::Vertex, StageInfo},

@@ -5,7 +5,6 @@ use foxy_utils::types::handle::Handle;
 use super::{
   stage::{compute::Compute, fragment::Fragment, geometry::Geometry, mesh::Mesh, vertex::Vertex}, storage::ShaderStore, Shader
 };
-use crate::vulkan::{device::Device, Vulkan};
 
 #[derive(Clone)]
 pub struct NoVertex;

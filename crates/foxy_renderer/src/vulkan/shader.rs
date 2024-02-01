@@ -1,7 +1,6 @@
 use std::{ffi::CString, marker::PhantomData, path::PathBuf};
 
 use ash::vk;
-use foxy_utils::types::handle::Handle;
 use tracing::*;
 
 use self::{
