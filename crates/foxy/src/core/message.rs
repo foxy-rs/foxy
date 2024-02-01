@@ -9,6 +9,7 @@ pub enum RenderLoopMessage {
     delta_time: Duration,
     average_delta_time: Duration,
   },
+  None,
 }
 
 #[derive(Debug)]

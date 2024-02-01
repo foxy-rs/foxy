@@ -1,7 +1,7 @@
 use enumflags2::BitFlags;
-use foxy_utils::log::LogErr;
+use foxy_utils::{log::LogErr, types::primitives::Dimensions};
 use windows::Win32::{
-  Foundation::{HINSTANCE, HWND, LPARAM, RECT, WPARAM},
+  Foundation::{HWND, LPARAM, RECT, WPARAM},
   System::SystemServices::{MK_LBUTTON, MK_MBUTTON, MK_RBUTTON, MK_XBUTTON1, MK_XBUTTON2, MODIFIERKEYS_FLAGS},
   UI::{
     Input::KeyboardAndMouse::{MapVirtualKeyW, MAPVK_VSC_TO_VK_EX, VIRTUAL_KEY},
@@ -17,7 +17,13 @@ use super::input::{
 };
 use crate::{hiword, lobyte, loword};
 
-#[derive(Debug, Default, PartialEq, Eq, Clone)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum MessagePriority {
+  High,
+  Low,
+}
+
+#[derive(Debug, Default, PartialEq, Eq, Clone, Hash)]
 pub enum WindowMessage {
   #[default]
   None,
@@ -25,24 +31,29 @@ pub enum WindowMessage {
   Keyboard(KeyboardMessage),
   Mouse(MouseMessage),
   Other {
-    hwnd: HWND,
+    hwnd: isize,
     message: u32,
-    w_param: WPARAM,
-    l_param: LPARAM,
+    w_param: usize,
+    l_param: isize,
   },
-  ExitLoop,
-}
-
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub enum StateMessage {
-  Ready { hwnd: HWND, hinstance: HINSTANCE },
-  Resized { window_rect: RECT, client_rect: RECT },
-  Moved,
   CloseRequested,
   Closing,
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
+pub enum StateMessage {
+  Ready {
+    hwnd: isize,
+    hinstance: isize,
+  },
+  Resized {
+    window_size: Dimensions,
+    client_size: Dimensions,
+  },
+  Moved,
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum KeyboardMessage {
   Key {
     key_code: KeyCode,
@@ -55,7 +66,7 @@ pub enum KeyboardMessage {
   },
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum MouseMessage {
   Button {
     mouse_code: MouseCode,
@@ -70,19 +81,28 @@ pub enum MouseMessage {
 impl WindowMessage {
   pub fn new(hwnd: HWND, message: u32, w_param: WPARAM, l_param: LPARAM) -> Self {
     match message {
-      WindowsAndMessaging::WM_CLOSE => WindowMessage::State(StateMessage::CloseRequested),
-      WindowsAndMessaging::WM_DESTROY => WindowMessage::State(StateMessage::Closing),
-      WindowsAndMessaging::WM_QUIT => WindowMessage::ExitLoop,
+      WindowsAndMessaging::WM_CLOSE => WindowMessage::CloseRequested,
+      WindowsAndMessaging::WM_DESTROY => WindowMessage::Closing,
       WindowsAndMessaging::WM_MOVING => WindowMessage::State(StateMessage::Moved),
       // WindowsAndMessaging::WM_SIZE => // this is for things like maximized, minimized, etc.
       WindowsAndMessaging::WM_SIZING => {
         let mut window_rect = RECT::default();
         let _ = unsafe { GetWindowRect(hwnd, std::ptr::addr_of_mut!(window_rect)) }.log_error();
+        let window_size = Dimensions {
+          width: window_rect.right - window_rect.left,
+          height: window_rect.bottom - window_rect.top,
+        };
+
         let mut client_rect = RECT::default();
         let _ = unsafe { GetClientRect(hwnd, std::ptr::addr_of_mut!(client_rect)) }.log_error();
+        let client_size = Dimensions {
+          width: client_rect.right - client_rect.left,
+          height: client_rect.bottom - client_rect.top,
+        };
+
         WindowMessage::State(StateMessage::Resized {
-          window_rect,
-          client_rect,
+          window_size,
+          client_size,
         })
       }
       msg if (WindowsAndMessaging::WM_KEYFIRST..=WindowsAndMessaging::WM_KEYLAST).contains(&msg) => {
@@ -105,10 +125,10 @@ impl WindowMessage {
         WindowMessage::Mouse(MouseMessage::Scroll)
       }
       _ => WindowMessage::Other {
-        hwnd,
+        hwnd: hwnd.0,
         message,
-        w_param,
-        l_param,
+        w_param: w_param.0,
+        l_param: l_param.0,
       },
     }
   }

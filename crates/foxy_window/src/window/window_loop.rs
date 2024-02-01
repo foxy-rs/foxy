@@ -9,6 +9,7 @@ use foxy_utils::{
     handle::{HandlesResult, ThreadLoop},
   },
 };
+use tracing::debug;
 use windows::{
   core::{HSTRING, PCWSTR},
   Win32::{
@@ -44,19 +45,13 @@ use crate::window::{procs::SubclassWindowData, window_message::StateMessage, Win
 
 pub struct WindowThreadCreateInfo {
   create_info: WindowCreateInfo<HasTitle, HasSize>,
-  priority_proc_sender: Sender<WindowMessage>,
   proc_sender: Sender<WindowMessage>,
 }
 
 impl WindowThreadCreateInfo {
-  pub fn new(
-    create_info: WindowCreateInfo<HasTitle, HasSize>,
-    priority_proc_sender: Sender<WindowMessage>,
-    proc_sender: Sender<WindowMessage>,
-  ) -> Self {
+  pub fn new(create_info: WindowCreateInfo<HasTitle, HasSize>, proc_sender: Sender<WindowMessage>) -> Self {
     Self {
       create_info,
-      priority_proc_sender,
       proc_sender,
     }
   }
@@ -121,8 +116,7 @@ impl ThreadLoop for WindowLoop {
           };
 
           let window_data_ptr = Box::into_raw(Box::new(SubclassWindowData {
-            priority_sender: info.priority_proc_sender,
-            sender: info.proc_sender,
+            sender: info.proc_sender.clone(),
           }));
 
           unsafe {
@@ -135,14 +129,15 @@ impl ThreadLoop for WindowLoop {
           }
 
           // Send opened message to main function
-          self
-            .mailbox
+          info
+            .proc_sender
             .send(WindowMessage::State(StateMessage::Ready {
-              hwnd: *hwnd.read().unwrap(),
-              hinstance,
+              hwnd: hwnd.read().unwrap().0,
+              hinstance: hinstance.0,
             }))
             .map_err(anyhow::Error::from)?;
 
+          // Message pump
           while let Some(message) = self.next_message() {
             if let WindowMessage::Other {
               message: Window::MSG_MAIN_CLOSE_REQ,
@@ -153,11 +148,6 @@ impl ThreadLoop for WindowLoop {
               break;
             }
           }
-          // Send exit message to main function
-          self
-            .mailbox
-            .send(WindowMessage::ExitLoop)
-            .map_err(anyhow::Error::from)?;
 
           Ok(())
         })

@@ -92,7 +92,7 @@ impl RenderLoop {
           error: std::sync::mpsc::TryRecvError::Disconnected,
         } = error
         {
-          Err(anyhow!(std::sync::mpsc::TryRecvError::Disconnected))
+          Err(anyhow!("renderer_sync_or_exit: {error:?}"))
         } else {
           Ok(false)
         }

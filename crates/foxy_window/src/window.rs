@@ -13,6 +13,7 @@ use foxy_utils::{
     primitives::Dimensions,
   },
 };
+use priority_queue::PriorityQueue;
 use raw_window_handle::{
   HasRawDisplayHandle,
   HasRawWindowHandle,
@@ -33,8 +34,9 @@ use windows::{
 
 use self::{
   main_message::MainMessage,
+  stage::Stage,
   window_loop::{WindowLoop, WindowThreadCreateInfo},
-  window_message::StateMessage,
+  window_message::{MessagePriority, StateMessage},
 };
 use crate::{
   debug::{error::WindowError, validation::ValidationLayer},
@@ -50,6 +52,7 @@ pub mod builder;
 pub mod input;
 pub mod main_message;
 pub mod procs;
+pub mod stage;
 pub mod state;
 pub mod window_loop;
 pub mod window_message;
@@ -59,8 +62,9 @@ pub struct Window {
   mailbox: Mailbox<MainMessage, WindowMessage>,
   state: WindowState,
   window_thread: LoopHandle<WindowLoop, WindowThreadCreateInfo>,
-  priority_proc_receiver: Receiver<WindowMessage>,
   proc_receiver: Receiver<WindowMessage>,
+  input_queue: PriorityQueue<WindowMessage, MessagePriority>,
+  current_stage: Stage,
 }
 
 impl Drop for Window {
@@ -72,6 +76,8 @@ impl Drop for Window {
 impl Window {
   pub const MSG_EXIT_LOOP: u32 = WM_USER + 69;
   pub const MSG_MAIN_CLOSE_REQ: u32 = WM_USER + 11;
+  // pub const MSG_MAIN_CLOSING: u32 = WM_USER + 12;
+  // pub const MSG_MAIN_EXIT: u32 = WM_USER + 13;
   pub const WINDOW_SUBCLASS_ID: usize = 0;
   pub const WINDOW_THREAD_ID: &'static str = "window";
 
@@ -83,25 +89,24 @@ impl Window {
     ValidationLayer::instance().init();
 
     let (main_mailbox, window_mailbox) = Mailbox::new_entangled_pair();
-    let (priority_proc_sender, priority_proc_receiver) = crossbeam::channel::unbounded();
     let (proc_sender, proc_receiver) = crossbeam::channel::unbounded();
 
     let winloop = WindowLoop::new(window_mailbox);
-    let wincreate_info = WindowThreadCreateInfo::new(create_info.clone(), priority_proc_sender, proc_sender);
+    let wincreate_info = WindowThreadCreateInfo::new(create_info.clone(), proc_sender);
     let mut window_thread = LoopHandle::new(vec![Self::WINDOW_THREAD_ID.into()], winloop, wincreate_info);
 
     window_thread.run();
 
     // block until first message sent (which will be the window opening)
     if let WindowMessage::State(StateMessage::Ready { hwnd, hinstance }) =
-      main_mailbox.recv().map_err(anyhow::Error::from)?
+      proc_receiver.recv().map_err(anyhow::Error::from)?
     {
       let input = Input::new();
 
       let mut window_rect = RECT::default();
-      let _ = unsafe { GetWindowRect(hwnd, std::ptr::addr_of_mut!(window_rect)) }.log_error();
+      let _ = unsafe { GetWindowRect(HWND(hwnd), std::ptr::addr_of_mut!(window_rect)) }.log_error();
       let mut client_rect = RECT::default();
-      let _ = unsafe { GetClientRect(hwnd, std::ptr::addr_of_mut!(client_rect)) }.log_error();
+      let _ = unsafe { GetClientRect(HWND(hwnd), std::ptr::addr_of_mut!(client_rect)) }.log_error();
 
       let state = WindowState {
         hwnd,
@@ -124,8 +129,9 @@ impl Window {
         mailbox: main_mailbox,
         state,
         window_thread,
-        priority_proc_receiver,
         proc_receiver,
+        input_queue: Default::default(),
+        current_stage: Stage::Looping,
       };
 
       window.set_color_mode(window.state.color_mode);
@@ -140,7 +146,7 @@ impl Window {
   pub fn set_visibility(&mut self, visibility: Visibility) {
     self.state.visibility = visibility;
     unsafe {
-      ShowWindow(self.state.hwnd, match visibility {
+      ShowWindow(HWND(self.state.hwnd), match visibility {
         Visibility::Shown => SW_SHOW,
         Visibility::Hidden => SW_HIDE,
       });
@@ -152,7 +158,7 @@ impl Window {
     let dark_mode = BOOL::from(color_mode == ColorMode::Dark);
     if let Err(error) = unsafe {
       DwmSetWindowAttribute(
-        self.state.hwnd,
+        HWND(self.state.hwnd),
         DWMWA_USE_IMMERSIVE_DARK_MODE,
         std::ptr::addr_of!(dark_mode) as *const std::ffi::c_void,
         std::mem::size_of::<BOOL>() as u32,
@@ -168,7 +174,7 @@ impl Window {
 
   pub fn set_title(&self, title: &str) {
     unsafe {
-      let _ = SetWindowTextW(self.state.hwnd, &HSTRING::from(title)).log_error();
+      let _ = SetWindowTextW(HWND(self.state.hwnd), &HSTRING::from(title)).log_error();
     }
   }
 
@@ -181,40 +187,42 @@ impl Window {
   }
 
   pub fn close(&mut self) {
-    let _ = unsafe { PostMessageW(self.state.hwnd, Self::MSG_MAIN_CLOSE_REQ, WPARAM(0), LPARAM(0)) }.log_error();
-    // let _ = self.send_message_to_window(MainMessage::Close).log_error();
-    self.window_thread.join();
+    self.current_stage = Stage::Exiting;
+    // let _ = unsafe { PostMessageW(HWND(self.state.hwnd),
+    // Self::MSG_MAIN_CLOSE_REQ, WPARAM(0), LPARAM(0)) }.log_error();
   }
 
-  // fn send_message_to_window(&self, message: MainMessage) -> Result<(),
-  // WindowError> {   self.mailbox.send(message).map_err(anyhow::Error::from)?;
-
-  //   // This isn't sending data, just prompting the wndproc to wake up and
-  // process   // the message in the mailbox
-
-  //   let _ = unsafe { PostMessageW(self.state.hwnd, Self::MSG_MAIN_CLOSE_REQ,
-  // WPARAM(0), LPARAM(0)) }.log_error();
-
-  //   Ok(())
-  // }
-
   fn handle_message(&mut self, message: WindowMessage) -> Option<WindowMessage> {
+    // match &message {
+    //   WindowMessage::Other { .. } => {}
+    //   _ => debug!("{message:?}"),
+    // }
+
     match message {
-      WindowMessage::ExitLoop => {
-        return None;
+      WindowMessage::CloseRequested => {
+        // TODO: Add manual custom close behavior back
+        self.close();
       }
+      // WindowMessage::CloseRequested => {
+      //   let _ =
+      //     unsafe { PostMessageW(HWND(self.state.hwnd), Self::MSG_MAIN_CLOSE_REQ, WPARAM(0), LPARAM(0)) }.log_error();
+      // }
+      // WindowMessage::Closing => {
+      //   debug!("Closing");
+      //   let _ =
+      //     unsafe { PostMessageW(HWND(self.state.hwnd), Self::MSG_MAIN_CLOSING, WPARAM(0), LPARAM(0)) }.log_error();
+      // }
+      // WindowMessage::ExitLoop => {
+      //   // TODO: Should happen only with default behavior
+      //   debug!("ExitLoop");
+      //   return None;
+      // }
       WindowMessage::State(StateMessage::Resized {
-        window_rect,
-        client_rect,
+        window_size,
+        client_size,
       }) => {
-        self.state.size = Dimensions {
-          width: window_rect.right - window_rect.left,
-          height: window_rect.bottom - window_rect.top,
-        };
-        self.state.inner_size = Dimensions {
-          width: client_rect.right - client_rect.left,
-          height: client_rect.bottom - client_rect.top,
-        };
+        self.state.size = window_size;
+        self.state.inner_size = client_size;
       }
       WindowMessage::Keyboard(KeyboardMessage::Key { key_code, state, .. }) => {
         self.state.input.update_keyboard_state(key_code, state);
@@ -228,18 +236,14 @@ impl Window {
     Some(message)
   }
 
-  // /// Handles windows messages and then passes most onto the user
-  // fn next_message(&mut self) -> Option<WindowMessage> {
-  //   let message = match self.proc_receiver.try_recv() {
-  //     Ok(message) => Ok(self.handle_message(message)),
-  //     Err(TryRecvError::Disconnected) => {
-  //       error!("channel between main and window was closed!");
-  //       Err(())
-  //     }
-  //     _ => Ok(None)
-  //   };
-
-  // }
+  fn enqueue_message(&mut self, message: WindowMessage) {
+    match message {
+      WindowMessage::CloseRequested => {}
+      WindowMessage::Keyboard(KeyboardMessage::Key { .. }) => {}
+      WindowMessage::Mouse(MouseMessage::Button { .. }) => {}
+      _ => {}
+    }
+  }
 
   /// Waits for next window message before returning.
   ///
@@ -248,11 +252,25 @@ impl Window {
   /// Use this if you want the application to only react to window events.
   #[allow(unused)]
   pub fn wait(&mut self) -> Option<WindowMessage> {
-    if let Ok(message) = self.proc_receiver.recv() {
-      self.handle_message(message)
-    } else {
-      error!("channel between main and window was closed!");
-      None
+    match self.current_stage {
+      Stage::Looping => match self.proc_receiver.recv() {
+        Ok(message) => self.handle_message(message),
+        _ => {
+          error!("channel between main and window was closed!");
+          self.window_thread.join();
+          None
+        }
+      },
+      Stage::Exiting => {
+        self.current_stage = Stage::ExitLoop;
+        Some(WindowMessage::Closing)
+      }
+      Stage::ExitLoop => {
+        let _ =
+          unsafe { PostMessageW(HWND(self.state.hwnd), Self::MSG_MAIN_CLOSE_REQ, WPARAM(0), LPARAM(0)) }.log_error();
+        self.window_thread.join();
+        None
+      }
     }
   }
 }
@@ -271,13 +289,27 @@ impl Iterator for Window {
   /// ***Note:** the window message thread will still block until a message is
   /// recieved from Windows.*
   fn next(&mut self) -> Option<Self::Item> {
-    match self.proc_receiver.try_recv() {
-      Ok(message) => self.handle_message(message),
-      Err(TryRecvError::Disconnected) => {
-        error!("channel between main and window was closed!");
+    match self.current_stage {
+      Stage::Looping => match self.proc_receiver.try_recv() {
+        Ok(message) => self.handle_message(message),
+        Err(TryRecvError::Disconnected) => {
+          error!("channel between main and window was closed!");
+          self.window_thread.join();
+          None
+        }
+        _ => Some(WindowMessage::None),
+      },
+      Stage::Exiting => {
+        debug!("exiting");
+        self.current_stage = Stage::ExitLoop;
+        Some(WindowMessage::Closing)
+      }
+      Stage::ExitLoop => {
+        let _ =
+          unsafe { PostMessageW(HWND(self.state.hwnd), Self::MSG_MAIN_CLOSE_REQ, WPARAM(0), LPARAM(0)) }.log_error();
+        self.window_thread.join();
         None
       }
-      _ => Some(WindowMessage::None),
     }
   }
 }
@@ -297,8 +329,8 @@ impl Iterator for Window {
 unsafe impl HasRawWindowHandle for Window {
   fn raw_window_handle(&self) -> RawWindowHandle {
     let mut handle = Win32WindowHandle::empty();
-    handle.hwnd = self.state.hwnd.0 as *mut c_void;
-    handle.hinstance = self.state.hinstance.0 as *mut c_void;
+    handle.hwnd = self.state.hwnd as *mut c_void;
+    handle.hinstance = self.state.hinstance as *mut c_void;
     // let mut handle =
     //   Win32WindowHandle::new(NonZeroIsize::new(self.state.hwnd.0).expect("window
     // handle should not be zero")); let hinstance =

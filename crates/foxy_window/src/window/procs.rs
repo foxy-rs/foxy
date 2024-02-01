@@ -8,7 +8,6 @@ use windows::Win32::{
 use super::window_message::WindowMessage;
 
 pub struct SubclassWindowData {
-  pub priority_sender: Sender<WindowMessage>,
   pub sender: Sender<WindowMessage>,
 }
 
