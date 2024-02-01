@@ -23,6 +23,12 @@ pub enum MessagePriority {
   High,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum SizeState {
+  Normal,
+  Minimized,
+}
+
 #[derive(Debug, Default, PartialEq, Eq, Clone, Hash)]
 pub enum WindowMessage {
   #[default]
@@ -47,10 +53,13 @@ pub enum StateMessage {
     hinstance: isize,
   },
   Resized {
+    size_state: SizeState,
     window_size: Dimensions,
     client_size: Dimensions,
   },
+  Resizing,
   Moved,
+  Moving,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
@@ -83,9 +92,8 @@ impl WindowMessage {
     match message {
       WindowsAndMessaging::WM_CLOSE => WindowMessage::CloseRequested,
       WindowsAndMessaging::WM_DESTROY => WindowMessage::Closing,
-      WindowsAndMessaging::WM_MOVING => WindowMessage::State(StateMessage::Moved),
-      // WindowsAndMessaging::WM_SIZE => // this is for things like maximized, minimized, etc.
-      WindowsAndMessaging::WM_SIZING => {
+      WindowsAndMessaging::WM_MOVE => WindowMessage::State(StateMessage::Moved),
+      WindowsAndMessaging::WM_SIZE => {
         let mut window_rect = RECT::default();
         let _ = unsafe { GetWindowRect(hwnd, std::ptr::addr_of_mut!(window_rect)) }.log_error();
         let window_size = Dimensions {
@@ -101,10 +109,17 @@ impl WindowMessage {
         };
 
         WindowMessage::State(StateMessage::Resized {
+          size_state: if w_param.0 as u32 != SIZE_MINIMIZED {
+            SizeState::Normal
+          } else {
+            SizeState::Minimized
+          },
           window_size,
           client_size,
         })
       }
+      WindowsAndMessaging::WM_MOVING => WindowMessage::State(StateMessage::Moving),
+      WindowsAndMessaging::WM_SIZING => WindowMessage::State(StateMessage::Resizing),
       msg if (WindowsAndMessaging::WM_KEYFIRST..=WindowsAndMessaging::WM_KEYLAST).contains(&msg) => {
         Self::new_keyboard_message(l_param)
       }

@@ -5,7 +5,7 @@ use windows::Win32::{
   UI::{Shell::DefSubclassProc, WindowsAndMessaging::*},
 };
 
-use super::window_message::WindowMessage;
+use super::window_message::{StateMessage, WindowMessage};
 
 pub struct SubclassWindowData {
   pub sender: Sender<WindowMessage>,
@@ -29,7 +29,13 @@ pub extern "system" fn subclass_proc(
   let data: &SubclassWindowData = unsafe { std::mem::transmute(dw_ref_data) };
 
   let win_message = WindowMessage::new(hwnd, message, w_param, l_param);
-  let _ = data.sender.send(win_message).log_error();
+  match win_message {
+    WindowMessage::State(StateMessage::Moving) => {}
+    WindowMessage::State(StateMessage::Resizing) => {}
+    _ => {
+      let _ = data.sender.send(win_message).log_error();
+    }
+  };
   // if matches!(
   //   win_message,
   //   WindowMessage::Other { .. } | WindowMessage::Moved | WindowMessage::Resized

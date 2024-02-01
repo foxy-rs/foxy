@@ -33,7 +33,7 @@ use windows::{
 use self::{
   stage::Stage,
   window_loop::{WindowLoop, WindowThreadCreateInfo},
-  window_message::StateMessage,
+  window_message::{SizeState, StateMessage},
 };
 use crate::{
   debug::{error::WindowError, validation::ValidationLayer},
@@ -81,7 +81,7 @@ impl Window {
 
   pub fn new(create_info: WindowCreateInfo<HasTitle, HasSize>) -> Result<Self, WindowError> {
     ValidationLayer::instance().init();
-    
+
     let (proc_sender, proc_receiver) = crossbeam::channel::unbounded();
 
     let winloop = WindowLoop::new();
@@ -116,6 +116,7 @@ impl Window {
         color_mode: create_info.color_mode,
         visibility: create_info.visibility,
         input,
+        size_state: SizeState::Normal,
       };
 
       let mut window = Self {
@@ -215,9 +216,11 @@ impl Window {
       //   return None;
       // }
       WindowMessage::State(StateMessage::Resized {
+        size_state,
         window_size,
         client_size,
       }) => {
+        self.state.size_state = size_state;
         self.state.size = window_size;
         self.state.inner_size = client_size;
       }
@@ -236,9 +239,9 @@ impl Window {
   // fn enqueue_message(&mut self, message: WindowMessage) {
   //   let priority = match message {
   //     WindowMessage::CloseRequested => MessagePriority::High,
-  //     WindowMessage::Keyboard(KeyboardMessage::Key { .. }) => MessagePriority::High,
-  //     WindowMessage::Mouse(MouseMessage::Button { .. }) => MessagePriority::High,
-  //     _ => MessagePriority::Low,
+  //     WindowMessage::Keyboard(KeyboardMessage::Key { .. }) =>
+  // MessagePriority::High,     WindowMessage::Mouse(MouseMessage::Button { ..
+  // }) => MessagePriority::High,     _ => MessagePriority::Low,
   //   };
 
   //   self.input_queue.push(message, priority);
