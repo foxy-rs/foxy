@@ -122,32 +122,31 @@ impl ThreadLoop for WindowLoop {
           .map_err(anyhow::Error::from)?;
 
         loop {
-          match self.proc_receiver.try_recv() {
-            Ok(message) => {
-              let _ = self.mailbox.send(message).log_error_msg("WindowMessage::new");
-              match self.mailbox.try_recv() {
-                Ok(MainMessage::Close) => {
-                  let _ = self.mailbox.send(WindowMessage::Closing).log_error();
-                  let _ = unsafe { DestroyWindow(hwnd) }.log_error();
-                  break;
-                }
-                Err(MessagingError::TryRecvError {
-                  error: TryRecvError::Disconnected,
-                }) => {
-                  error!("channel between main and window was closed!");
-                }
-                _ => {}
-              }
-            }
-            Err(TryRecvError::Disconnected) => {
-              error!("channel between window and window proc was closed!");
+          match self.mailbox.try_recv() {
+            Ok(MainMessage::Close) => {
+              let _ = self.mailbox.send(WindowMessage::Closing).log_error();
+              let _ = unsafe { DestroyWindow(hwnd) }.log_error();
               break;
             }
-            Err(TryRecvError::Empty) => {
-              if self.next_message().is_none() {
+            Err(MessagingError::TryRecvError {
+              error: TryRecvError::Disconnected,
+            }) => {
+              error!("channel between main and window was closed!");
+            }
+            _ => match self.proc_receiver.try_recv() {
+              Ok(message) => {
+                let _ = self.mailbox.send(message).log_error();
+              }
+              Err(TryRecvError::Disconnected) => {
+                error!("channel between window and window proc was closed!");
                 break;
               }
-            }
+              Err(TryRecvError::Empty) => {
+                if self.next_message().is_none() {
+                  break;
+                }
+              }
+            },
           }
         }
 

@@ -182,7 +182,7 @@ impl Window {
     unsafe {
       // This isn't sending data, just prompting the wndproc to wake up and process
       // the message in the mailbox
-      SendMessageW(self.state.hwnd, Self::MSG_MESSAGE_FROM_MAIN, WPARAM(0), LPARAM(0));
+      let _ = PostMessageW(self.state.hwnd, Self::MSG_MESSAGE_FROM_MAIN, WPARAM(0), LPARAM(0)).log_error();
     }
     Ok(())
   }

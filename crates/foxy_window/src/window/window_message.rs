@@ -39,7 +39,6 @@ pub enum WindowMessage {
   },
   CloseRequested,
   Closing,
-  ExitRequested,
   ExitLoop,
 }
 
