@@ -290,6 +290,7 @@ impl Iterator for Window {
   /// recieved from Windows.*
   fn next(&mut self) -> Option<Self::Item> {
     match self.current_stage {
+      // looping state actively reads messages
       Stage::Looping => match self.proc_receiver.try_recv() {
         Ok(message) => self.handle_message(message),
         Err(TryRecvError::Disconnected) => {
@@ -299,6 +300,7 @@ impl Iterator for Window {
         }
         _ => Some(WindowMessage::None),
       },
+      // entering the exiting state is non-reversible.
       Stage::Exiting => {
         debug!("exiting");
         self.current_stage = Stage::ExitLoop;
