@@ -5,6 +5,7 @@ use windows::Win32::{
   UI::{Shell::DefSubclassProc, WindowsAndMessaging::*},
 };
 
+#[allow(unused)]
 use super::window_message::{StateMessage, WindowMessage};
 
 pub struct SubclassWindowData {
@@ -29,6 +30,7 @@ pub extern "system" fn subclass_proc(
   let data: &SubclassWindowData = unsafe { std::mem::transmute(dw_ref_data) };
 
   let win_message = WindowMessage::new(hwnd, message, w_param, l_param);
+  #[allow(clippy::match_single_binding)]
   match win_message {
     // WindowMessage::State(StateMessage::Moving) => {}
     // WindowMessage::State(StateMessage::Resizing) => {}
