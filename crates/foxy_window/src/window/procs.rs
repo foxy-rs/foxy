@@ -1,5 +1,4 @@
-use std::sync::mpsc::Sender;
-
+use crossbeam::channel::Sender;
 use foxy_utils::log::LogErr;
 use windows::Win32::{
   Foundation::*,
@@ -7,6 +6,11 @@ use windows::Win32::{
 };
 
 use super::window_message::WindowMessage;
+
+pub struct SubclassWindowData {
+  pub priority_sender: Sender<WindowMessage>,
+  pub sender: Sender<WindowMessage>,
+}
 
 pub extern "system" fn wnd_proc(hwnd: HWND, message: u32, w_param: WPARAM, l_param: LPARAM) -> LRESULT {
   match message {
@@ -23,11 +27,18 @@ pub extern "system" fn subclass_proc(
   _u_id_subclass: usize,
   dw_ref_data: usize,
 ) -> LRESULT {
-  let sender: &mut Sender<WindowMessage> = unsafe { std::mem::transmute(dw_ref_data) };
+  let data: &SubclassWindowData = unsafe { std::mem::transmute(dw_ref_data) };
 
-  let _ = sender
-    .send(WindowMessage::new(hwnd, message, w_param, l_param))
-    .log_error_msg("WindowMessage::new");
+  let win_message = WindowMessage::new(hwnd, message, w_param, l_param);
+  let _ = data.sender.send(win_message).log_error();
+  // if matches!(
+  //   win_message,
+  //   WindowMessage::Other { .. } | WindowMessage::Moved | WindowMessage::Resized
+  // { .. } ) {
+  //   let _ = data.sender.send(win_message).log_error();
+  // } else {
+  //   let _ = data.priority_sender.send(win_message).log_error();
+  // }
 
   match message {
     WM_CLOSE => LRESULT(0),

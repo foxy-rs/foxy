@@ -21,14 +21,7 @@ use crate::{hiword, lobyte, loword};
 pub enum WindowMessage {
   #[default]
   None,
-  Ready {
-    hwnd: HWND,
-    hinstance: HINSTANCE,
-  },
-  Resized {
-    window_rect: RECT,
-    client_rect: RECT,
-  },
+  State(StateMessage),
   Keyboard(KeyboardMessage),
   Mouse(MouseMessage),
   Other {
@@ -37,9 +30,16 @@ pub enum WindowMessage {
     w_param: WPARAM,
     l_param: LPARAM,
   },
+  ExitLoop,
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub enum StateMessage {
+  Ready { hwnd: HWND, hinstance: HINSTANCE },
+  Resized { window_rect: RECT, client_rect: RECT },
+  Moved,
   CloseRequested,
   Closing,
-  ExitLoop,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -70,19 +70,20 @@ pub enum MouseMessage {
 impl WindowMessage {
   pub fn new(hwnd: HWND, message: u32, w_param: WPARAM, l_param: LPARAM) -> Self {
     match message {
-      WindowsAndMessaging::WM_CLOSE => WindowMessage::CloseRequested,
-      WindowsAndMessaging::WM_DESTROY => WindowMessage::Closing,
+      WindowsAndMessaging::WM_CLOSE => WindowMessage::State(StateMessage::CloseRequested),
+      WindowsAndMessaging::WM_DESTROY => WindowMessage::State(StateMessage::Closing),
       WindowsAndMessaging::WM_QUIT => WindowMessage::ExitLoop,
+      WindowsAndMessaging::WM_MOVING => WindowMessage::State(StateMessage::Moved),
       // WindowsAndMessaging::WM_SIZE => // this is for things like maximized, minimized, etc.
       WindowsAndMessaging::WM_SIZING => {
         let mut window_rect = RECT::default();
         let _ = unsafe { GetWindowRect(hwnd, std::ptr::addr_of_mut!(window_rect)) }.log_error();
         let mut client_rect = RECT::default();
         let _ = unsafe { GetClientRect(hwnd, std::ptr::addr_of_mut!(client_rect)) }.log_error();
-        WindowMessage::Resized {
+        WindowMessage::State(StateMessage::Resized {
           window_rect,
           client_rect,
-        }
+        })
       }
       msg if (WindowsAndMessaging::WM_KEYFIRST..=WindowsAndMessaging::WM_KEYLAST).contains(&msg) => {
         Self::new_keyboard_message(l_param)

@@ -118,15 +118,12 @@ impl Swapchain {
       vk::FormatFeatureFlags::DEPTH_STENCIL_ATTACHMENT,
     )
   }
-  
+
   pub fn acquire_next_image(&mut self, semaphore: vk::Semaphore) -> Result<(usize, bool), VulkanError> {
     let result = unsafe {
-      self.swapchain_loader.acquire_next_image(
-        self.swapchain,
-        u64::MAX,
-        semaphore,
-        vk::Fence::null(),
-      )
+      self
+        .swapchain_loader
+        .acquire_next_image(self.swapchain, u64::MAX, semaphore, vk::Fence::null())
     }?;
 
     Ok((result.0 as usize, result.1))

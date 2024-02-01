@@ -3,7 +3,9 @@ use std::sync::RwLockReadGuard;
 use foxy_utils::types::handle::Handle;
 
 use super::{
-  stage::{compute::Compute, fragment::Fragment, geometry::Geometry, mesh::Mesh, vertex::Vertex}, storage::ShaderStore, Shader
+  stage::{compute::Compute, fragment::Fragment, geometry::Geometry, mesh::Mesh, vertex::Vertex},
+  storage::ShaderStore,
+  Shader,
 };
 
 #[derive(Clone)]
@@ -42,7 +44,7 @@ pub struct ShaderSet<V, F, C, G, M> {
 }
 
 impl ShaderSet<NoVertex, NoFragment, NoCompute, NoGeometry, NoMesh> {
-  pub fn new(store: Handle<ShaderStore>,) -> Self {
+  pub fn new(store: Handle<ShaderStore>) -> Self {
     Self {
       store,
       vertex: NoVertex,

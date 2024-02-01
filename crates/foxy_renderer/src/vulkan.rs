@@ -157,9 +157,9 @@ impl RenderBackend for Vulkan {
     );
 
     let time = render_time.since_start().as_secs_f32();
-    let red_flash = (time / 80.).sin().abs();
-    let green_flash = (time / 100.).sin().abs();
-    let blue_flash = (time / 120.).sin().abs();
+    let red_flash = (time / 1.).sin().abs();
+    let green_flash = (time / 2.).sin().abs();
+    let blue_flash = (time / 3.).sin().abs();
     let clear_value = vk::ClearColorValue {
       float32: [red_flash, green_flash, blue_flash, 1.0],
     };

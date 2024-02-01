@@ -92,11 +92,7 @@ impl<Stage: StageInfo> Shader<Stage> {
         let shader_module = {
           let shader_module_create_info = vk::ShaderModuleCreateInfo::default().code(words);
 
-          match unsafe {
-            device
-              .logical()
-              .create_shader_module(&shader_module_create_info, None)
-          } {
+          match unsafe { device.logical().create_shader_module(&shader_module_create_info, None) } {
             Ok(module) => module,
             Err(err) => match attempt {
               BuildAttempt::First => {

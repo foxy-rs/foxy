@@ -24,8 +24,8 @@ fn main() {
   for stage in framework {
     if let Stage::Update { message, .. } = stage {
       match message {
-        WindowMessage::None | WindowMessage::Other { .. } | WindowMessage::Mouse(MouseMessage::Cursor) => {}
-        _ => debug!("UPDATE: {:?}", message),
+        WindowMessage::Keyboard(..) => debug!("UPDATE: {:?}", message),
+        _ => {}
       }
     }
   }

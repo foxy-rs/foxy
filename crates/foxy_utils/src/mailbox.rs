@@ -1,4 +1,4 @@
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Mailbox<SenderMessage: Send + Sync, ReceiverMessage: Send + Sync> {
   sender: Sender<SenderMessage>,
   receiver: Receiver<ReceiverMessage>,

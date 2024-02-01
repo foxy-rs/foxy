@@ -1,9 +1,10 @@
-use std::thread::JoinHandle;
-
 use anyhow::anyhow;
 use foxy_renderer::{error::RendererError, renderer::Renderer, vulkan::Vulkan};
 use foxy_utils::{
-  thread::{error::ThreadError, handle::ThreadLoop},
+  thread::{
+    error::ThreadError,
+    handle::{HandlesResult, ThreadLoop},
+  },
   time::EngineTime,
 };
 use messaging::Mailbox;
@@ -21,9 +22,9 @@ pub struct RenderLoop {
 impl ThreadLoop for RenderLoop {
   type Params = ();
 
-  fn run(mut self, thread_id: String, _: Self::Params) -> Result<JoinHandle<Result<(), ThreadError>>, ThreadError> {
-    std::thread::Builder::new()
-      .name(thread_id)
+  fn run(mut self, thread_id: Vec<String>, _: Self::Params) -> HandlesResult {
+    Ok(vec![std::thread::Builder::new()
+      .name(thread_id.first().cloned().expect("invalid index"))
       .spawn(move || -> Result<(), ThreadError> {
         trace!("Beginning render");
 
@@ -67,7 +68,7 @@ impl ThreadLoop for RenderLoop {
 
         Ok(())
       })
-      .map_err(ThreadError::from)
+      .map_err(ThreadError::from)?])
   }
 }
 

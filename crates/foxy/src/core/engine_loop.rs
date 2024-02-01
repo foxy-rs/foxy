@@ -7,7 +7,7 @@ use foxy_utils::{
   time::{timer::Timer, EngineTime},
   types::behavior::Polling,
 };
-use foxy_window::prelude::*;
+use foxy_window::{prelude::*, window::window_message::StateMessage};
 use messaging::Mailbox;
 use tracing::*;
 
@@ -61,7 +61,7 @@ impl Framework<'_> {
 
     let (renderer_mailbox, game_mailbox) = Mailbox::new_entangled_pair();
     let render_thread = LoopHandle::new(
-      Self::RENDER_THREAD_ID,
+      vec![Self::RENDER_THREAD_ID.into()],
       RenderLoop {
         renderer,
         messenger: renderer_mailbox,
@@ -101,7 +101,7 @@ impl Framework<'_> {
     if let Polling::Wait = self.polling_strategy {
       match self.foxy.window_mut().wait() {
         Some(message) => {
-          if let WindowMessage::CloseRequested = &message {
+          if let WindowMessage::State(StateMessage::CloseRequested) = &message {
             self.close();
             None
           } else {
@@ -113,7 +113,7 @@ impl Framework<'_> {
     } else {
       match self.foxy.window_mut().next() {
         Some(message) => {
-          if let WindowMessage::CloseRequested = &message {
+          if let WindowMessage::State(StateMessage::CloseRequested) = &message {
             self.close();
             None
           } else {
