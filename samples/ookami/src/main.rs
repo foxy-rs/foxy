@@ -23,9 +23,8 @@ fn main() {
 
   for stage in framework {
     if let Stage::Update { message, .. } = stage {
-      match message {
-        WindowMessage::Keyboard(..) => debug!("UPDATE: {:?}", message),
-        _ => {}
+      if let WindowMessage::Keyboard(..) = message {
+        debug!("UPDATE: {:?}", message)
       }
     }
   }

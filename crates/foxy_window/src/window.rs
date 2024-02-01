@@ -6,14 +6,12 @@ use std::os::raw::c_void;
 use crossbeam::channel::{Receiver, TryRecvError};
 use foxy_utils::{
   log::LogErr,
-  mailbox::Mailbox,
   thread::handle::LoopHandle,
   types::{
     behavior::{ColorMode, Visibility},
     primitives::Dimensions,
   },
 };
-use priority_queue::PriorityQueue;
 use raw_window_handle::{
   HasRawDisplayHandle,
   HasRawWindowHandle,
@@ -33,10 +31,9 @@ use windows::{
 };
 
 use self::{
-  main_message::MainMessage,
   stage::Stage,
   window_loop::{WindowLoop, WindowThreadCreateInfo},
-  window_message::{MessagePriority, StateMessage},
+  window_message::StateMessage,
 };
 use crate::{
   debug::{error::WindowError, validation::ValidationLayer},
@@ -59,7 +56,6 @@ pub mod window_message;
 
 #[allow(unused)]
 pub struct Window {
-  mailbox: Mailbox<MainMessage, WindowMessage>,
   state: WindowState,
   window_thread: LoopHandle<WindowLoop, WindowThreadCreateInfo>,
   proc_receiver: Receiver<WindowMessage>,
@@ -85,11 +81,10 @@ impl Window {
 
   pub fn new(create_info: WindowCreateInfo<HasTitle, HasSize>) -> Result<Self, WindowError> {
     ValidationLayer::instance().init();
-
-    let (main_mailbox, window_mailbox) = Mailbox::new_entangled_pair();
+    
     let (proc_sender, proc_receiver) = crossbeam::channel::unbounded();
 
-    let winloop = WindowLoop::new(window_mailbox);
+    let winloop = WindowLoop::new();
     let wincreate_info = WindowThreadCreateInfo::new(create_info.clone(), proc_sender);
     let mut window_thread = LoopHandle::new(vec![Self::WINDOW_THREAD_ID.into()], winloop, wincreate_info);
 
@@ -124,7 +119,6 @@ impl Window {
       };
 
       let mut window = Self {
-        mailbox: main_mailbox,
         state,
         window_thread,
         proc_receiver,

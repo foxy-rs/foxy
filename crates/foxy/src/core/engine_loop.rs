@@ -7,7 +7,7 @@ use foxy_utils::{
   time::{timer::Timer, EngineTime},
   types::behavior::Polling,
 };
-use foxy_window::{prelude::*, window::window_message::StateMessage};
+use foxy_window::prelude::*;
 use messaging::Mailbox;
 use tracing::*;
 

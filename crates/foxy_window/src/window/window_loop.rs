@@ -3,13 +3,11 @@ use std::sync::{Arc, RwLock};
 use crossbeam::channel::Sender;
 use foxy_utils::{
   log::LogErr,
-  mailbox::Mailbox,
   thread::{
     error::ThreadError,
     handle::{HandlesResult, ThreadLoop},
   },
 };
-use tracing::debug;
 use windows::{
   core::{HSTRING, PCWSTR},
   Win32::{
@@ -38,7 +36,6 @@ use windows::{
 
 use super::{
   builder::{HasSize, HasTitle, WindowCreateInfo},
-  main_message::MainMessage,
   window_message::WindowMessage,
 };
 use crate::window::{procs::SubclassWindowData, window_message::StateMessage, Window};
@@ -57,11 +54,7 @@ impl WindowThreadCreateInfo {
   }
 }
 
-pub struct WindowLoop {
-  mailbox: Mailbox<WindowMessage, MainMessage>,
-  // priority_proc_receiver: Receiver<WindowMessage>,
-  // proc_receiver: Receiver<WindowMessage>,
-}
+pub struct WindowLoop;
 
 impl ThreadLoop for WindowLoop {
   type Params = WindowThreadCreateInfo;
@@ -159,8 +152,8 @@ impl ThreadLoop for WindowLoop {
 }
 
 impl WindowLoop {
-  pub fn new(mailbox: Mailbox<WindowMessage, MainMessage>) -> Self {
-    Self { mailbox }
+  pub fn new() -> Self {
+    Self
   }
 
   fn next_message(&mut self) -> Option<WindowMessage> {
@@ -175,4 +168,10 @@ impl WindowLoop {
       None
     }
   }
+}
+
+impl Default for WindowLoop {
+    fn default() -> Self {
+        Self::new()
+    }
 }
