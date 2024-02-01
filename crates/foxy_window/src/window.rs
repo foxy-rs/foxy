@@ -174,17 +174,6 @@ impl Window {
 
   pub fn close(&mut self) {
     let _ = self.send_message_to_window(MainMessage::Close).log_error();
-    loop {
-      // consume all messages until closed or error encountered
-      match self.mailbox.recv().log_error() {
-        Ok(WindowMessage::Closing) => break,
-        Ok(_) => {}
-        Err(_) => {
-          error!("never received Closing message! breaking!");
-          break;
-        }
-      }
-    }
     self.window_thread.join();
   }
 
@@ -202,7 +191,6 @@ impl Window {
   fn intercept_message(&mut self, message: WindowMessage) -> Option<WindowMessage> {
     match message {
       WindowMessage::ExitLoop => {
-        self.window_thread.join();
         return None;
       }
       WindowMessage::Resized {

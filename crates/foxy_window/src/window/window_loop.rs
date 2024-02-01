@@ -129,6 +129,7 @@ impl ThreadLoop for WindowLoop {
                 Ok(MainMessage::Close) => {
                   let _ = self.mailbox.send(WindowMessage::Closing).log_error();
                   let _ = unsafe { DestroyWindow(hwnd) }.log_error();
+                  break;
                 }
                 Err(MessagingError::TryRecvError {
                   error: TryRecvError::Disconnected,
