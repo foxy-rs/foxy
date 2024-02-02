@@ -277,8 +277,8 @@ impl Vulkan {
     let cmd = current_frame.master_command_buffer;
 
     let time = render_time.since_start().as_secs_f32();
-    let red_flash = (time / 1.).sin().abs();
-    let green_flash = (time / 2.).sin().abs();
+    let red_flash = (time / 0.25).sin().abs();
+    let green_flash = (time / 1.25).sin().abs();
     let blue_flash = (time / 3.).sin().abs();
     let clear_value = vk::ClearColorValue {
       float32: [red_flash, green_flash, blue_flash, 1.0],
