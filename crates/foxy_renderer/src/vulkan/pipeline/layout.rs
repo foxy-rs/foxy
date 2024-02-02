@@ -4,8 +4,6 @@ use strum::EnumDiscriminants;
 use super::{PipelineDiscriminants, PipelineType};
 use crate::vulkan::{device::Device, error::VulkanError};
 
-pub mod compute;
-
 #[derive(EnumDiscriminants)]
 pub enum PipelineLayout {
   Graphics { layout: vk::PipelineLayout },

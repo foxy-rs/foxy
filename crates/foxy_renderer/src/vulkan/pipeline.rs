@@ -4,7 +4,6 @@ use ash::vk;
 use strum::{Display, EnumDiscriminants};
 
 pub mod config;
-pub mod gradient;
 pub mod layout;
 
 use self::layout::PipelineLayout;
