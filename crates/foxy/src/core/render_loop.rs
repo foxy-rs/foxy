@@ -1,5 +1,9 @@
 use anyhow::anyhow;
-use foxy_renderer::{error::RendererError, renderer::Renderer, vulkan::Vulkan};
+use foxy_renderer::{
+  error::RendererError,
+  renderer::Renderer,
+  vulkan::{error::VulkanError, Vulkan},
+};
 use foxy_utils::{
   thread::{
     error::ThreadError,
@@ -41,19 +45,11 @@ impl ThreadLoop for RenderLoop {
           }
 
           if let Err(error) = self.renderer.draw_frame(self.time.time()) {
-            error!("{error}");
-            match error {
-              RendererError::Recoverable(_) => {
-                error!("Recovering...");
-              }
-              RendererError::Unrecoverable(_) => {
-                error!("Aborting...");
-                let _ = self
-                  .messenger
-                  .send_and_wait(RenderLoopMessage::EmergencyExit)
-                  .map_err(anyhow::Error::from)?;
-              }
-            }
+            error!("`{error}` Aborting...");
+            let _ = self
+              .messenger
+              .send_and_wait(RenderLoopMessage::EmergencyExit)
+              .map_err(anyhow::Error::from)?;
             break;
           }
 

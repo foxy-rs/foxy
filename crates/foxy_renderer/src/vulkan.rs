@@ -19,7 +19,7 @@ use self::{
   types::{allocated_image::AllocatedImage, frame_data::FrameData},
 };
 use crate::{
-  error::{RendererErr, RendererError},
+  error::RendererError,
   renderer::RenderBackend,
   vulkan::{
     pipeline::descriptor::{DescriptorLayoutBuilder, PoolSizeRatio},
@@ -85,23 +85,21 @@ impl RenderBackend for Vulkan {
       } else {
         ValidationStatus::Disabled
       },
-    )
-    .map_err(|e| RendererError::Unrecoverable(e.into()))?;
+    )?;
 
-    let surface = Surface::new(&window, &instance).unrecoverable()?;
-    let device = Device::new(&surface, instance.clone()).unrecoverable()?;
+    let surface = Surface::new(&window, &instance)?;
+    let device = Device::new(&surface, instance.clone())?;
 
     let allocator_info = AllocatorCreateInfo::new(instance.raw(), device.logical(), *device.physical())
       .flags(vk_mem::AllocatorCreateFlags::BUFFER_DEVICE_ADDRESS);
-    let allocator = ManuallyDrop::new(Allocator::new(allocator_info).unrecoverable()?);
+    let allocator = ManuallyDrop::new(Allocator::new(allocator_info).map_err(VulkanError::from)?);
 
     // init swapchain
 
     let swapchain = Swapchain::new(&instance, &surface, device.clone(), window_size, ImageFormat {
       color_space: ColorSpace::Unorm,
       present_mode: PresentMode::AutoImmediate,
-    })
-    .map_err(|e| RendererError::Unrecoverable(e.into()))?;
+    })?;
 
     let draw_extent = *vk::Extent3D::builder()
       .width(window_size.width as u32)
@@ -117,10 +115,10 @@ impl RenderBackend for Vulkan {
     };
 
     let (image, allocation) =
-      unsafe { allocator.create_image(&image_create_info, &allocation_create_info) }.unrecoverable()?;
+      unsafe { allocator.create_image(&image_create_info, &allocation_create_info) }.map_err(VulkanError::from)?;
 
     let view_create_info = image::image_view_create_info(image, draw_image_format, vk::ImageAspectFlags::COLOR);
-    let view = unsafe { device.logical().create_image_view(&view_create_info, None) }.unrecoverable()?;
+    let view = unsafe { device.logical().create_image_view(&view_create_info, None) }.map_err(VulkanError::from)?;
 
     let draw_image = AllocatedImage {
       image,
@@ -132,8 +130,7 @@ impl RenderBackend for Vulkan {
 
     let frame_data = (0..FrameData::FRAME_OVERLAP)
       .map(|_| FrameData::new(&device))
-      .collect::<Result<Vec<_>, VulkanError>>()
-      .unrecoverable()?;
+      .collect::<Result<Vec<_>, VulkanError>>()?;
 
     // init descriptors
 
@@ -142,14 +139,11 @@ impl RenderBackend for Vulkan {
       ratio: 1.0,
     }];
 
-    let global_descriptor_allocator = DescriptorAllocator::new(device.clone(), 10, &sizes).unrecoverable()?;
+    let global_descriptor_allocator = DescriptorAllocator::new(device.clone(), 10, &sizes)?;
     let draw_image_descriptor_layout = DescriptorLayoutBuilder::new()
       .add_binding(0, vk::DescriptorType::STORAGE_IMAGE)
-      .build(&device, vk::ShaderStageFlags::COMPUTE)
-      .unrecoverable()?;
-    let draw_image_descriptors = global_descriptor_allocator
-      .allocate(draw_image_descriptor_layout)
-      .unrecoverable()?;
+      .build(&device, vk::ShaderStageFlags::COMPUTE)?;
+    let draw_image_descriptors = global_descriptor_allocator.allocate(draw_image_descriptor_layout)?;
     let image_info = *vk::DescriptorImageInfo::builder()
       .image_layout(vk::ImageLayout::GENERAL)
       .image_view(draw_image.view);
@@ -218,19 +212,37 @@ impl RenderBackend for Vulkan {
   }
 
   fn draw(&mut self, render_time: foxy_utils::time::Time) -> Result<(), RendererError> {
-    let image_index = self.start_commands()?;
-    self.draw_frame(image_index, &render_time)?;
-    self.submit_commands(image_index)
+    match self.draw(render_time) {
+      Ok(()) => Ok(()),
+      Err(VulkanError::Suboptimal) => {
+        // rebuild swapchain
+        Ok(())
+      }
+      Err(VulkanError::Ash(vk::Result::ERROR_OUT_OF_DATE_KHR)) => {
+        // rebuild swapchain
+        Ok(())
+      }
+      Err(error) => Err(error)?,
+    }
   }
 }
 
 impl Vulkan {
-  fn start_commands(&mut self) -> Result<usize, RendererError> {
+  fn draw(&mut self, render_time: foxy_utils::time::Time) -> Result<(), VulkanError> {
+    let (image_index, is_suboptimal) = self.start_commands()?;
+    if is_suboptimal {
+      Err(VulkanError::Suboptimal)
+    } else {
+      self.draw_frame(image_index, &render_time)?;
+      self.submit_commands(image_index)
+    }
+  }
+
+  fn start_commands(&mut self) -> Result<(usize, bool), VulkanError> {
     let current_frame = self
       .frame_data
       .get_mut(self.frame_index)
-      .ok_or_else(|| vulkan_error!("invalid frame"))
-      .unrecoverable()?;
+      .ok_or_else(|| vulkan_error!("invalid frame"))?;
     let cmd = current_frame.master_command_buffer;
 
     let fences = &[current_frame.render_fence];
@@ -239,41 +251,45 @@ impl Vulkan {
         .device
         .logical()
         .wait_for_fences(fences, true, Duration::from_secs(1).as_nanos() as u64)
+    }?;
+    unsafe { self.device.logical().reset_fences(fences) }?;
+
+    match self.swapchain.acquire_next_image(current_frame.present_semaphore) {
+      Ok((image_index, is_suboptimal)) => {
+        if is_suboptimal {
+          return Ok((image_index, is_suboptimal));
+        }
+
+        unsafe {
+          self
+            .device
+            .logical()
+            .reset_command_buffer(cmd, vk::CommandBufferResetFlags::empty())
+        }?;
+
+        let cmd_begin_info = vk::CommandBufferBeginInfo::builder().flags(vk::CommandBufferUsageFlags::ONE_TIME_SUBMIT);
+
+        self.draw_extent = vk::Extent2D {
+          width: self.draw_image.extent.width,
+          height: self.draw_image.extent.height,
+        };
+
+        unsafe { self.device.logical().begin_command_buffer(cmd, &cmd_begin_info) }?;
+
+        Ok((image_index, is_suboptimal))
+      }
+      Err(error) => {
+        error!("{error}");
+        Err(error)?
+      }
     }
-    .unrecoverable()?;
-    unsafe { self.device.logical().reset_fences(fences) }.unrecoverable()?;
-
-    let (image_index, _is_suboptimal) = self
-      .swapchain
-      .acquire_next_image(current_frame.present_semaphore)
-      .unrecoverable()?;
-
-    unsafe {
-      self
-        .device
-        .logical()
-        .reset_command_buffer(cmd, vk::CommandBufferResetFlags::empty())
-    }
-    .unrecoverable()?;
-
-    let cmd_begin_info = vk::CommandBufferBeginInfo::builder().flags(vk::CommandBufferUsageFlags::ONE_TIME_SUBMIT);
-
-    self.draw_extent = vk::Extent2D {
-      width: self.draw_image.extent.width,
-      height: self.draw_image.extent.height,
-    };
-
-    unsafe { self.device.logical().begin_command_buffer(cmd, &cmd_begin_info) }.unrecoverable()?;
-
-    Ok(image_index)
   }
 
-  fn draw_background(&mut self, render_time: &Time) -> Result<(), RendererError> {
+  fn draw_background(&mut self, render_time: &Time) -> Result<(), VulkanError> {
     let current_frame = self
       .frame_data
       .get_mut(self.frame_index)
-      .ok_or_else(|| vulkan_error!("invalid frame"))
-      .unrecoverable()?;
+      .ok_or_else(|| vulkan_error!("invalid frame"))?;
     let cmd = current_frame.master_command_buffer;
 
     let time = render_time.since_start().as_secs_f32();
@@ -298,19 +314,17 @@ impl Vulkan {
     Ok(())
   }
 
-  fn draw_frame(&mut self, image_index: usize, render_time: &Time) -> Result<(), RendererError> {
+  fn draw_frame(&mut self, image_index: usize, render_time: &Time) -> Result<(), VulkanError> {
     let current_frame = self
       .frame_data
       .get_mut(self.frame_index)
-      .ok_or_else(|| vulkan_error!("invalid frame"))
-      .unrecoverable()?;
+      .ok_or_else(|| vulkan_error!("invalid frame"))?;
     let cmd = current_frame.master_command_buffer;
 
     let swapchain_image = self
       .swapchain
       .image(image_index)
-      .ok_or_else(|| vulkan_error!("invalid frame"))
-      .unrecoverable()?;
+      .ok_or_else(|| vulkan_error!("invalid frame"))?;
 
     self
       .device
@@ -350,15 +364,14 @@ impl Vulkan {
     Ok(())
   }
 
-  fn submit_commands(&mut self, image_index: usize) -> Result<(), RendererError> {
+  fn submit_commands(&mut self, image_index: usize) -> Result<(), VulkanError> {
     let current_frame = self
       .frame_data
       .get_mut(self.frame_index)
-      .ok_or_else(|| vulkan_error!("invalid frame"))
-      .unrecoverable()?;
+      .ok_or_else(|| vulkan_error!("invalid frame"))?;
     let cmd = current_frame.master_command_buffer;
 
-    unsafe { self.device.logical().end_command_buffer(cmd) }.map_err(|e| RendererError::Unrecoverable(e.into()))?;
+    unsafe { self.device.logical().end_command_buffer(cmd) }?;
 
     let cmd_infos = &[command_buffer_submit_info(cmd)];
     let wait_infos = &[semaphore_submit_info(
@@ -377,8 +390,7 @@ impl Vulkan {
         .device
         .logical()
         .queue_submit2(self.device.graphics().queue(), &[submit], current_frame.render_fence)
-    }
-    .recoverable()?;
+    }?;
 
     let swapchains = &[self.swapchain.khr()];
     let wait_semaphores = &[current_frame.render_semaphore];
@@ -388,10 +400,7 @@ impl Vulkan {
       .wait_semaphores(wait_semaphores)
       .image_indices(image_indices);
 
-    let _is_suboptimal = self
-      .swapchain
-      .present(self.device.graphics().queue(), *present_info)
-      .recoverable()?;
+    let _is_suboptimal = self.swapchain.present(self.device.graphics().queue(), *present_info)?;
 
     self.frame_index = (self.frame_index + 1) % FrameData::FRAME_OVERLAP;
 

@@ -5,8 +5,10 @@ use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum VulkanError {
+  #[error("surface suboptimal")]
+  Suboptimal,
   #[error("VkResult: `{0}`")]
-  Vulkan(#[from] ash::vk::Result),
+  Ash(#[from] ash::vk::Result),
   #[error("{0}")]
   Shaderc(#[from] shaderc::Error),
   #[error("{0}")]
@@ -116,36 +118,36 @@ unsafe extern "system" fn debug_callback(
   let message = unsafe { CStr::from_ptr(callback_data.p_message) };
   // let message_id_name = unsafe { callback_data.message_id_name_as_c_str() };
   // if let Some(message) =  {
-    match message_types {
-      vk::DebugUtilsMessageTypeFlagsEXT::VALIDATION => match message_severity {
-        vk::DebugUtilsMessageSeverityFlagsEXT::ERROR => {
-          tracing::error!("VULKAN VALIDATION: {message:?}")
-        }
-        vk::DebugUtilsMessageSeverityFlagsEXT::WARNING => {
-          tracing::error!("VULKAN VALIDATION: {message:?}")
-        }
-        _ => {}
-      },
-      vk::DebugUtilsMessageTypeFlagsEXT::DEVICE_ADDRESS_BINDING => match message_severity {
-        vk::DebugUtilsMessageSeverityFlagsEXT::ERROR => {
-          tracing::error!("VULKAN DEVICE_ADDRESS_BINDING: {message:?}")
-        }
-        vk::DebugUtilsMessageSeverityFlagsEXT::WARNING => {
-          tracing::error!("VULKAN DEVICE_ADDRESS_BINDING: {message:?}")
-        }
-        _ => {}
-      },
-      vk::DebugUtilsMessageTypeFlagsEXT::PERFORMANCE => match message_severity {
-        vk::DebugUtilsMessageSeverityFlagsEXT::ERROR => {
-          tracing::error!("VULKAN PERFORMANCE: {message:?}")
-        }
-        vk::DebugUtilsMessageSeverityFlagsEXT::WARNING => {
-          tracing::error!("VULKAN PERFORMANCE: {message:?}")
-        }
-        _ => {}
-      },
+  match message_types {
+    vk::DebugUtilsMessageTypeFlagsEXT::VALIDATION => match message_severity {
+      vk::DebugUtilsMessageSeverityFlagsEXT::ERROR => {
+        tracing::error!("VULKAN VALIDATION: {message:?}")
+      }
+      vk::DebugUtilsMessageSeverityFlagsEXT::WARNING => {
+        tracing::error!("VULKAN VALIDATION: {message:?}")
+      }
       _ => {}
-    }
+    },
+    vk::DebugUtilsMessageTypeFlagsEXT::DEVICE_ADDRESS_BINDING => match message_severity {
+      vk::DebugUtilsMessageSeverityFlagsEXT::ERROR => {
+        tracing::error!("VULKAN DEVICE_ADDRESS_BINDING: {message:?}")
+      }
+      vk::DebugUtilsMessageSeverityFlagsEXT::WARNING => {
+        tracing::error!("VULKAN DEVICE_ADDRESS_BINDING: {message:?}")
+      }
+      _ => {}
+    },
+    vk::DebugUtilsMessageTypeFlagsEXT::PERFORMANCE => match message_severity {
+      vk::DebugUtilsMessageSeverityFlagsEXT::ERROR => {
+        tracing::error!("VULKAN PERFORMANCE: {message:?}")
+      }
+      vk::DebugUtilsMessageSeverityFlagsEXT::WARNING => {
+        tracing::error!("VULKAN PERFORMANCE: {message:?}")
+      }
+      _ => {}
+    },
+    _ => {}
+  }
   // }
 
   false.into()
