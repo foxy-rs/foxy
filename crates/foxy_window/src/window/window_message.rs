@@ -1,7 +1,6 @@
 use enumflags2::BitFlags;
-use foxy_utils::{log::LogErr, types::primitives::Dimensions};
 use windows::Win32::{
-  Foundation::{HWND, LPARAM, RECT, WPARAM},
+  Foundation::{HWND, LPARAM, WPARAM},
   System::SystemServices::{MK_LBUTTON, MK_MBUTTON, MK_RBUTTON, MK_XBUTTON1, MK_XBUTTON2, MODIFIERKEYS_FLAGS},
   UI::{
     Input::KeyboardAndMouse::{MapVirtualKeyW, MAPVK_VSC_TO_VK_EX, VIRTUAL_KEY},

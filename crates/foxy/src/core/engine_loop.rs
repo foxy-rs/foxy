@@ -1,13 +1,13 @@
 use std::{marker::PhantomData, time::Duration};
 
-use foxy_renderer::renderer::{render_data::RenderData, Renderer};
+use foxy_renderer::renderer::Renderer;
 use foxy_utils::{
   log::LogErr,
   thread::handle::LoopHandle,
   time::{timer::Timer, EngineTime},
   types::{behavior::Polling, handle::Handle},
 };
-use foxy_window::{prelude::*, window::window_message::StateMessage};
+use foxy_window::prelude::*;
 use messaging::Mailbox;
 use tracing::*;
 

@@ -214,9 +214,7 @@ impl Window {
       //   debug!("ExitLoop");
       //   return None;
       // }
-      WindowMessage::State(StateMessage::Resizing {
-        size_state,
-      }) => {
+      WindowMessage::State(StateMessage::Resizing { size_state }) => {
         self.state.size_state = size_state;
       }
       WindowMessage::Keyboard(KeyboardMessage::Key { key_code, state, .. }) => {

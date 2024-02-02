@@ -39,7 +39,8 @@
 //       })
 //       .build()];
 
-//     let color_blend_attachments = vec![vk::PipelineColorBlendAttachmentState::builder()
+//     let color_blend_attachments =
+// vec![vk::PipelineColorBlendAttachmentState::builder()
 //       .blend_enable(true)
 //       .src_color_blend_factor(vk::BlendFactor::SRC_COLOR)
 //       .dst_color_blend_factor(vk::BlendFactor::DST_COLOR)
@@ -66,8 +67,8 @@
 // }
 
 // impl<R> PipelineConfig<NoLayout, R> {
-//   pub fn with_layout(self, pipeline_layout: PipelineLayout) -> PipelineConfig<HasLayout, R> {
-//     PipelineConfig {
+//   pub fn with_layout(self, pipeline_layout: PipelineLayout) ->
+// PipelineConfig<HasLayout, R> {     PipelineConfig {
 //       color_blend_attachments: self.color_blend_attachments,
 //       viewports: self.viewports,
 //       scissors: self.scissors,
@@ -79,8 +80,8 @@
 // }
 
 // impl<L> PipelineConfig<L, NoRenderPass> {
-//   pub fn with_render_pass(self, render_pass: vk::RenderPass) -> PipelineConfig<L, HasRenderPass> {
-//     PipelineConfig {
+//   pub fn with_render_pass(self, render_pass: vk::RenderPass) ->
+// PipelineConfig<L, HasRenderPass> {     PipelineConfig {
 //       color_blend_attachments: self.color_blend_attachments,
 //       viewports: self.viewports,
 //       scissors: self.scissors,
@@ -107,13 +108,15 @@
 //       .build()
 //   }
 
-//   pub fn input_assembly_info(&self) -> vk::PipelineInputAssemblyStateCreateInfo {
+//   pub fn input_assembly_info(&self) ->
+// vk::PipelineInputAssemblyStateCreateInfo {
 //     vk::PipelineInputAssemblyStateCreateInfo::builder()
 //       .topology(vk::PrimitiveTopology::TRIANGLE_LIST)
 //       .build()
 //   }
 
-//   pub fn rasterization_info(&self) -> vk::PipelineRasterizationStateCreateInfo {
+//   pub fn rasterization_info(&self) ->
+// vk::PipelineRasterizationStateCreateInfo {
 //     vk::PipelineRasterizationStateCreateInfo::builder()
 //       .cull_mode(vk::CullModeFlags::BACK)
 //       .line_width(1.0)
@@ -135,8 +138,8 @@
 //       .build()
 //   }
 
-//   pub fn depth_stencil_info(&self) -> vk::PipelineDepthStencilStateCreateInfo {
-//     vk::PipelineDepthStencilStateCreateInfo::builder()
+//   pub fn depth_stencil_info(&self) -> vk::PipelineDepthStencilStateCreateInfo
+// {     vk::PipelineDepthStencilStateCreateInfo::builder()
 //       .depth_test_enable(true)
 //       .depth_write_enable(true)
 //       .depth_compare_op(vk::CompareOp::LESS)

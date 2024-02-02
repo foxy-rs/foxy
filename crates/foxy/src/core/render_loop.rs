@@ -1,9 +1,5 @@
 use anyhow::anyhow;
-use foxy_renderer::{
-  error::RendererError,
-  renderer::Renderer,
-  vulkan::{error::VulkanError, Vulkan},
-};
+use foxy_renderer::{renderer::Renderer, vulkan::Vulkan};
 use foxy_utils::{
   thread::{
     error::ThreadError,
@@ -77,7 +73,7 @@ impl RenderLoop {
     }) {
       Ok(message) => match message {
         GameLoopMessage::Exit => Ok(true),
-        GameLoopMessage::RenderInfo { } => Ok(false),
+        GameLoopMessage::RenderInfo {} => Ok(false),
         _ => Ok(false),
       },
       Err(error) => {

@@ -1,6 +1,9 @@
 use std::sync::{RwLockReadGuard, RwLockWriteGuard};
 
-use foxy_utils::{time::{EngineTime, Time}, types::handle::Handle};
+use foxy_utils::{
+  time::{EngineTime, Time},
+  types::handle::Handle,
+};
 use foxy_window::window::Window;
 
 pub struct Foxy {

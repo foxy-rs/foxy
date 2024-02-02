@@ -14,7 +14,13 @@ use tracing::*;
 use vk_mem::{Alloc, Allocator, AllocatorCreateInfo};
 
 use self::{
-  device::Device, error::VulkanError, instance::Instance, shader::storage::ShaderStore, surface::Surface, swapchain::Swapchain, types::{allocated_image::AllocatedImage, frame_data::FrameData}
+  device::Device,
+  error::VulkanError,
+  instance::Instance,
+  shader::storage::ShaderStore,
+  surface::Surface,
+  swapchain::Swapchain,
+  types::{allocated_image::AllocatedImage, frame_data::FrameData},
 };
 use crate::{
   error::RendererError,
@@ -429,10 +435,7 @@ impl Vulkan {
   }
 }
 
-pub fn semaphore_submit_info<'a>(
-  semaphore: vk::Semaphore,
-  stage_mask: vk::PipelineStageFlags2,
-) -> vk::SemaphoreSubmitInfo {
+pub fn semaphore_submit_info(semaphore: vk::Semaphore, stage_mask: vk::PipelineStageFlags2) -> vk::SemaphoreSubmitInfo {
   *vk::SemaphoreSubmitInfo::builder()
     .semaphore(semaphore)
     .stage_mask(stage_mask)
@@ -440,7 +443,7 @@ pub fn semaphore_submit_info<'a>(
     .value(1)
 }
 
-pub fn command_buffer_submit_info<'a>(command_buffer: vk::CommandBuffer) -> vk::CommandBufferSubmitInfo {
+pub fn command_buffer_submit_info(command_buffer: vk::CommandBuffer) -> vk::CommandBufferSubmitInfo {
   *vk::CommandBufferSubmitInfo::builder()
     .command_buffer(command_buffer)
     .device_mask(0)

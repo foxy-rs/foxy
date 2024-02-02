@@ -1,6 +1,6 @@
 use ash::{extensions::khr, vk};
 use foxy_utils::types::{handle::Handle, primitives::Dimensions};
-use tracing::debug;
+use tracing::*;
 
 use self::image_format::{ColorSpace, ImageFormat, PresentMode};
 use super::{device::Device, instance::Instance, surface::Surface};
@@ -82,7 +82,6 @@ impl Swapchain {
   pub fn extent(&self) -> vk::Extent2D {
     self.extent
   }
-
 
   pub fn khr(&self) -> vk::SwapchainKHR {
     self.swapchain

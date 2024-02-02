@@ -171,7 +171,7 @@ impl WindowLoop {
 }
 
 impl Default for WindowLoop {
-    fn default() -> Self {
-        Self::new()
-    }
+  fn default() -> Self {
+    Self::new()
+  }
 }

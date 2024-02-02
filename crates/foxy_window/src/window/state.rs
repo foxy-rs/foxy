@@ -1,7 +1,4 @@
-use foxy_utils::types::{
-  behavior::{ColorMode, Visibility},
-  primitives::Dimensions,
-};
+use foxy_utils::types::behavior::{ColorMode, Visibility};
 
 use super::{input::Input, window_message::SizeState};
 

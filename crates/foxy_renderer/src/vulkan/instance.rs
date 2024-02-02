@@ -32,10 +32,7 @@ impl Instance {
     c"VK_LAYER_KHRONOS_validation",
   ];
 
-  pub fn new(
-    display_handle: RawDisplayHandle,
-    validation_status: ValidationStatus,
-  ) -> Result<Self, VulkanError> {
+  pub fn new(display_handle: RawDisplayHandle, validation_status: ValidationStatus) -> Result<Self, VulkanError> {
     let entry = ash::Entry::linked();
     let instance = Self::new_instance(&entry, display_handle, validation_status)?;
     let debug = Debug::new(&entry, &instance)?;
@@ -187,10 +184,8 @@ impl Instance {
   }
 
   fn supported(entry: &ash::Entry) -> Result<(Vec<vk::LayerProperties>, Vec<vk::ExtensionProperties>), VulkanError> {
-    // let layers: Vec<*const c_char> = Self::VALIDATION_LAYERS.iter().map(|name|
-    // name.as_ptr()).collect();
-    let layers = unsafe { entry.enumerate_instance_layer_properties() }?;
-    let extensions = unsafe { entry.enumerate_instance_extension_properties(None) }?;
+    let layers = entry.enumerate_instance_layer_properties()?;
+    let extensions = entry.enumerate_instance_extension_properties(None)?;
 
     Ok((layers, extensions))
   }

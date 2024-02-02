@@ -40,7 +40,7 @@ pub enum Pipeline {
 
 impl Pipeline {
   pub fn new<P: PipelineType>(
-    device: &Device, 
+    device: &Device,
     shaders: HashSet<Shader>,
     layout: PipelineLayout,
   ) -> Result<Self, VulkanError> {
