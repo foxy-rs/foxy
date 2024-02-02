@@ -1,13 +1,15 @@
-use foxy_utils::time::{EngineTime, Time};
+use std::sync::{RwLockReadGuard, RwLockWriteGuard};
+
+use foxy_utils::{time::{EngineTime, Time}, types::handle::Handle};
 use foxy_window::window::Window;
 
 pub struct Foxy {
   pub(crate) time: EngineTime,
-  window: Window,
+  window: Handle<Window>,
 }
 
 impl Foxy {
-  pub fn new(time: EngineTime, window: Window) -> Self {
+  pub fn new(time: EngineTime, window: Handle<Window>) -> Self {
     Self { time, window }
   }
 
@@ -15,11 +17,11 @@ impl Foxy {
     self.time.time()
   }
 
-  pub fn window(&self) -> &Window {
-    &self.window
+  pub fn window(&self) -> RwLockReadGuard<Window> {
+    self.window.get()
   }
 
-  pub fn window_mut(&mut self) -> &mut Window {
-    &mut self.window
+  pub fn window_mut(&mut self) -> RwLockWriteGuard<Window> {
+    self.window.get_mut()
   }
 }

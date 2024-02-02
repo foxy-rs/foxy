@@ -5,7 +5,7 @@ use ash::{
   vk,
 };
 use itertools::Itertools;
-use raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle, RawDisplayHandle};
+use raw_window_handle::RawDisplayHandle;
 use tracing::*;
 
 use super::ValidationStatus;
@@ -32,12 +32,12 @@ impl Instance {
     c"VK_LAYER_KHRONOS_validation",
   ];
 
-  pub fn new<W: HasRawDisplayHandle + HasRawWindowHandle>(
-    window: W,
+  pub fn new(
+    display_handle: RawDisplayHandle,
     validation_status: ValidationStatus,
   ) -> Result<Self, VulkanError> {
     let entry = ash::Entry::linked();
-    let instance = Self::new_instance(&entry, window.raw_display_handle(), validation_status)?;
+    let instance = Self::new_instance(&entry, display_handle, validation_status)?;
     let debug = Debug::new(&entry, &instance)?;
 
     Ok(Self { debug, instance, entry })

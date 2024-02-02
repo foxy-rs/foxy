@@ -5,9 +5,9 @@ use foxy_utils::{
   log::LogErr,
   thread::handle::LoopHandle,
   time::{timer::Timer, EngineTime},
-  types::behavior::Polling,
+  types::{behavior::Polling, handle::Handle},
 };
-use foxy_window::prelude::*;
+use foxy_window::{prelude::*, window::window_message::StateMessage};
 use messaging::Mailbox;
 use tracing::*;
 
@@ -49,15 +49,17 @@ impl Framework<'_> {
     let time = EngineTime::default();
     let render_time = EngineTime::default();
 
-    let mut window = Window::builder()
-      .with_title(create_info.title.0)
-      .with_size(create_info.size.width, create_info.size.height)
-      .with_color_mode(create_info.color_mode)
-      .with_visibility(Visibility::Hidden)
-      .build()?;
+    let mut window = Handle::new(
+      Window::builder()
+        .with_title(create_info.title.0)
+        .with_size(create_info.size.width, create_info.size.height)
+        .with_color_mode(create_info.color_mode)
+        .with_visibility(Visibility::Hidden)
+        .build()?,
+    );
 
-    let renderer = Renderer::new(&window, window.inner_size())?;
-    window.set_visibility(Visibility::Shown);
+    let renderer = Renderer::new(window.clone())?;
+    window.get_mut().set_visibility(Visibility::Shown);
 
     let (renderer_mailbox, game_mailbox) = Mailbox::new_entangled_pair();
     let render_thread = LoopHandle::new(
@@ -136,7 +138,7 @@ impl Framework<'_> {
       }
       StageDiscriminants::BeginFrame => {
         // Early Update
-        if let WindowMessage::Closing = self.current_message {
+        if matches!(self.current_message, WindowMessage::Closing) {
           Stage::EarlyUpdate {
             foxy: &mut self.foxy,
             message: &mut self.current_message,
@@ -184,7 +186,7 @@ impl Framework<'_> {
       }
       StageDiscriminants::Update => {
         // End Frame
-        if let WindowMessage::Closing = self.current_message {
+        if matches!(self.current_message, WindowMessage::Closing) {
           Stage::EndFrame {
             foxy: &mut self.foxy,
             message: &mut self.current_message,
@@ -193,7 +195,7 @@ impl Framework<'_> {
         } else {
           match self
             .game_mailbox
-            .send_and_wait(GameLoopMessage::RenderData())
+            .send_and_wait(GameLoopMessage::RenderInfo {})
             .log_error()
           {
             Ok(render_response) => match render_response {

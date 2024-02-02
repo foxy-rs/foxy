@@ -48,18 +48,11 @@ pub enum WindowMessage {
 
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum StateMessage {
-  Ready {
-    hwnd: isize,
-    hinstance: isize,
-  },
-  Resized {
-    size_state: SizeState,
-    window_size: Dimensions,
-    client_size: Dimensions,
-  },
-  Resizing,
-  Moved,
+  Ready { hwnd: isize, hinstance: isize },
+  Resizing { size_state: SizeState },
   Moving,
+  Resized,
+  Moved,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
@@ -92,34 +85,16 @@ impl WindowMessage {
     match message {
       WindowsAndMessaging::WM_CLOSE => WindowMessage::CloseRequested,
       WindowsAndMessaging::WM_DESTROY => WindowMessage::Closing,
-      WindowsAndMessaging::WM_MOVE => WindowMessage::State(StateMessage::Moved),
-      WindowsAndMessaging::WM_SIZE => {
-        let mut window_rect = RECT::default();
-        let _ = unsafe { GetWindowRect(hwnd, std::ptr::addr_of_mut!(window_rect)) }.log_error();
-        let window_size = Dimensions {
-          width: window_rect.right - window_rect.left,
-          height: window_rect.bottom - window_rect.top,
-        };
-
-        let mut client_rect = RECT::default();
-        let _ = unsafe { GetClientRect(hwnd, std::ptr::addr_of_mut!(client_rect)) }.log_error();
-        let client_size = Dimensions {
-          width: client_rect.right - client_rect.left,
-          height: client_rect.bottom - client_rect.top,
-        };
-
-        WindowMessage::State(StateMessage::Resized {
-          size_state: if w_param.0 as u32 != SIZE_MINIMIZED {
-            SizeState::Normal
-          } else {
-            SizeState::Minimized
-          },
-          window_size,
-          client_size,
-        })
-      }
+      WindowsAndMessaging::WM_SIZING => WindowMessage::State(StateMessage::Resizing {
+        size_state: if w_param.0 as u32 != SIZE_MINIMIZED {
+          SizeState::Normal
+        } else {
+          SizeState::Minimized
+        },
+      }),
       WindowsAndMessaging::WM_MOVING => WindowMessage::State(StateMessage::Moving),
-      WindowsAndMessaging::WM_SIZING => WindowMessage::State(StateMessage::Resizing),
+      WindowsAndMessaging::WM_SIZE => WindowMessage::State(StateMessage::Resized),
+      WindowsAndMessaging::WM_MOVE => WindowMessage::State(StateMessage::Moved),
       msg if (WindowsAndMessaging::WM_KEYFIRST..=WindowsAndMessaging::WM_KEYLAST).contains(&msg) => {
         Self::new_keyboard_message(l_param)
       }

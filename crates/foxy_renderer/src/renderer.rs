@@ -1,5 +1,5 @@
-use foxy_utils::{time::Time, types::primitives::Dimensions};
-use raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle};
+use foxy_utils::{time::Time, types::handle::Handle};
+use foxy_window::window::Window;
 
 use crate::error::RendererError;
 
@@ -7,7 +7,7 @@ pub mod command;
 pub mod render_data;
 
 pub trait RenderBackend {
-  fn new(window: impl HasRawDisplayHandle + HasRawWindowHandle, window_size: Dimensions) -> Result<Self, RendererError>
+  fn new(window: Handle<Window>) -> Result<Self, RendererError>
   where
     Self: Sized;
 
@@ -23,15 +23,10 @@ pub struct Renderer<B: RenderBackend> {
 }
 
 impl<B: RenderBackend> Renderer<B> {
-  pub fn new(
-    window: impl HasRawDisplayHandle + HasRawWindowHandle,
-    window_size: Dimensions,
-  ) -> Result<Self, RendererError> {
-    let backend = B::new(window, window_size)?;
+  pub fn new(window: Handle<Window>) -> Result<Self, RendererError> {
+    let backend = B::new(window)?;
 
-    Ok(Self {
-      backend,
-    })
+    Ok(Self { backend })
   }
 
   pub fn delete(&mut self) {

@@ -77,7 +77,7 @@ impl RenderLoop {
     }) {
       Ok(message) => match message {
         GameLoopMessage::Exit => Ok(true),
-        GameLoopMessage::RenderData() => Ok(false),
+        GameLoopMessage::RenderInfo { } => Ok(false),
         _ => Ok(false),
       },
       Err(error) => {

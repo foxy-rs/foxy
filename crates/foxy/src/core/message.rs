@@ -13,6 +13,8 @@ pub enum RenderLoopMessage {
 #[derive(Debug)]
 pub enum GameLoopMessage {
   Sync,
-  RenderData(),
+  RenderInfo {
+    
+  },
   Exit,
 }

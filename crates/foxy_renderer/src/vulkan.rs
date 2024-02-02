@@ -1,10 +1,15 @@
 #![deny(unsafe_op_in_unsafe_fn)]
 
-use std::{mem::ManuallyDrop, time::Duration};
+use std::{mem::ManuallyDrop, ops::Deref, time::Duration};
 
 use ash::vk;
-use foxy_utils::{log::LogErr, time::Time, types::handle::Handle};
-use raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle};
+use foxy_utils::{
+  log::LogErr,
+  time::Time,
+  types::{handle::Handle, primitives::Dimensions},
+};
+use foxy_window::window::Window;
+use raw_window_handle::HasRawDisplayHandle;
 use tracing::*;
 use vk_mem::{Alloc, Allocator, AllocatorCreateInfo};
 
@@ -54,6 +59,7 @@ pub struct Vulkan {
   frame_index: usize,
   frame_data: Vec<FrameData>,
   swapchain: Swapchain,
+  preferred_swapchain_format: ImageFormat,
 
   draw_image_descriptor_layout: vk::DescriptorSetLayout,
   draw_image_descriptors: vk::DescriptorSet,
@@ -64,22 +70,20 @@ pub struct Vulkan {
   device: Device,
   surface: Surface,
   instance: Instance,
+  window: Handle<Window>,
 }
 
 impl RenderBackend for Vulkan {
-  fn new(
-    window: impl HasRawDisplayHandle + HasRawWindowHandle,
-    window_size: foxy_utils::types::prelude::Dimensions,
-  ) -> Result<Self, crate::error::RendererError>
+  fn new(window: Handle<Window>) -> Result<Self, crate::error::RendererError>
   where
     Self: Sized,
   {
     trace!("Initializing Vulkan");
 
-    // init
+    // init vulkan
 
     let instance = Instance::new(
-      &window,
+      window.get().raw_display_handle(),
       if cfg!(debug_assertions) {
         ValidationStatus::Enabled
       } else {
@@ -87,7 +91,7 @@ impl RenderBackend for Vulkan {
       },
     )?;
 
-    let surface = Surface::new(&window, &instance)?;
+    let surface = Surface::new(window.get().deref(), &instance)?;
     let device = Device::new(&surface, instance.clone())?;
 
     let allocator_info = AllocatorCreateInfo::new(instance.raw(), device.logical(), *device.physical())
@@ -95,38 +99,15 @@ impl RenderBackend for Vulkan {
     let allocator = ManuallyDrop::new(Allocator::new(allocator_info).map_err(VulkanError::from)?);
 
     // init swapchain
+    let window_size = window.get().inner_size();
 
-    let swapchain = Swapchain::new(&instance, &surface, device.clone(), window_size, ImageFormat {
+    // TODO: Make this adjustable
+    let preferred_swapchain_format = ImageFormat {
       color_space: ColorSpace::Unorm,
       present_mode: PresentMode::AutoImmediate,
-    })?;
-
-    let draw_extent = *vk::Extent3D::builder()
-      .width(window_size.width as u32)
-      .height(window_size.height as u32)
-      .depth(1);
-    let draw_image_format = vk::Format::R16G16B16A16_SFLOAT;
-
-    let image_create_info = image::image_create_info(draw_extent, draw_image_format);
-    let allocation_create_info = vk_mem::AllocationCreateInfo {
-      usage: vk_mem::MemoryUsage::AutoPreferDevice,
-      required_flags: vk::MemoryPropertyFlags::DEVICE_LOCAL,
-      ..Default::default()
     };
-
-    let (image, allocation) =
-      unsafe { allocator.create_image(&image_create_info, &allocation_create_info) }.map_err(VulkanError::from)?;
-
-    let view_create_info = image::image_view_create_info(image, draw_image_format, vk::ImageAspectFlags::COLOR);
-    let view = unsafe { device.logical().create_image_view(&view_create_info, None) }.map_err(VulkanError::from)?;
-
-    let draw_image = AllocatedImage {
-      image,
-      view,
-      allocation,
-      extent: draw_extent,
-      format: draw_image_format,
-    };
+    let swapchain = Swapchain::new(&instance, &surface, device.clone(), window_size, preferred_swapchain_format)?;
+    let (draw_image, draw_extent) = Self::new_draw_image(&device, &allocator, window_size)?;
 
     let frame_data = (0..FrameData::FRAME_OVERLAP)
       .map(|_| FrameData::new(&device))
@@ -162,16 +143,18 @@ impl RenderBackend for Vulkan {
     let shader_store = Handle::new(ShaderStore::new(device.clone()));
 
     Ok(Self {
+      window,
       instance,
       surface,
       device,
+      preferred_swapchain_format,
       swapchain,
       frame_data,
       frame_index: 0,
       allocator,
       shader_store,
       draw_image,
-      draw_extent: Default::default(),
+      draw_extent,
       draw_image_descriptor_layout,
       draw_image_descriptors,
       global_descriptor_allocator,
@@ -216,10 +199,12 @@ impl RenderBackend for Vulkan {
       Ok(()) => Ok(()),
       Err(VulkanError::Suboptimal) => {
         // rebuild swapchain
+        self.rebuild_swapchain()?;
         Ok(())
       }
       Err(VulkanError::Ash(vk::Result::ERROR_OUT_OF_DATE_KHR)) => {
         // rebuild swapchain
+        self.rebuild_swapchain()?;
         Ok(())
       }
       Err(error) => Err(error)?,
@@ -228,6 +213,10 @@ impl RenderBackend for Vulkan {
 }
 
 impl Vulkan {
+  fn rebuild_swapchain(&mut self) -> Result<(), VulkanError> {
+    Ok(())
+  }
+
   fn draw(&mut self, render_time: foxy_utils::time::Time) -> Result<(), VulkanError> {
     let (image_index, is_suboptimal) = self.start_commands()?;
     if is_suboptimal {
@@ -405,6 +394,45 @@ impl Vulkan {
     self.frame_index = (self.frame_index + 1) % FrameData::FRAME_OVERLAP;
 
     Ok(())
+  }
+
+  fn new_draw_image(
+    device: &Device,
+    allocator: &Allocator,
+    window_size: Dimensions,
+  ) -> Result<(AllocatedImage, vk::Extent2D), VulkanError> {
+    let draw_extent = *vk::Extent3D::builder()
+      .width(window_size.width as u32)
+      .height(window_size.height as u32)
+      .depth(1);
+    let draw_image_format = vk::Format::R16G16B16A16_SFLOAT;
+
+    let image_create_info = image::image_create_info(draw_extent, draw_image_format);
+    let allocation_create_info = vk_mem::AllocationCreateInfo {
+      usage: vk_mem::MemoryUsage::AutoPreferDevice,
+      required_flags: vk::MemoryPropertyFlags::DEVICE_LOCAL,
+      ..Default::default()
+    };
+
+    let (image, allocation) =
+      unsafe { allocator.create_image(&image_create_info, &allocation_create_info) }.map_err(VulkanError::from)?;
+
+    let view_create_info = image::image_view_create_info(image, draw_image_format, vk::ImageAspectFlags::COLOR);
+    let view = unsafe { device.logical().create_image_view(&view_create_info, None) }.map_err(VulkanError::from)?;
+
+    Ok((
+      AllocatedImage {
+        image,
+        view,
+        allocation,
+        extent: draw_extent,
+        format: draw_image_format,
+      },
+      vk::Extent2D {
+        width: draw_extent.width,
+        height: draw_extent.height,
+      },
+    ))
   }
 }
 

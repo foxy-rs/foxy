@@ -41,13 +41,13 @@ impl Swapchain {
     instance: &Instance,
     surface: &Surface,
     device: Device,
-    extent: Dimensions,
+    dims: Dimensions,
     preferred_image_format: ImageFormat,
   ) -> Result<Self, VulkanError> {
-    debug!("Window extent: {extent:?}");
+    debug!("Window extent: {dims:?}");
     let extent = vk::Extent2D::builder()
-      .width(extent.width as u32)
-      .height(extent.height as u32)
+      .width(dims.width as u32)
+      .height(dims.height as u32)
       .build();
     // debug!("Window extent (true): {extent:?}");
 

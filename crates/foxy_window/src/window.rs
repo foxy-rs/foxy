@@ -96,22 +96,9 @@ impl Window {
     {
       let input = Input::new();
 
-      let mut window_rect = RECT::default();
-      let _ = unsafe { GetWindowRect(HWND(hwnd), std::ptr::addr_of_mut!(window_rect)) }.log_error();
-      let mut client_rect = RECT::default();
-      let _ = unsafe { GetClientRect(HWND(hwnd), std::ptr::addr_of_mut!(client_rect)) }.log_error();
-
       let state = WindowState {
         hwnd,
         hinstance,
-        size: Dimensions {
-          width: window_rect.right - window_rect.left,
-          height: window_rect.bottom - window_rect.top,
-        },
-        inner_size: Dimensions {
-          width: client_rect.right - client_rect.left,
-          height: client_rect.bottom - client_rect.top,
-        },
         title: String::from(create_info.title.0),
         color_mode: create_info.color_mode,
         visibility: create_info.visibility,
@@ -172,11 +159,23 @@ impl Window {
   }
 
   pub fn size(&self) -> Dimensions {
-    self.state.size
+    let mut window_rect = RECT::default();
+    let _ = unsafe { GetWindowRect(HWND(self.state.hwnd), std::ptr::addr_of_mut!(window_rect)) }.log_error();
+    Dimensions {
+      width: window_rect.right - window_rect.left,
+      height: window_rect.bottom - window_rect.top,
+    }
+    // self.state.size
   }
 
   pub fn inner_size(&self) -> Dimensions {
-    self.state.inner_size
+    let mut client_rect = RECT::default();
+    let _ = unsafe { GetClientRect(HWND(self.state.hwnd), std::ptr::addr_of_mut!(client_rect)) }.log_error();
+    Dimensions {
+      width: client_rect.right - client_rect.left,
+      height: client_rect.bottom - client_rect.top,
+    }
+    // self.state.inner_size
   }
 
   pub fn close(&mut self) {
@@ -215,14 +214,10 @@ impl Window {
       //   debug!("ExitLoop");
       //   return None;
       // }
-      WindowMessage::State(StateMessage::Resized {
+      WindowMessage::State(StateMessage::Resizing {
         size_state,
-        window_size,
-        client_size,
       }) => {
         self.state.size_state = size_state;
-        self.state.size = window_size;
-        self.state.inner_size = client_size;
       }
       WindowMessage::Keyboard(KeyboardMessage::Key { key_code, state, .. }) => {
         self.state.input.update_keyboard_state(key_code, state);
