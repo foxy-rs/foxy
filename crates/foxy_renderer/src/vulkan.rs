@@ -14,21 +14,14 @@ use tracing::*;
 use vk_mem::{Alloc, Allocator, AllocatorCreateInfo};
 
 use self::{
-  device::Device,
-  error::VulkanError,
-  instance::Instance,
-  pipeline::descriptor::DescriptorAllocator,
-  shader::storage::ShaderStore,
-  surface::Surface,
-  swapchain::Swapchain,
-  types::{allocated_image::AllocatedImage, frame_data::FrameData},
+  device::Device, error::VulkanError, instance::Instance, shader::storage::ShaderStore, surface::Surface, swapchain::Swapchain, types::{allocated_image::AllocatedImage, frame_data::FrameData}
 };
 use crate::{
   error::RendererError,
   renderer::RenderBackend,
   vulkan::{
-    pipeline::descriptor::{DescriptorLayoutBuilder, PoolSizeRatio},
     swapchain::image_format::{ColorSpace, ImageFormat, PresentMode},
+    types::descriptor::{DescriptorAllocator, DescriptorLayoutBuilder, PoolSizeRatio},
   },
   vulkan_error,
 };
@@ -51,7 +44,7 @@ pub enum ValidationStatus {
 }
 
 pub struct Vulkan {
-  shader_store: Handle<ShaderStore>,
+  shader_store: ShaderStore,
 
   draw_image: AllocatedImage,
   draw_extent: vk::Extent2D,
@@ -140,7 +133,7 @@ impl RenderBackend for Vulkan {
 
     // init shaders
 
-    let shader_store = Handle::new(ShaderStore::new(device.clone()));
+    let shader_store = ShaderStore::new(device.clone());
 
     Ok(Self {
       window,
@@ -167,7 +160,7 @@ impl RenderBackend for Vulkan {
 
     trace!("Cleaning up Vulkan shaders...");
 
-    self.shader_store.get_mut().delete();
+    self.shader_store.delete();
 
     trace!("Cleaning up Vulkan handles/resources...");
 

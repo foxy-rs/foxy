@@ -1,11 +1,11 @@
-use super::{ShaderKind, StageInfo};
+use super::{ShaderDiscriminants, ShaderStage};
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Compute;
 
-impl StageInfo for Compute {
-  fn kind() -> ShaderKind {
-    ShaderKind::Compute
+impl ShaderStage for Compute {
+  fn kind() -> ShaderDiscriminants {
+    ShaderDiscriminants::Compute
   }
 
   fn default_source() -> String {

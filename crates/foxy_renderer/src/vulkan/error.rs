@@ -5,8 +5,6 @@ use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum VulkanError {
-  #[error("surface suboptimal")]
-  Suboptimal,
   #[error("VkResult: `{0}`")]
   Ash(#[from] ash::vk::Result),
   #[error("{0}")]
@@ -21,6 +19,10 @@ pub enum VulkanError {
   SyncObjects(String),
   #[error("{0}")]
   IO(#[from] std::io::Error),
+  #[error("surface suboptimal")]
+  Suboptimal,
+  #[error("expected different shaders for pipeline")]
+  MismatchedShaders,
 }
 
 #[macro_export]

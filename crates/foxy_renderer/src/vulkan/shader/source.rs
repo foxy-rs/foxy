@@ -11,8 +11,11 @@ use byteorder::{ByteOrder, NativeEndian};
 use strum::{Display, EnumIter};
 use tracing::*;
 
-use super::{stage::StageInfo, storage::ShaderStore};
-use crate::{vulkan::error::VulkanError, vulkan_shader_error};
+use super::stage::ShaderStage;
+use crate::{
+  vulkan::{error::VulkanError, shader::Shader},
+  vulkan_shader_error,
+};
 
 #[derive(EnumIter, Display, Clone, Debug, PartialEq, Eq, Hash)]
 #[strum(serialize_all = "snake_case")]
@@ -22,7 +25,7 @@ pub enum Source {
 }
 
 impl Source {
-  pub fn new<S: StageInfo, P: Into<PathBuf>>(path: P) -> Self {
+  pub fn new<S: ShaderStage, P: Into<PathBuf>>(path: P) -> Self {
     let path = path.into();
     match Self::read_from_cache::<S, _>(&path) {
       Ok(words) => Self::SPIRV { path, words },
@@ -38,7 +41,7 @@ impl Source {
 }
 
 impl Source {
-  pub fn read_default<S: StageInfo>() -> Self {
+  pub fn read_default<S: ShaderStage>() -> Self {
     let path: PathBuf = format!("default_{}_shader", S::kind()).into();
     match Self::read_from_cache::<S, _>(path.clone()) {
       Ok(words) => Self::SPIRV { path, words },
@@ -53,7 +56,7 @@ impl Source {
     }
   }
 
-  fn read_from_file<S: StageInfo, P: AsRef<Path>>(path: P) -> Result<Vec<u32>, VulkanError> {
+  fn read_from_file<S: ShaderStage, P: AsRef<Path>>(path: P) -> Result<Vec<u32>, VulkanError> {
     let path = path.as_ref();
     let cached_path = Self::cached_path(path)?;
     let uncached_path = Self::relative_to_exe(path)?;
@@ -79,7 +82,7 @@ impl Source {
     vec_32
   }
 
-  fn read_from_cache<S: StageInfo, P: AsRef<Path>>(path: P) -> Result<Vec<u32>, VulkanError> {
+  fn read_from_cache<S: ShaderStage, P: AsRef<Path>>(path: P) -> Result<Vec<u32>, VulkanError> {
     let path = path.as_ref();
     let cached_path = Self::cached_path(path)?;
     let uncached_path = Self::relative_to_exe(path)?;
@@ -105,12 +108,12 @@ impl Source {
     let shader_cache_dir = env::current_exe()?
       .parent()
       .context("invalid exe parent")?
-      .join(ShaderStore::SHADER_CACHE_DIR);
+      .join(Shader::SHADER_CACHE_DIR);
 
     let mut cached_path = shader_cache_dir.join(
       path
         .as_ref()
-        .strip_prefix(ShaderStore::SHADER_ASSET_DIR)
+        .strip_prefix(Shader::SHADER_ASSET_DIR)
         .unwrap_or_else(|_error| path.as_ref()),
     );
 
@@ -140,7 +143,10 @@ impl Source {
     Ok(file_age >= exe_age)
   }
 
-  fn compile_shader_type<S: StageInfo, P: AsRef<Path>>(source: &str, output_path: &P) -> Result<Vec<u8>, VulkanError> {
+  fn compile_shader_type<S: ShaderStage, P: AsRef<Path>>(
+    source: &str,
+    output_path: &P,
+  ) -> Result<Vec<u8>, VulkanError> {
     let output_path = output_path.as_ref();
     let compiler = shaderc::Compiler::new().context("failed to initialize shaderc compiler")?;
     let mut options = shaderc::CompileOptions::new().context("failed to initialize shaderc compiler options")?;
@@ -159,7 +165,7 @@ impl Source {
         .context("failed to access file_name")?
         .to_str()
         .context("failed to convert file_name to str")?,
-      S::kind().entry_point().as_str(),
+      S::kind().entry_point().to_str().unwrap(),
       Some(&options),
     ) {
       Ok(result) => {

@@ -1,11 +1,11 @@
-use super::{ShaderKind, StageInfo};
+use super::{ShaderDiscriminants, ShaderStage};
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Vertex;
 
-impl StageInfo for Vertex {
-  fn kind() -> ShaderKind {
-    ShaderKind::Vertex
+impl ShaderStage for Vertex {
+  fn kind() -> ShaderDiscriminants {
+    ShaderDiscriminants::Vertex
   }
 
   fn default_source() -> String {

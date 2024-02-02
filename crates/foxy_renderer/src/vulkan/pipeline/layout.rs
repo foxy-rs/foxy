@@ -1,28 +1,44 @@
 use ash::vk;
-use foxy_utils::types::handle::Handle;
+use strum::EnumDiscriminants;
 
+use super::{PipelineDiscriminants, PipelineType};
 use crate::vulkan::{device::Device, error::VulkanError};
 
-#[derive(Clone)]
-pub struct PipelineLayout {
-  device: Handle<Device>,
-  layout: vk::PipelineLayout,
+pub mod compute;
+
+#[derive(EnumDiscriminants)]
+pub enum PipelineLayout {
+  Graphics { layout: vk::PipelineLayout },
+  Compute { layout: vk::PipelineLayout },
 }
 
 impl PipelineLayout {
-  pub fn new(device: Handle<Device>) -> Result<Self, VulkanError> {
-    let layout_info = vk::PipelineLayoutCreateInfo::default();
-    let layout = unsafe { device.get().logical().create_pipeline_layout(&layout_info, None) }?;
-    Ok(Self { device, layout })
+  pub fn new<P: PipelineType>(
+    device: &Device,
+    descriptor_set_layout: vk::DescriptorSetLayout,
+  ) -> Result<Self, VulkanError> {
+    Ok(match P::kind() {
+      PipelineDiscriminants::Graphics => {
+        unimplemented!("graphics pipelines aren't implemented")
+      }
+      PipelineDiscriminants::Compute => {
+        let layout_info = vk::PipelineLayoutCreateInfo {
+          set_layout_count: 1,
+          p_set_layouts: &descriptor_set_layout,
+          ..Default::default()
+        };
+        let layout = unsafe { device.logical().create_pipeline_layout(&layout_info, None) }?;
+        Self::Compute { layout }
+      }
+    })
   }
 
-  pub fn delete(&mut self) {
-    unsafe {
-      self.device.get().logical().destroy_pipeline_layout(self.layout, None);
-    }
-  }
+  pub fn delete(&mut self, device: &Device) {}
 
   pub fn layout(&self) -> vk::PipelineLayout {
-    self.layout
+    match self {
+      PipelineLayout::Graphics { layout } => *layout,
+      PipelineLayout::Compute { layout } => *layout,
+    }
   }
 }
