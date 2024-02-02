@@ -15,6 +15,6 @@ pub enum RenderLoopMessage {
 #[derive(Debug)]
 pub enum GameLoopMessage {
   Sync,
-  RenderData(RenderData),
+  RenderData(),
   Exit,
 }

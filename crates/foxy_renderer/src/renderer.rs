@@ -1,7 +1,6 @@
 use foxy_utils::{time::Time, types::primitives::Dimensions};
 use raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle};
 
-use self::render_data::RenderData;
 use crate::error::RendererError;
 
 pub mod command;
@@ -21,7 +20,6 @@ pub trait RenderBackend {
 // please
 pub struct Renderer<B: RenderBackend> {
   backend: B,
-  render_data: RenderData,
 }
 
 impl<B: RenderBackend> Renderer<B> {
@@ -33,7 +31,6 @@ impl<B: RenderBackend> Renderer<B> {
 
     Ok(Self {
       backend,
-      render_data: RenderData::default(),
     })
   }
 
@@ -43,9 +40,5 @@ impl<B: RenderBackend> Renderer<B> {
 
   pub fn draw_frame(&mut self, render_time: Time) -> Result<(), RendererError> {
     self.backend.draw(render_time)
-  }
-
-  pub fn update_render_data(&mut self, render_data: RenderData) {
-    self.render_data = render_data;
   }
 }

@@ -1,22 +1,21 @@
 #![deny(unsafe_op_in_unsafe_fn)]
 
-use std::time::Duration;
+use std::{mem::ManuallyDrop, time::Duration};
 
 use ash::vk;
-use foxy_utils::{log::LogErr, types::handle::Handle};
+use foxy_utils::{log::LogErr, time::Time, types::handle::Handle};
 use raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle};
 use tracing::*;
-use vk_mem::{Allocator, AllocatorCreateInfo};
+use vk_mem::{Alloc, Allocator, AllocatorCreateInfo};
 
 use self::{
-  deletion_queue::DeletionQueue,
   device::Device,
   error::VulkanError,
-  frame_data::FrameData,
   instance::Instance,
   shader::storage::ShaderStore,
   surface::Surface,
   swapchain::Swapchain,
+  types::{allocated_image::AllocatedImage, frame_data::FrameData},
 };
 use crate::{
   error::RendererError,
@@ -25,15 +24,13 @@ use crate::{
   vulkan_error,
 };
 
-pub mod deletion_queue;
 pub mod device;
 pub mod error;
-pub mod frame_data;
 pub mod instance;
-pub mod queue;
 pub mod shader;
 pub mod surface;
 pub mod swapchain;
+pub mod types;
 
 #[derive(Default, PartialEq, Eq, Clone, Copy)]
 pub enum ValidationStatus {
@@ -43,14 +40,16 @@ pub enum ValidationStatus {
 }
 
 pub struct Vulkan {
-  deletion_queue: DeletionQueue,
   shader_store: Handle<ShaderStore>,
 
-  // allocator: Allocator,
+  draw_image: AllocatedImage,
+  draw_extent: vk::Extent2D,
 
   frame_index: usize,
   frame_data: Vec<FrameData>,
   swapchain: Swapchain,
+
+  allocator: ManuallyDrop<Allocator>,
 
   device: Device,
   surface: Surface,
@@ -66,7 +65,6 @@ impl RenderBackend for Vulkan {
     Self: Sized,
   {
     trace!("Initializing Vulkan");
-    let deletion_queue = DeletionQueue::new();
 
     let instance = Instance::new(
       &window,
@@ -81,30 +79,63 @@ impl RenderBackend for Vulkan {
     let surface = Surface::new(&window, &instance).map_err(|e| RendererError::Unrecoverable(e.into()))?;
     let device = Device::new(&surface, instance.clone()).map_err(|e| RendererError::Unrecoverable(e.into()))?;
 
+    let allocator_info = AllocatorCreateInfo::new(instance.raw(), device.logical(), *device.physical())
+      .flags(vk_mem::AllocatorCreateFlags::BUFFER_DEVICE_ADDRESS);
+    let allocator =
+      ManuallyDrop::new(Allocator::new(allocator_info).map_err(|e| RendererError::Unrecoverable(e.into()))?);
+
     let swapchain = Swapchain::new(&instance, &surface, device.clone(), window_size, ImageFormat {
       color_space: ColorSpace::Unorm,
       present_mode: PresentMode::AutoImmediate,
     })
     .map_err(|e| RendererError::Unrecoverable(e.into()))?;
+
+    let draw_extent = *vk::Extent3D::builder()
+      .width(window_size.width as u32)
+      .height(window_size.height as u32)
+      .depth(1);
+    let draw_image_format = vk::Format::R16G16B16A16_SFLOAT;
+
+    let image_create_info = Self::image_create_info(draw_extent, draw_image_format);
+    let allocation_create_info = vk_mem::AllocationCreateInfo {
+      usage: vk_mem::MemoryUsage::AutoPreferDevice,
+      required_flags: vk::MemoryPropertyFlags::DEVICE_LOCAL,
+      ..Default::default()
+    };
+
+    let (image, allocation) = unsafe { allocator.create_image(&image_create_info, &allocation_create_info) }
+      .map_err(|e| RendererError::Unrecoverable(e.into()))?;
+
+    let view_create_info = Self::image_view_create_info(image, draw_image_format, vk::ImageAspectFlags::COLOR);
+    let view = unsafe { device.logical().create_image_view(&view_create_info, None) }
+      .map_err(|e| RendererError::Unrecoverable(e.into()))?;
+
+    let draw_image = AllocatedImage {
+      image,
+      view,
+      allocation,
+      extent: draw_extent,
+      format: draw_image_format,
+    };
+
     let frame_data = (0..FrameData::FRAME_OVERLAP)
       .map(|_| FrameData::new(&device))
       .collect::<Result<Vec<_>, VulkanError>>()
       .map_err(|e| RendererError::Unrecoverable(e.into()))?;
 
-    // let allocator = Allocator::new(AllocatorCreateInfo::new(instance.raw(), device, physical_device));
-
     let shader_store = Handle::new(ShaderStore::new(device.clone()));
 
     Ok(Self {
-      deletion_queue,
       instance,
       surface,
       device,
       swapchain,
       frame_data,
       frame_index: 0,
-      // allocator,
+      allocator,
       shader_store,
+      draw_image,
+      draw_extent: Default::default(),
     })
   }
 
@@ -114,14 +145,22 @@ impl RenderBackend for Vulkan {
 
     trace!("Cleaning up Vulkan resources...");
 
-    self.deletion_queue.flush();
+    unsafe { self.device.logical().destroy_image_view(self.draw_image.view, None) };
+    unsafe {
+      self
+        .allocator
+        .destroy_image(self.draw_image.image, &mut self.draw_image.allocation)
+    };
 
     self.shader_store.get_mut().delete();
 
     for frame in &mut self.frame_data {
       frame.delete(&mut self.device);
     }
+
     self.swapchain.delete();
+
+    unsafe { ManuallyDrop::drop(&mut self.allocator) };
 
     self.device.delete();
     self.surface.delete();
@@ -145,9 +184,7 @@ impl RenderBackend for Vulkan {
     .map_err(|e| RendererError::Unrecoverable(e.into()))?;
     unsafe { self.device.logical().reset_fences(fences) }.map_err(|e| RendererError::Unrecoverable(e.into()))?;
 
-    current_frame.deletion_queue.flush();
-
-    let (image_index, is_suboptimal) = self
+    let (image_index, _is_suboptimal) = self
       .swapchain
       .acquire_next_image(current_frame.present_semaphore)
       .map_err(|e| RendererError::Unrecoverable(e.into()))?;
@@ -168,41 +205,55 @@ impl RenderBackend for Vulkan {
 
     let cmd_begin_info = vk::CommandBufferBeginInfo::builder().flags(vk::CommandBufferUsageFlags::ONE_TIME_SUBMIT);
 
+    self.draw_extent = vk::Extent2D {
+      width: self.draw_image.extent.width,
+      height: self.draw_image.extent.height,
+    };
+
     unsafe { self.device.logical().begin_command_buffer(cmd, &cmd_begin_info) }
       .map_err(|e| RendererError::Unrecoverable(e.into()))?;
 
     Self::transition_image(
       &self.device,
       cmd,
-      swapchain_image,
+      self.draw_image.image,
       vk::ImageLayout::UNDEFINED,
       vk::ImageLayout::GENERAL,
     );
 
-    let time = render_time.since_start().as_secs_f32();
-    let red_flash = (time / 1.).sin().abs();
-    let green_flash = (time / 2.).sin().abs();
-    let blue_flash = (time / 3.).sin().abs();
-    let clear_value = vk::ClearColorValue {
-      float32: [red_flash, green_flash, blue_flash, 1.0],
-    };
-    let clear_range = &[Self::image_subresource_range(vk::ImageAspectFlags::COLOR)];
+    Self::draw_background(&self.device, cmd, &self.draw_image, &render_time)
+      .map_err(|e| RendererError::Recoverable(e.into()))?;
 
-    unsafe {
-      self.device.logical().cmd_clear_color_image(
-        cmd,
-        swapchain_image,
-        vk::ImageLayout::GENERAL,
-        &clear_value,
-        clear_range,
-      )
-    }
+    Self::transition_image(
+      &self.device,
+      cmd,
+      self.draw_image.image,
+      vk::ImageLayout::GENERAL,
+      vk::ImageLayout::TRANSFER_SRC_OPTIMAL,
+    );
 
     Self::transition_image(
       &self.device,
       cmd,
       swapchain_image,
-      vk::ImageLayout::GENERAL,
+      vk::ImageLayout::UNDEFINED,
+      vk::ImageLayout::TRANSFER_DST_OPTIMAL,
+    );
+
+    Self::copy_image_to_image(
+      &self.device,
+      cmd,
+      self.draw_image.image,
+      swapchain_image,
+      self.draw_extent,
+      self.swapchain.extent(),
+    );
+
+    Self::transition_image(
+      &self.device,
+      cmd,
+      swapchain_image,
+      vk::ImageLayout::TRANSFER_DST_OPTIMAL,
       vk::ImageLayout::PRESENT_SRC_KHR,
     );
 
@@ -248,6 +299,30 @@ impl RenderBackend for Vulkan {
 }
 
 impl Vulkan {
+  pub fn draw_background(
+    device: &Device,
+    cmd: vk::CommandBuffer,
+    image: &AllocatedImage,
+    render_time: &Time,
+  ) -> Result<(), VulkanError> {
+    let time = render_time.since_start().as_secs_f32();
+    let red_flash = (time / 1.).sin().abs();
+    let green_flash = (time / 2.).sin().abs();
+    let blue_flash = (time / 3.).sin().abs();
+    let clear_value = vk::ClearColorValue {
+      float32: [red_flash, green_flash, blue_flash, 1.0],
+    };
+    let clear_range = &[Self::image_subresource_range(vk::ImageAspectFlags::COLOR)];
+
+    unsafe {
+      device
+        .logical()
+        .cmd_clear_color_image(cmd, image.image, vk::ImageLayout::GENERAL, &clear_value, clear_range)
+    }
+
+    Ok(())
+  }
+
   pub fn transition_image(
     device: &Device,
     cmd: vk::CommandBuffer,
@@ -312,5 +387,86 @@ impl Vulkan {
       .command_buffer_infos(command_buffer_infos)
       .wait_semaphore_infos(wait_semaphore_infos)
       .signal_semaphore_infos(signal_semaphore_infos)
+  }
+
+  pub fn image_create_info(extent: vk::Extent3D, format: vk::Format) -> vk::ImageCreateInfo {
+    *vk::ImageCreateInfo::builder()
+      .image_type(vk::ImageType::TYPE_2D)
+      .format(format)
+      .extent(extent)
+      .mip_levels(1)
+      .array_layers(1)
+      .samples(vk::SampleCountFlags::TYPE_1)
+      .tiling(vk::ImageTiling::OPTIMAL)
+      .usage(
+        vk::ImageUsageFlags::TRANSFER_SRC
+          | vk::ImageUsageFlags::TRANSFER_DST
+          | vk::ImageUsageFlags::STORAGE
+          | vk::ImageUsageFlags::COLOR_ATTACHMENT,
+      )
+  }
+
+  pub fn image_view_create_info(
+    image: vk::Image,
+    format: vk::Format,
+    mask: vk::ImageAspectFlags,
+  ) -> vk::ImageViewCreateInfo {
+    let subresource = vk::ImageSubresourceRange::builder()
+      .base_mip_level(0)
+      .level_count(1)
+      .base_array_layer(0)
+      .layer_count(1)
+      .aspect_mask(mask);
+
+    *vk::ImageViewCreateInfo::builder()
+      .view_type(vk::ImageViewType::TYPE_2D)
+      .image(image)
+      .format(format)
+      .subresource_range(*subresource)
+  }
+
+  pub fn copy_image_to_image(
+    device: &Device,
+    cmd: vk::CommandBuffer,
+    source: vk::Image,
+    dest: vk::Image,
+    source_size: vk::Extent2D,
+    dest_size: vk::Extent2D,
+  ) {
+    let src_subres = vk::ImageSubresourceLayers::builder()
+      .aspect_mask(vk::ImageAspectFlags::COLOR)
+      .base_array_layer(0)
+      .layer_count(1)
+      .mip_level(0);
+    let dst_subres = vk::ImageSubresourceLayers::builder()
+      .aspect_mask(vk::ImageAspectFlags::COLOR)
+      .base_array_layer(0)
+      .layer_count(1)
+      .mip_level(0);
+
+    let blit_region = vk::ImageBlit2::builder()
+      .src_offsets([vk::Offset3D::default(), vk::Offset3D {
+        x: source_size.width as i32,
+        y: source_size.height as i32,
+        z: 1,
+      }])
+      .dst_offsets([vk::Offset3D::default(), vk::Offset3D {
+        x: dest_size.width as i32,
+        y: dest_size.height as i32,
+        z: 1,
+      }])
+      .src_subresource(*src_subres)
+      .dst_subresource(*dst_subres);
+
+    let regions = &[*blit_region];
+    let blit_info = vk::BlitImageInfo2::builder()
+      .dst_image(dest)
+      .dst_image_layout(vk::ImageLayout::TRANSFER_DST_OPTIMAL)
+      .src_image(source)
+      .src_image_layout(vk::ImageLayout::TRANSFER_SRC_OPTIMAL)
+      .filter(vk::Filter::LINEAR)
+      .regions(regions);
+
+    unsafe { device.logical().cmd_blit_image2(cmd, &blit_info) };
   }
 }

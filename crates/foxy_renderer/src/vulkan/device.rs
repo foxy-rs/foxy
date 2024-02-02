@@ -11,8 +11,7 @@ use tracing::*;
 use super::{
   error::VulkanError,
   instance::Instance,
-  queue::{Queue, QueueFamilyIndices},
-  surface::Surface,
+  surface::Surface, types::queue::{Queue, QueueFamilyIndices},
 };
 use crate::vulkan_unsupported_error;
 

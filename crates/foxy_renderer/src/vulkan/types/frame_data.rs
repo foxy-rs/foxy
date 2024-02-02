@@ -1,13 +1,15 @@
 use ash::vk;
 
-use super::{deletion_queue::DeletionQueue, device::Device, error::VulkanError};
-use crate::vulkan_error;
+use crate::{
+  vulkan::{device::Device, error::VulkanError},
+  vulkan_error,
+};
 
 #[derive(Default)]
 pub struct FrameData {
-  pub deletion_queue: DeletionQueue,
   pub command_pool: vk::CommandPool,
   pub master_command_buffer: vk::CommandBuffer,
+
   pub render_fence: vk::Fence,
   pub present_semaphore: vk::Semaphore,
   pub render_semaphore: vk::Semaphore,
@@ -17,8 +19,6 @@ impl FrameData {
   pub const FRAME_OVERLAP: usize = 2;
 
   pub fn new(device: &Device) -> Result<FrameData, VulkanError> {
-    let deletion_queue = DeletionQueue::new();
-
     let create_info = vk::CommandPoolCreateInfo::builder()
       .queue_family_index(device.graphics().family())
       .flags(vk::CommandPoolCreateFlags::TRANSIENT | vk::CommandPoolCreateFlags::RESET_COMMAND_BUFFER);
@@ -43,7 +43,6 @@ impl FrameData {
     let render_semaphore = unsafe { device.logical().create_semaphore(&semaphore_info, None) }?;
 
     Ok(FrameData {
-      deletion_queue,
       command_pool,
       master_command_buffer,
       render_fence,
@@ -55,6 +54,7 @@ impl FrameData {
   pub fn delete(&mut self, device: &mut Device) {
     unsafe {
       device.logical().destroy_command_pool(self.command_pool, None);
+
       device.logical().destroy_fence(self.render_fence, None);
       device.logical().destroy_semaphore(self.present_semaphore, None);
       device.logical().destroy_semaphore(self.render_semaphore, None);

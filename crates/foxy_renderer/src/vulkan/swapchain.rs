@@ -19,8 +19,6 @@ pub struct Swapchain {
   swapchain_loader: khr::Swapchain,
 }
 
-pub mod buffer;
-pub mod image;
 pub mod image_format;
 pub mod pipeline;
 
@@ -81,6 +79,11 @@ impl Swapchain {
       height: self.extent.height as i32,
     }
   }
+
+  pub fn extent(&self) -> vk::Extent2D {
+    self.extent
+  }
+
 
   pub fn khr(&self) -> vk::SwapchainKHR {
     self.swapchain

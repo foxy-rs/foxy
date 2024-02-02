@@ -2,7 +2,7 @@ use std::collections::VecDeque;
 
 #[derive(Default)]
 pub struct DeletionQueue {
-  deletors: VecDeque<Box<dyn FnMut() + 'static + Send + Sync>>,
+  deletors: VecDeque<Box<dyn FnOnce() + 'static + Send>>,
 }
 
 impl DeletionQueue {
@@ -12,12 +12,12 @@ impl DeletionQueue {
     }
   }
 
-  pub fn push(&mut self, func: impl FnMut() + 'static + Send + Sync) {
-    self.deletors.push_back(Box::new(func));
+  pub fn push<F: FnOnce() + 'static + Send>(&mut self, f: F) {
+    self.deletors.push_back(Box::new(f));
   }
 
   pub fn flush(&mut self) {
-    while let Some(mut deletor) = self.deletors.pop_back() {
+    while let Some(deletor) = self.deletors.pop_back() {
       deletor();
     }
   }

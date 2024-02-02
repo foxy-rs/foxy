@@ -193,7 +193,7 @@ impl Framework<'_> {
         } else {
           match self
             .game_mailbox
-            .send_and_wait(GameLoopMessage::RenderData(RenderData {}))
+            .send_and_wait(GameLoopMessage::RenderData())
             .log_error()
           {
             Ok(render_response) => match render_response {

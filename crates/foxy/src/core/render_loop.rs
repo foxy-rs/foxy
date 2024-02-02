@@ -81,10 +81,7 @@ impl RenderLoop {
     }) {
       Ok(message) => match message {
         GameLoopMessage::Exit => Ok(true),
-        GameLoopMessage::RenderData(data) => {
-          self.renderer.update_render_data(data);
-          Ok(false)
-        }
+        GameLoopMessage::RenderData() => Ok(false),
         _ => Ok(false),
       },
       Err(error) => {
