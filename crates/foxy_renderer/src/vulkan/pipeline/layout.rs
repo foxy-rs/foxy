@@ -33,7 +33,11 @@ impl PipelineLayout {
     })
   }
 
-  pub fn delete(&mut self, device: &Device) {}
+  pub fn delete(&mut self, device: &Device) {
+    unsafe {
+      device.logical().destroy_pipeline_layout(self.layout(), None);
+    }
+  }
 
   pub fn layout(&self) -> vk::PipelineLayout {
     match self {
