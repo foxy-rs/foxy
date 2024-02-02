@@ -1,7 +1,5 @@
 use std::time::Duration;
 
-use foxy_renderer::renderer::render_data::RenderData;
-
 #[derive(Debug)]
 pub enum RenderLoopMessage {
   EmergencyExit,

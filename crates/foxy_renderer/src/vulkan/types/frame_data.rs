@@ -19,6 +19,8 @@ impl FrameData {
   pub const FRAME_OVERLAP: usize = 2;
 
   pub fn new(device: &Device) -> Result<FrameData, VulkanError> {
+    // init command pool
+
     let create_info = vk::CommandPoolCreateInfo::builder()
       .queue_family_index(device.graphics().family())
       .flags(vk::CommandPoolCreateFlags::TRANSIENT | vk::CommandPoolCreateFlags::RESET_COMMAND_BUFFER);
@@ -34,6 +36,8 @@ impl FrameData {
       .first()
       .cloned()
       .ok_or_else(|| vulkan_error!("invalid command buffers size"))?;
+
+    // init sync objects
 
     let fence_info = vk::FenceCreateInfo::builder().flags(vk::FenceCreateFlags::SIGNALED);
     let render_fence = unsafe { device.logical().create_fence(&fence_info, None) }?;

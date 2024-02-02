@@ -2,6 +2,7 @@ use ash::vk;
 use foxy_utils::types::handle::Handle;
 
 pub mod config;
+pub mod descriptor;
 pub mod layout;
 
 use self::config::{HasLayout, HasRenderPass, RenderPipelineConfig};

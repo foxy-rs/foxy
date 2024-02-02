@@ -20,7 +20,6 @@ pub struct Swapchain {
 }
 
 pub mod image_format;
-pub mod pipeline;
 
 impl Swapchain {
   pub fn delete(&mut self) {
