@@ -6,7 +6,7 @@ use foxy_utils::{
   thread::{
     error::ThreadError,
     handle::{HandlesResult, ThreadLoop},
-  },
+  }, thread_error,
 };
 use windows::{
   core::{HSTRING, PCWSTR},
@@ -67,7 +67,7 @@ impl ThreadLoop for WindowLoop {
       std::thread::Builder::new()
         .name(thread_id)
         .spawn(move || -> Result<(), ThreadError> {
-          let hinstance: HINSTANCE = unsafe { GetModuleHandleW(None).map_err(anyhow::Error::from)? }.into();
+          let hinstance: HINSTANCE = unsafe { GetModuleHandleW(None).map_err(|e| thread_error!(e))? }.into();
           debug_assert_ne!(hinstance.0, 0);
           let htitle = HSTRING::from(info.create_info.title.0);
           let window_class = htitle.clone();
@@ -78,7 +78,7 @@ impl ThreadLoop for WindowLoop {
             cbWndExtra: std::mem::size_of::<WNDCLASSEXW>() as i32,
             lpfnWndProc: Some(crate::window::procs::wnd_proc),
             hInstance: hinstance,
-            hCursor: unsafe { LoadCursorW(None, IDC_ARROW).map_err(anyhow::Error::from)? },
+            hCursor: unsafe { LoadCursorW(None, IDC_ARROW).map_err(|e| thread_error!(e))? },
             lpszClassName: PCWSTR(window_class.as_ptr()),
             ..Default::default()
           };
@@ -125,7 +125,7 @@ impl ThreadLoop for WindowLoop {
               hwnd: hwnd.read().unwrap().0,
               hinstance: hinstance.0,
             }))
-            .map_err(anyhow::Error::from)?;
+            .map_err(|e| thread_error!(e))?;
 
           // Message pump
           while let Some(message) = self.next_message() {

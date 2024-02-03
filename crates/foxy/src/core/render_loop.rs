@@ -5,6 +5,7 @@ use foxy_utils::{
     error::ThreadError,
     handle::{HandlesResult, ThreadLoop},
   },
+  thread_error,
   time::EngineTime,
 };
 use messaging::Mailbox;
@@ -23,13 +24,13 @@ impl ThreadLoop for RenderLoop {
   type Params = ();
 
   fn run(mut self, thread_id: String, _: Self::Params) -> HandlesResult {
-    Ok(std::thread::Builder::new()
+    std::thread::Builder::new()
       .name(thread_id)
       .spawn(move || -> Result<(), ThreadError> {
         trace!("Beginning render");
 
         loop {
-          if self.renderer_sync_or_exit()? {
+          if self.renderer_sync_or_exit().map_err(|e| thread_error!(e))? {
             break;
           }
 
@@ -45,11 +46,11 @@ impl ThreadLoop for RenderLoop {
             let _ = self
               .messenger
               .send_and_wait(RenderLoopMessage::EmergencyExit)
-              .map_err(anyhow::Error::from)?;
+              .map_err(|e| thread_error!(e))?;
             break;
           }
 
-          if self.renderer_sync_or_exit()? {
+          if self.renderer_sync_or_exit().map_err(|e| thread_error!(e))? {
             break;
           }
         }
@@ -60,7 +61,7 @@ impl ThreadLoop for RenderLoop {
 
         Ok(())
       })
-      .map_err(ThreadError::from)?)
+      .map_err(ThreadError::from)
   }
 }
 
