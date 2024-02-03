@@ -92,10 +92,21 @@ impl Pipeline {
   }
 
   pub fn bind(&self, device: &Device, command_buffer: vk::CommandBuffer) {
-    unsafe {
-      device
-        .logical()
-        .cmd_bind_pipeline(command_buffer, vk::PipelineBindPoint::GRAPHICS, self.pipeline())
-    };
+    match self {
+      Pipeline::Graphics { pipeline } => {
+        unsafe {
+          device
+            .logical()
+            .cmd_bind_pipeline(command_buffer, vk::PipelineBindPoint::GRAPHICS, *pipeline)
+        };
+      }
+      Pipeline::Compute { pipeline } => {
+        unsafe {
+          device
+            .logical()
+            .cmd_bind_pipeline(command_buffer, vk::PipelineBindPoint::COMPUTE, *pipeline)
+        };
+      }
+    }
   }
 }

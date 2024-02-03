@@ -147,8 +147,9 @@ impl RenderBackend for Vulkan {
     // init shaders
 
     let mut shader_store = ShaderStore::new(device.clone());
-    shader_store
-      .insert::<ComputeShader>(include_shader!(ComputeShader; &device, "../assets/shaders/foxy_renderer/gradient.comp"));
+    shader_store.insert::<ComputeShader>(
+      include_shader!(ComputeShader; &device, "../assets/shaders/foxy_renderer/gradient.comp"),
+    );
 
     // init pipelines
 
@@ -303,24 +304,27 @@ impl Vulkan {
       .ok_or_else(|| vulkan_error!("invalid frame"))?;
     let cmd = current_frame.master_command_buffer;
 
-    let time = render_time.since_start().as_secs_f32();
-    let red_flash = (time / 0.25).sin().abs();
-    let green_flash = (time / 1.25).sin().abs();
-    let blue_flash = (time / 3.).sin().abs();
-    let clear_value = vk::ClearColorValue {
-      float32: [red_flash, green_flash, blue_flash, 1.0],
-    };
-    let clear_range = &[image::image_subresource_range(vk::ImageAspectFlags::COLOR)];
+    self.gradient_pipeline.bind(&self.device, cmd);
 
     unsafe {
-      self.device.logical().cmd_clear_color_image(
+      self.device.logical().cmd_bind_descriptor_sets(
         cmd,
-        self.draw_image.image,
-        vk::ImageLayout::GENERAL,
-        &clear_value,
-        clear_range,
+        vk::PipelineBindPoint::COMPUTE,
+        self.gradient_pipeline_layout.layout(),
+        0,
+        &[self.draw_image_descriptors],
+        &[],
       )
     }
+
+    unsafe {
+      self.device.logical().cmd_dispatch(
+        cmd,
+        f32::ceil(self.draw_extent.width as f32 / 16.0) as u32,
+        f32::ceil(self.draw_extent.height as f32 / 16.0) as u32,
+        1,
+      )
+    };
 
     Ok(())
   }
