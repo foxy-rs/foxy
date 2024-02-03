@@ -8,7 +8,9 @@ BUILD_TYPE = "release"
 [env]
 CARGO_MAKE_EXTEND_WORKSPACE_MAKEFILE = true
 CARGO_MAKE_RUN_TARGET                = "foxy"
-ASSET_FOLDER_LOCATION                = "./samples/ookami/assets"
+PROJECT_ASSET_FOLDER_LOCATION        = "./crates/ookami/assets"
+FOXY_ASSET_FOLDER_LOCATION           = "./crates/foxy/assets"
+RENDERER_ASSET_FOLDER_LOCATION       = "./crates/foxy_renderer/assets"
 ASSET_FOLDER_DESTINATION             = "./target/${BUILD_TYPE}/assets"
 
 [config]
@@ -36,13 +38,17 @@ dependencies = ["copy-resources"]
 
 [tasks.copy-resources]
 workspace = false
-condition = { files_modified = { input = ["${CARGO_MAKE_WORKING_DIRECTORY}/Cargo.toml", "${CARGO_MAKE_WORKING_DIRECTORY}/Makefile.toml", "${ASSET_FOLDER_LOCATION}/**/*"], output = ["${ASSET_FOLDER_DESTINATION}/**/*"] } }
+condition = { files_modified = { input = ["${CARGO_MAKE_WORKING_DIRECTORY}/Cargo.toml", "${CARGO_MAKE_WORKING_DIRECTORY}/Makefile.toml", "${PROJECT_ASSET_FOLDER_LOCATION}/**/*", "${FOXY_ASSET_FOLDER_LOCATION}/**/*", "${RENDERER_ASSET_FOLDER_LOCATION}/**/*"], output = ["${ASSET_FOLDER_DESTINATION}/**/*"] } }
 script_runner = "@shell"
 windows.script = '''
-  xcopy "${ASSET_FOLDER_LOCATION}" "${ASSET_FOLDER_DESTINATION}/" /e /y /i
+  xcopy "${PROJECT_ASSET_FOLDER_LOCATION}" "${ASSET_FOLDER_DESTINATION}/" /e /y /i
+  xcopy "${FOXY_ASSET_FOLDER_LOCATION}" "${ASSET_FOLDER_DESTINATION}/" /e /y /i
+  xcopy "${RENDERER_ASSET_FOLDER_LOCATION}" "${ASSET_FOLDER_DESTINATION}/" /e /y /i
 '''
 script = '''
-  cp -rfu ${ASSET_FOLDER_LOCATION} ${ASSET_FOLDER_DESTINATION}/
+  cp -rfu ${PROJECT_ASSET_FOLDER_LOCATION} ${ASSET_FOLDER_DESTINATION}/
+  cp -rfu ${FOXY_ASSET_FOLDER_LOCATION} ${ASSET_FOLDER_DESTINATION}/
+  cp -rfu ${RENDERER_ASSET_FOLDER_LOCATION} ${ASSET_FOLDER_DESTINATION}/
 '''
 dependencies = ["delete-resources"]
 

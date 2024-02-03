@@ -25,11 +25,11 @@ pub enum Source {
 }
 
 impl Source {
-  pub fn new<S: ShaderStage, P: Into<PathBuf>>(path: P) -> Self {
+  pub fn new<S: ShaderStage>(path: impl Into<PathBuf>) -> Self {
     let path = path.into();
-    match Self::read_from_cache::<S, _>(&path) {
+    match Self::read_from_cache::<S>(&path) {
       Ok(words) => Self::SPIRV { path, words },
-      Err(_) => match Self::read_from_file::<S, _>(path.clone()) {
+      Err(_) => match Self::read_from_file::<S>(path.clone()) {
         Ok(words) => Self::SPIRV { path, words },
         Err(error) => {
           error!("{error} | Fallback shader being used");
@@ -38,12 +38,30 @@ impl Source {
       },
     }
   }
+
+  pub fn from_source<S: ShaderStage>(path: impl Into<PathBuf>, source: &str) -> Self {
+    let path = path.into();
+    let mut new_path: String = path.to_str().unwrap_or_default().into();
+    while new_path.starts_with("../") {
+      new_path = new_path.trim_start_matches("../").to_string();
+    }
+    let Ok(cached_path) = Self::cached_path(new_path) else {
+      return Self::read_default::<S>();
+    };
+    match Self::compile_shader_type::<S, _>(source, &cached_path) {
+      Ok(bytes) => {
+        let words = Self::to_words(bytes);
+        Self::SPIRV { path, words }
+      }
+      Err(_) => Self::read_default::<S>(),
+    }
+  }
 }
 
 impl Source {
   pub fn read_default<S: ShaderStage>() -> Self {
     let path: PathBuf = format!("default_{}_shader", S::kind()).into();
-    match Self::read_from_cache::<S, _>(path.clone()) {
+    match Self::read_from_cache::<S>(path.clone()) {
       Ok(words) => Self::SPIRV { path, words },
       Err(_) => {
         let cached_path = Self::cached_path(path.clone()).unwrap();
@@ -56,7 +74,7 @@ impl Source {
     }
   }
 
-  fn read_from_file<S: ShaderStage, P: AsRef<Path>>(path: P) -> Result<Vec<u32>, VulkanError> {
+  fn read_from_file<S: ShaderStage>(path: impl AsRef<Path>) -> Result<Vec<u32>, VulkanError> {
     let path = path.as_ref();
     let cached_path = Self::cached_path(path)?;
     let uncached_path = Self::relative_to_exe(path)?;
@@ -82,7 +100,7 @@ impl Source {
     vec_32
   }
 
-  fn read_from_cache<S: ShaderStage, P: AsRef<Path>>(path: P) -> Result<Vec<u32>, VulkanError> {
+  fn read_from_cache<S: ShaderStage>(path: impl AsRef<Path>) -> Result<Vec<u32>, VulkanError> {
     let path = path.as_ref();
     let cached_path = Self::cached_path(path)?;
     let uncached_path = Self::relative_to_exe(path)?;
@@ -98,13 +116,13 @@ impl Source {
     }
   }
 
-  fn relative_to_exe<P: Into<PathBuf>>(path: P) -> Result<PathBuf, VulkanError> {
+  fn relative_to_exe(path: impl Into<PathBuf>) -> Result<PathBuf, VulkanError> {
     let shader_dir = env::current_exe()?.parent().unwrap().join(path.into());
 
     Ok(shader_dir)
   }
 
-  fn cached_path<P: AsRef<Path>>(path: P) -> Result<PathBuf, VulkanError> {
+  fn cached_path(path: impl AsRef<Path>) -> Result<PathBuf, VulkanError> {
     let shader_cache_dir = env::current_exe()?
       .parent()
       .context("invalid exe parent")?
@@ -136,7 +154,7 @@ impl Source {
     Ok(cached_path)
   }
 
-  fn cached_file_younger_than_exe<P: AsRef<Path>>(cached_file: P) -> Result<bool, VulkanError> {
+  fn cached_file_younger_than_exe(cached_file: impl AsRef<Path>) -> Result<bool, VulkanError> {
     let file_age = cached_file.as_ref().metadata()?.modified()?;
     let exe_age = env::current_exe()?.metadata()?.modified()?;
     // debug!("File age: [{file_age:?}], Exe age: [{exe_age:?}]");

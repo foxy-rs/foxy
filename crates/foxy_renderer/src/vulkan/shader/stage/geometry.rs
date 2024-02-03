@@ -1,9 +1,9 @@
 use super::{ShaderDiscriminants, ShaderStage};
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
-pub struct Geometry;
+pub struct GeometryShader;
 
-impl ShaderStage for Geometry {
+impl ShaderStage for GeometryShader {
   fn kind() -> ShaderDiscriminants {
     ShaderDiscriminants::Geometry
   }

@@ -1,9 +1,9 @@
 use super::{ShaderDiscriminants, ShaderStage};
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
-pub struct Vertex;
+pub struct VertexShader;
 
-impl ShaderStage for Vertex {
+impl ShaderStage for VertexShader {
   fn kind() -> ShaderDiscriminants {
     ShaderDiscriminants::Vertex
   }

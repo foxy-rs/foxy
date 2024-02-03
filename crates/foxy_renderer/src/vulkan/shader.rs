@@ -23,11 +23,11 @@ enum BuildAttempt {
 #[strum_discriminants(enumflags2::bitflags())]
 #[strum_discriminants(repr(u32))]
 pub enum Shader {
-  Vertex { module: vk::ShaderModule },
-  Fragment { module: vk::ShaderModule },
-  Geometry { module: vk::ShaderModule },
-  Compute { module: vk::ShaderModule },
-  Mesh { module: vk::ShaderModule },
+  Vertex { path: PathBuf, module: vk::ShaderModule },
+  Fragment { path: PathBuf, module: vk::ShaderModule },
+  Geometry { path: PathBuf, module: vk::ShaderModule },
+  Compute { path: PathBuf, module: vk::ShaderModule },
+  Mesh { path: PathBuf, module: vk::ShaderModule },
 }
 
 impl PartialEq for Shader {
@@ -55,22 +55,47 @@ impl Shader {
 }
 
 impl Shader {
-  pub fn new<S: ShaderStage>(device: Device, path: impl Into<PathBuf>) -> Self {
-    let source = Source::new::<S, _>(path);
-    let module = Self::build_shader_module::<S>(&device, &source, BuildAttempt::First)
+  pub fn new<S: ShaderStage>(device: &Device, path: impl Into<PathBuf>) -> Self {
+    let path: PathBuf = path.into();
+    let source = Source::new::<S>(path.clone());
+    let module = Self::build_shader_module::<S>(device, &source, BuildAttempt::First)
       .expect("fallbacks should never fail to compile");
 
     match S::kind() {
-      ShaderDiscriminants::Vertex => Self::Vertex { module },
-      ShaderDiscriminants::Fragment => Self::Vertex { module },
-      ShaderDiscriminants::Geometry => Self::Vertex { module },
-      ShaderDiscriminants::Compute => Self::Vertex { module },
-      ShaderDiscriminants::Mesh => Self::Vertex { module },
+      ShaderDiscriminants::Vertex => Self::Vertex { module, path },
+      ShaderDiscriminants::Fragment => Self::Fragment { module, path },
+      ShaderDiscriminants::Geometry => Self::Geometry { module, path },
+      ShaderDiscriminants::Compute => Self::Compute { module, path },
+      ShaderDiscriminants::Mesh => Self::Mesh { module, path },
+    }
+  }
+
+  pub fn from_source<S: ShaderStage>(device: &Device, path: impl Into<PathBuf>, source: Source) -> Self {
+    let path: PathBuf = path.into();
+    let module = Self::build_shader_module::<S>(device, &source, BuildAttempt::First)
+      .expect("fallbacks should never fail to compile");
+
+    match S::kind() {
+      ShaderDiscriminants::Vertex => Self::Vertex { module, path },
+      ShaderDiscriminants::Fragment => Self::Fragment { module, path },
+      ShaderDiscriminants::Geometry => Self::Geometry { module, path },
+      ShaderDiscriminants::Compute => Self::Compute { module, path },
+      ShaderDiscriminants::Mesh => Self::Mesh { module, path },
     }
   }
 
   pub fn kind(&self) -> ShaderDiscriminants {
     ShaderDiscriminants::from(self)
+  }
+
+  pub fn path(&self) -> &PathBuf {
+    match self {
+      Shader::Vertex { path, .. } => path,
+      Shader::Fragment { path, .. } => path,
+      Shader::Geometry { path, .. } => path,
+      Shader::Compute { path, .. } => path,
+      Shader::Mesh { path, .. } => path,
+    }
   }
 
   pub fn module(&self) -> vk::ShaderModule {
@@ -108,7 +133,7 @@ impl Shader {
             Err(err) => match attempt {
               BuildAttempt::First => {
                 error!("Shader module creation failure, attempting to recompile ({err})");
-                let source = Source::new::<S, _>(path);
+                let source = Source::new::<S>(path);
                 Self::build_shader_module::<S>(device, &source, BuildAttempt::Second)?
               }
               BuildAttempt::Second => {

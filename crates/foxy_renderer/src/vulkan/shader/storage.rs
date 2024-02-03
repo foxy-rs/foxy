@@ -29,13 +29,21 @@ impl ShaderStore {
     }
   }
 
+  pub fn insert<S: ShaderStage>(&mut self, shader: Shader) -> Option<Shader> {
+    let mut string: String = shader.path().to_str().unwrap_or_default().into();
+    while string.starts_with("../") {
+      string = string.trim_start_matches("../").to_string();
+    }
+    self.shaders.get_mut().insert(PathBuf::from(string), shader)
+  }
+
   pub fn get<S: ShaderStage>(&mut self, path: impl Into<PathBuf>) -> Shader {
     let path: PathBuf = path.into();
     let mut shaders = self.shaders.get_mut();
     match shaders.get(&path).cloned() {
       Some(shader) => shader.clone(),
       None => {
-        let shader = Shader::new::<S>(self.device.clone(), path.clone());
+        let shader = Shader::new::<S>(&self.device, path.clone());
         shaders.insert(path, shader.clone());
         shader
       }

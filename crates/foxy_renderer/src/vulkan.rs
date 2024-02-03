@@ -1,6 +1,6 @@
 #![deny(unsafe_op_in_unsafe_fn)]
 
-use std::{mem::ManuallyDrop, ops::Deref, time::Duration};
+use std::{collections::HashSet, mem::ManuallyDrop, ops::Deref, time::Duration};
 
 use ash::vk;
 use foxy_utils::{
@@ -17,6 +17,7 @@ use self::{
   device::Device,
   error::VulkanError,
   instance::Instance,
+  pipeline::{layout::PipelineLayout, Pipeline},
   shader::storage::ShaderStore,
   surface::Surface,
   swapchain::Swapchain,
@@ -24,8 +25,11 @@ use self::{
 };
 use crate::{
   error::RendererError,
+  include_shader,
   renderer::RenderBackend,
   vulkan::{
+    pipeline::ComputePipeline,
+    shader::stage::compute::ComputeShader,
     swapchain::image_format::{ColorSpace, ImageFormat, PresentMode},
     types::descriptor::{DescriptorAllocator, DescriptorLayoutBuilder, PoolSizeRatio},
   },
@@ -50,6 +54,9 @@ pub enum ValidationStatus {
 }
 
 pub struct Vulkan {
+  gradient_pipeline: Pipeline,
+  gradient_pipeline_layout: PipelineLayout,
+
   shader_store: ShaderStore,
 
   draw_image: AllocatedImage,
@@ -139,7 +146,18 @@ impl RenderBackend for Vulkan {
 
     // init shaders
 
-    let shader_store = ShaderStore::new(device.clone());
+    let mut shader_store = ShaderStore::new(device.clone());
+    shader_store
+      .insert::<ComputeShader>(include_shader!(ComputeShader; &device, "../assets/shaders/foxy_renderer/gradient.comp"));
+
+    // init pipelines
+
+    let gradient_pipeline_layout = PipelineLayout::new::<ComputePipeline>(&device, draw_image_descriptor_layout)?;
+    let gradient_pipeline = Pipeline::new::<ComputePipeline>(
+      &device,
+      HashSet::from([shader_store.get::<ComputeShader>("assets/shaders/foxy_renderer/gradient.comp")]),
+      &gradient_pipeline_layout,
+    )?;
 
     Ok(Self {
       window,
@@ -157,6 +175,8 @@ impl RenderBackend for Vulkan {
       draw_image_descriptor_layout,
       draw_image_descriptors,
       global_descriptor_allocator,
+      gradient_pipeline,
+      gradient_pipeline_layout,
     })
   }
 
@@ -165,6 +185,9 @@ impl RenderBackend for Vulkan {
     let _ = unsafe { self.device.logical().device_wait_idle() }.log_error();
 
     trace!("Cleaning up Vulkan shaders...");
+
+    self.gradient_pipeline.delete(&self.device);
+    self.gradient_pipeline_layout.delete(&self.device);
 
     self.shader_store.delete();
 

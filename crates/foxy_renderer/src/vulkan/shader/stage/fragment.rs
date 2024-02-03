@@ -1,9 +1,9 @@
 use super::{ShaderDiscriminants, ShaderStage};
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
-pub struct Fragment;
+pub struct FragmentShader;
 
-impl ShaderStage for Fragment {
+impl ShaderStage for FragmentShader {
   fn kind() -> ShaderDiscriminants {
     ShaderDiscriminants::Fragment
   }

@@ -1,9 +1,9 @@
 use super::{ShaderDiscriminants, ShaderStage};
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
-pub struct Compute;
+pub struct ComputeShader;
 
-impl ShaderStage for Compute {
+impl ShaderStage for ComputeShader {
   fn kind() -> ShaderDiscriminants {
     ShaderDiscriminants::Compute
   }

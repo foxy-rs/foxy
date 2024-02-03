@@ -2,6 +2,7 @@ use std::collections::HashSet;
 
 use ash::vk;
 use strum::{Display, EnumDiscriminants};
+use tracing::debug;
 
 pub mod config;
 pub mod layout;
@@ -13,20 +14,23 @@ use super::{
 };
 use crate::{vulkan::error::VulkanError, vulkan_error};
 
-pub struct Graphics;
-impl PipelineType for Graphics {
+/// Tag for Pipeline and PipelineLayout enums
+pub struct GraphicsPipeline;
+impl PipelineType for GraphicsPipeline {
   fn kind() -> PipelineDiscriminants {
     PipelineDiscriminants::Graphics
   }
 }
 
-pub struct Compute;
-impl PipelineType for Compute {
+/// Tag for Pipeline and PipelineLayout enums
+pub struct ComputePipeline;
+impl PipelineType for ComputePipeline {
   fn kind() -> PipelineDiscriminants {
     PipelineDiscriminants::Compute
   }
 }
 
+/// Tag for Pipeline and PipelineLayout enums
 pub trait PipelineType {
   fn kind() -> PipelineDiscriminants;
 }
@@ -42,14 +46,17 @@ impl Pipeline {
   pub fn new<P: PipelineType>(
     device: &Device,
     shaders: HashSet<Shader>,
-    layout: PipelineLayout,
+    layout: &PipelineLayout,
   ) -> Result<Self, VulkanError> {
     Ok(match P::kind() {
       PipelineDiscriminants::Graphics => {
         unimplemented!("graphics pipelines aren't implemented")
       }
       PipelineDiscriminants::Compute => {
-        let Some(shader) = shaders.iter().find(|&s| s.kind() == ShaderDiscriminants::Compute) else {
+        let Some(shader) = shaders.iter().find(|&s| {
+          debug!("{:?}", s.kind());
+          s.kind() == ShaderDiscriminants::Compute
+        }) else {
           return Err(VulkanError::MismatchedShaders);
         };
 
@@ -71,7 +78,7 @@ impl Pipeline {
     })
   }
 
-  fn delete(&mut self, device: &Device) {
+  pub fn delete(&mut self, device: &Device) {
     unsafe {
       device.logical().destroy_pipeline(self.pipeline(), None);
     }
@@ -84,7 +91,7 @@ impl Pipeline {
     }
   }
 
-  fn bind(&self, device: &Device, command_buffer: vk::CommandBuffer) {
+  pub fn bind(&self, device: &Device, command_buffer: vk::CommandBuffer) {
     unsafe {
       device
         .logical()
