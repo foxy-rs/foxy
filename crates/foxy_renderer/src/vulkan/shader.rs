@@ -20,6 +20,7 @@ enum BuildAttempt {
 
 #[derive(Display, Clone, Eq, EnumDiscriminants)]
 #[strum_discriminants(derive(Hash, Display))]
+#[strum_discriminants(strum(serialize_all = "snake_case"))]
 #[strum_discriminants(enumflags2::bitflags())]
 #[strum_discriminants(repr(u32))]
 pub enum Shader {
@@ -43,8 +44,8 @@ impl Hash for Shader {
 }
 
 impl Shader {
-  pub const SHADER_ASSET_DIR: &'static str = "assets/shaders";
-  pub const SHADER_CACHE_DIR: &'static str = "tmp/shaders";
+  pub const SHADER_ASSET_DIR: &'static str = "assets";
+  pub const SHADER_CACHE_DIR: &'static str = "tmp";
 
   pub fn delete(&mut self, device: &Device) {
     debug!("Deleting shader module");
@@ -58,16 +59,7 @@ impl Shader {
   pub fn new<S: ShaderStage>(device: &Device, path: impl Into<PathBuf>) -> Self {
     let path: PathBuf = path.into();
     let source = Source::new::<S>(path.clone());
-    let module = Self::build_shader_module::<S>(device, &source, BuildAttempt::First)
-      .expect("fallbacks should never fail to compile");
-
-    match S::kind() {
-      ShaderDiscriminants::Vertex => Self::Vertex { module, path },
-      ShaderDiscriminants::Fragment => Self::Fragment { module, path },
-      ShaderDiscriminants::Geometry => Self::Geometry { module, path },
-      ShaderDiscriminants::Compute => Self::Compute { module, path },
-      ShaderDiscriminants::Mesh => Self::Mesh { module, path },
-    }
+    Self::from_source::<S>(device, path, source)
   }
 
   pub fn from_source<S: ShaderStage>(device: &Device, path: impl Into<PathBuf>, source: Source) -> Self {

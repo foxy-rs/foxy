@@ -60,12 +60,11 @@ impl Source {
 
 impl Source {
   pub fn read_default<S: ShaderStage>() -> Self {
-    let path: PathBuf = format!("default_{}_shader", S::kind()).into();
+    let path = S::default_path();
     match Self::read_from_cache::<S>(path.clone()) {
       Ok(words) => Self::SPIRV { path, words },
       Err(_) => {
         let cached_path = Self::cached_path(path.clone()).unwrap();
-        let path: PathBuf = format!("default_{}_shader", S::kind()).into();
         let source = S::default_source();
         let bytes = Self::compile_shader_type::<S, _>(&source, &cached_path).unwrap();
         let words = Self::to_words(bytes);
@@ -201,7 +200,10 @@ impl Source {
 
         Ok(result.as_binary_u8().into())
       }
-      Err(err) => Err(VulkanError::Shaderc(err)),
+      Err(err) => {
+        error!("[{:?}] Failed to compile stage: `{err:?}`", S::kind());
+        Err(VulkanError::Shaderc(err))
+      },
     }
   }
 }

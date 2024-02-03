@@ -18,7 +18,7 @@ anyhow        = "1.0"
 tracing       = "0.1"
 tracing-error = "0.2"
 
-foxy_utils = { version = "0.1", path = "../foxy_utils" }
+foxy_utils = { version = "0.2", path = "../foxy_utils" }
 bytemuck   = "1.13"
 byteorder  = "1.5"
 itertools  = "0.12"
@@ -31,3 +31,5 @@ ash-window        = "0.12"
 ash               = { version = "0.37", features = ["linked", "debug"] }
 shaderc           = "0.8"
 vk-mem            = "0.3"
+egui              = "0.25"
+egui-ash          = "0.4"

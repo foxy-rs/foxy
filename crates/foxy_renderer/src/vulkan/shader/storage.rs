@@ -29,6 +29,10 @@ impl ShaderStore {
     }
   }
 
+  pub fn device(&self) -> &Device {
+    &self.device
+  }
+
   pub fn insert<S: ShaderStage>(&mut self, shader: Shader) -> Option<Shader> {
     let mut string: String = shader.path().to_str().unwrap_or_default().into();
     while string.starts_with("../") {

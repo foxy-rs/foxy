@@ -25,8 +25,8 @@ use self::{
 };
 use crate::{
   error::RendererError,
-  include_shader,
   renderer::RenderBackend,
+  store_shader,
   vulkan::{
     pipeline::ComputePipeline,
     shader::stage::compute::ComputeShader,
@@ -147,16 +147,14 @@ impl RenderBackend for Vulkan {
     // init shaders
 
     let mut shader_store = ShaderStore::new(device.clone());
-    shader_store.insert::<ComputeShader>(
-      include_shader!(ComputeShader; &device, "../assets/shaders/foxy_renderer/gradient.comp"),
-    );
+    store_shader!(<ComputeShader>(shader_store, "../assets/foxy_renderer/shaders/gradient.comp"));
 
     // init pipelines
 
     let gradient_pipeline_layout = PipelineLayout::new::<ComputePipeline>(&device, draw_image_descriptor_layout)?;
     let gradient_pipeline = Pipeline::new::<ComputePipeline>(
       &device,
-      HashSet::from([shader_store.get::<ComputeShader>("assets/shaders/foxy_renderer/gradient.comp")]),
+      HashSet::from([shader_store.get::<ComputeShader>("assets/shaders/gradient.comp")]),
       &gradient_pipeline_layout,
     )?;
 
@@ -217,7 +215,7 @@ impl RenderBackend for Vulkan {
     self.instance.delete();
   }
 
-  fn draw(&mut self, render_time: foxy_utils::time::Time) -> Result<(), RendererError> {
+  fn draw(&mut self, render_time: Time) -> Result<(), RendererError> {
     match self.draw(render_time) {
       Ok(()) => Ok(()),
       Err(VulkanError::Suboptimal) => {

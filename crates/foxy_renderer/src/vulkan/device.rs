@@ -303,7 +303,7 @@ impl Device {
         if $features.$feature != true.into() {
           return Err(vulkan_unsupported_error!(
             "not all requested device features are supported on this device: missing {}",
-            stringify!($token)
+            stringify!($feature)
           ));
         }
       }};
@@ -314,6 +314,7 @@ impl Device {
     // 1.1 features
     let supported_features = physical_device_features.p_next as *const vk::PhysicalDeviceVulkan11Features;
     if let Some(_supported_features) = unsafe { supported_features.as_ref() } {
+      // supported_ext_feature!(supported_features, <vk::PhysicalDeviceShaderClockFeaturesKHR>, shader_clock);
       // 1.2 features
       let supported_features = physical_device_features.p_next as *const vk::PhysicalDeviceVulkan12Features;
       if let Some(supported_features) = unsafe { supported_features.as_ref() } {

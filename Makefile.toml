@@ -8,7 +8,7 @@ BUILD_TYPE = "release"
 [env]
 CARGO_MAKE_EXTEND_WORKSPACE_MAKEFILE = true
 CARGO_MAKE_RUN_TARGET                = "foxy"
-PROJECT_ASSET_FOLDER_LOCATION        = "./crates/ookami/assets"
+PROJECT_ASSET_FOLDER_LOCATION        = "./samples/ookami/assets"
 FOXY_ASSET_FOLDER_LOCATION           = "./crates/foxy/assets"
 RENDERER_ASSET_FOLDER_LOCATION       = "./crates/foxy_renderer/assets"
 ASSET_FOLDER_DESTINATION             = "./target/${BUILD_TYPE}/assets"

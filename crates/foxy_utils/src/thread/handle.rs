@@ -5,12 +5,12 @@ use tracing::*;
 use super::error::ThreadError;
 use crate::log::LogErr;
 
-pub type HandlesResult = Result<Vec<JoinHandle<Result<(), ThreadError>>>, ThreadError>;
+pub type HandlesResult = Result<JoinHandle<Result<(), ThreadError>>, ThreadError>;
 
 pub trait ThreadLoop {
   type Params;
 
-  fn run(self, thread_id: Vec<String>, params: Self::Params) -> HandlesResult
+  fn run(self, thread_id: String, params: Self::Params) -> HandlesResult
   where
     Self: Sized;
 
@@ -20,15 +20,15 @@ pub trait ThreadLoop {
 }
 
 pub struct LoopHandle<L: ThreadLoop, A> {
-  id: Vec<String>,
+  id: String,
 
-  thread_handle: Option<Vec<JoinHandle<Result<(), ThreadError>>>>,
+  thread_handle: Option<JoinHandle<Result<(), ThreadError>>>,
   thread_loop: Option<L>,
   thread_args: Option<A>,
 }
 
 impl<L: ThreadLoop<Params = A>, A> LoopHandle<L, A> {
-  pub fn new(id: Vec<String>, thread_loop: L, thread_args: A) -> Self {
+  pub fn new(id: String, thread_loop: L, thread_args: A) -> Self {
     Self {
       id,
       thread_handle: None,
@@ -49,14 +49,12 @@ impl<L: ThreadLoop<Params = A>, A> LoopHandle<L, A> {
   }
 
   pub fn join(&mut self) {
-    if let Some(thread_handles) = self.thread_handle.take() {
-      for (i, handle) in thread_handles.into_iter().enumerate() {
-        if let Err(error) = handle.join() {
+    if let Some(thread_handle) = self.thread_handle.take() {
+      if let Err(error) = thread_handle.join() {
           error!("{error:?}");
         } else {
-          trace!("`{}` thread has joined.", self.id.get(i).cloned().unwrap_or_default());
+          trace!("`{}` thread has joined.", self.id);
         }
-      }
     } else {
       error!("`{:?}` thread handle was None!", self.id);
     }

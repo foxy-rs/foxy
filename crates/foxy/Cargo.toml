@@ -24,6 +24,6 @@ messaging  = "1.0"
 quanta     = "0.12"
 crossbeam  = "0.8"
 
-foxy_utils    = { version = "0.1", path = "../foxy_utils" }
+foxy_utils    = { version = "0.2", path = "../foxy_utils" }
 foxy_window   = { version = "0.1", path = "../foxy_window" }
 foxy_renderer = { version = "0.1", path = "../foxy_renderer" }

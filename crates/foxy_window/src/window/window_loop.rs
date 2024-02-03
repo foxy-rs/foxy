@@ -59,16 +59,13 @@ pub struct WindowLoop;
 impl ThreadLoop for WindowLoop {
   type Params = WindowThreadCreateInfo;
 
-  fn run(mut self, thread_id: Vec<String>, info: Self::Params) -> HandlesResult {
-    let mut handles = vec![];
+  fn run(mut self, thread_id: String, info: Self::Params) -> HandlesResult {
 
     let hwnd = Arc::new(RwLock::new(HWND::default()));
 
     // WINDOW
-
-    handles.push(
       std::thread::Builder::new()
-        .name(thread_id.first().cloned().expect("invalid index"))
+        .name(thread_id)
         .spawn(move || -> Result<(), ThreadError> {
           let hinstance: HINSTANCE = unsafe { GetModuleHandleW(None).map_err(anyhow::Error::from)? }.into();
           debug_assert_ne!(hinstance.0, 0);
@@ -144,10 +141,7 @@ impl ThreadLoop for WindowLoop {
 
           Ok(())
         })
-        .map_err(ThreadError::from)?,
-    );
-
-    Ok(handles)
+        .map_err(ThreadError::from)
   }
 }
 

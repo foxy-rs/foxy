@@ -22,9 +22,9 @@ pub struct RenderLoop {
 impl ThreadLoop for RenderLoop {
   type Params = ();
 
-  fn run(mut self, thread_id: Vec<String>, _: Self::Params) -> HandlesResult {
-    Ok(vec![std::thread::Builder::new()
-      .name(thread_id.first().cloned().expect("invalid index"))
+  fn run(mut self, thread_id: String, _: Self::Params) -> HandlesResult {
+    Ok(std::thread::Builder::new()
+      .name(thread_id)
       .spawn(move || -> Result<(), ThreadError> {
         trace!("Beginning render");
 
@@ -60,7 +60,7 @@ impl ThreadLoop for RenderLoop {
 
         Ok(())
       })
-      .map_err(ThreadError::from)?])
+      .map_err(ThreadError::from)?)
   }
 }
 

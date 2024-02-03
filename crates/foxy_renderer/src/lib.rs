@@ -15,3 +15,11 @@ macro_rules! include_shader {
     $crate::vulkan::shader::Shader::from_source::<$type>($device, pathbuf, source)
   }};
 }
+
+#[macro_export]
+macro_rules! store_shader {
+  (<$type:tt>($shader_store:expr, $path:expr)) => {{
+    let shader = $crate::include_shader!($type; $shader_store.device(), $path);
+    $shader_store.insert::<$type>(shader);
+  }};
+}

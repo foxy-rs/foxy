@@ -86,7 +86,7 @@ impl Window {
 
     let winloop = WindowLoop::new();
     let wincreate_info = WindowThreadCreateInfo::new(create_info.clone(), proc_sender);
-    let mut window_thread = LoopHandle::new(vec![Self::WINDOW_THREAD_ID.into()], winloop, wincreate_info);
+    let mut window_thread = LoopHandle::new(Self::WINDOW_THREAD_ID.into(), winloop, wincreate_info);
 
     window_thread.run();
 

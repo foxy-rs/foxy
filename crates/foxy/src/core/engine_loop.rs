@@ -63,7 +63,7 @@ impl Framework<'_> {
 
     let (renderer_mailbox, game_mailbox) = Mailbox::new_entangled_pair();
     let render_thread = LoopHandle::new(
-      vec![Self::RENDER_THREAD_ID.into()],
+      Self::RENDER_THREAD_ID.into(),
       RenderLoop {
         renderer,
         messenger: renderer_mailbox,
@@ -201,13 +201,14 @@ impl Framework<'_> {
             Ok(render_response) => match render_response {
               RenderLoopMessage::EmergencyExit => Stage::Exiting { foxy: &mut self.foxy },
               _ => {
+                // show FPS in window title
                 if self.fps_timer.has_elapsed(Duration::from_millis(300)) {
                   if let DebugInfo::Shown = self.debug_info {
-                    let fps = 1.0 / self.foxy.time().average_delta_secs();
+                    let ft = self.foxy.time().average_delta_secs();
                     self
                       .foxy
                       .window()
-                      .set_title(&format!("{} | FPS: {:.2}", self.foxy.window().title(), fps,));
+                      .set_title(&format!("{} | {:.6} s", self.foxy.window().title(), ft,));
                   }
                 }
                 Stage::EndFrame {
