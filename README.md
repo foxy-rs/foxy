@@ -7,16 +7,15 @@ use foxy::prelude::{
   winit::event::{Event, WindowEvent},
   *,
 };
-use tracing::debug;
 
 pub struct App;
 
 impl Runnable<()> for App {
-  fn foxy() -> FoxyCreateInfo {
-    FoxyCreateInfo::default()
-      .with_debug_info(DebugInfo::Shown)
-      .with_polling(Polling::Poll)
-  }
+  // fn foxy() -> FoxyCreateInfo {
+  //   FoxyCreateInfo::default()
+  //     .with_debug_info(DebugInfo::Shown)
+  //     .with_polling(Polling::Poll)
+  // }
 
   fn new(_foxy: &mut Foxy) -> Self {
     Self {}
@@ -28,14 +27,12 @@ impl Runnable<()> for App {
       ..
     }) = event
     {
-      debug!("UPDATE: {:?}", event)
+      println!("UPDATE: {:?}", event)
     }
   }
 }
 
 fn main() -> FoxyResult<()> {
-  start_debug_logging_session!();
-
   App::run()
 }
 ```
