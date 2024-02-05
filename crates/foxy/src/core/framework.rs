@@ -136,11 +136,11 @@ impl<T: 'static + Send + Sync> Framework<T> {
               _ => (),
             }
 
-            if self.fps_timer.has_elapsed(Duration::from_millis(300)) {
+            if self.fps_timer.has_elapsed(Duration::from_millis(250)) {
               if let DebugInfo::Shown = self.debug_info {
                 let time = self.render_time.time();
-                let ft = 1.0 / time.average_delta_secs();
-                self.window.set_title(&format!("{} | {:.6}", self.original_title, ft,));
+                let ft = time.average_delta_secs();
+                self.window.set_title(&format!("{} | {:^5.4} s | {:>5.0} FPS", self.original_title, ft, 1.0 / ft));
               }
             }
           }
