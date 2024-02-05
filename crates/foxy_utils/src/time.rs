@@ -65,7 +65,7 @@ impl Default for TimeCreateInfo {
     Self {
       tick_rate: 128.0,
       bail_threshold: 1024,
-      max_samples: 100,
+      max_samples: 128,
     }
   }
 }

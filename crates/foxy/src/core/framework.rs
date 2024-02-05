@@ -136,7 +136,7 @@ impl<T: 'static + Send + Sync> Framework<T> {
               _ => (),
             }
 
-            if self.fps_timer.has_elapsed(Duration::from_millis(250)) {
+            if self.fps_timer.has_elapsed(Duration::from_millis(200)) {
               if let DebugInfo::Shown = self.debug_info {
                 let time = self.render_time.time();
                 let ft = time.average_delta_secs();
