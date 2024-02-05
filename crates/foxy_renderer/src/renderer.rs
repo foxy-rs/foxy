@@ -14,7 +14,7 @@ pub trait RenderBackend {
 
   fn delete(&mut self);
 
-  fn draw(&mut self, render_time: Time, render_data: RenderData) -> Result<(), RendererError>;
+  fn draw(&mut self, render_time: Time, render_data: RenderData) -> Result<bool, RendererError>;
 }
 
 // Renderer is just a thin wrapper to allow for other APIs in the future if I so
@@ -34,11 +34,11 @@ impl<B: RenderBackend> Renderer<B> {
     self.backend.delete();
   }
 
-  pub fn draw(&mut self, render_time: Time, render_data: Option<RenderData>) -> Result<(), RendererError> {
+  pub fn draw(&mut self, render_time: Time, render_data: Option<RenderData>) -> Result<bool, RendererError> {
     if let Some(render_data) = render_data {
       self.backend.draw(render_time, render_data)
     } else {
-      Ok(())
+      Ok(false)
     }
   }
 }

@@ -206,18 +206,28 @@ impl RenderBackend for Vulkan {
     self.instance.delete();
   }
 
-  fn draw(&mut self, render_time: Time, _render_data: RenderData) -> Result<(), RendererError> {
-    match self.draw(render_time) {
-      Ok(()) => Ok(()),
+  fn draw(&mut self, render_time: Time, _render_data: RenderData) -> Result<bool, RendererError> {
+    let result = {
+      let (image_index, is_suboptimal) = self.start_commands()?;
+      if is_suboptimal {
+        Err(VulkanError::Suboptimal)
+      } else {
+        self.draw_frame(image_index, &render_time)?;
+        self.submit_commands(image_index)
+      }
+    };
+
+    match result {
+      Ok(()) => Ok(true),
       Err(VulkanError::Suboptimal) => {
         // rebuild swapchain
         self.rebuild_swapchain()?;
-        Ok(())
+        Ok(false)
       }
       Err(VulkanError::Ash(vk::Result::ERROR_OUT_OF_DATE_KHR)) => {
         // rebuild swapchain
         self.rebuild_swapchain()?;
-        Ok(())
+        Ok(false)
       }
       Err(error) => Err(error)?,
     }
@@ -227,16 +237,6 @@ impl RenderBackend for Vulkan {
 impl Vulkan {
   fn rebuild_swapchain(&mut self) -> Result<(), VulkanError> {
     Ok(())
-  }
-
-  fn draw(&mut self, render_time: foxy_utils::time::Time) -> Result<(), VulkanError> {
-    let (image_index, is_suboptimal) = self.start_commands()?;
-    if is_suboptimal {
-      Err(VulkanError::Suboptimal)
-    } else {
-      self.draw_frame(image_index, &render_time)?;
-      self.submit_commands(image_index)
-    }
   }
 
   fn start_commands(&mut self) -> Result<(usize, bool), VulkanError> {

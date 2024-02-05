@@ -37,6 +37,7 @@ pub struct Framework<T: 'static + Send + Sync> {
   render_time: EngineTime,
   render_queue: Arc<ArrayQueue<RenderData>>,
   render_mailbox: Mailbox<RenderLoopMessage<T>, GameLoopMessage>,
+  had_first_frame: bool,
 
   game_thread: Option<JoinHandle<FoxyResult<()>>>,
 
@@ -60,7 +61,6 @@ impl<T: 'static + Send + Sync> Framework<T> {
     let window = Arc::new(window);
 
     let renderer = Renderer::new(&window, window.inner_size())?;
-    window.set_visible(true);
     let render_time = create_info.time.build();
     let render_queue = Arc::new(ArrayQueue::new(Self::MAX_FRAME_DATA_IN_FLIGHT));
 
@@ -79,6 +79,7 @@ impl<T: 'static + Send + Sync> Framework<T> {
       render_time,
       render_queue,
       render_mailbox,
+      had_first_frame: false,
       game_thread,
       fps_timer: Timer::new(),
     })
@@ -95,21 +96,24 @@ impl<T: 'static + Send + Sync> Framework<T> {
 
     Ok(self.event_loop.run(move |event, elwt| {
       match &event {
-        Event::WindowEvent { window_id: _, event } => match event {
-          WindowEvent::CloseRequested => {
-            let response = self
-              .render_mailbox
-              .send_and_recv(RenderLoopMessage::ExitRequested)
-              .log_error();
-            if let Err(_) | Ok(GameLoopMessage::Exit) = response {
-              if let Some(thread) = self.game_thread.take() {
-                let _ = thread.join();
-              }
-              self.renderer.delete();
-              elwt.exit();
+        Event::WindowEvent {
+          event: WindowEvent::CloseRequested,
+          ..
+        } => {
+          let response = self
+            .render_mailbox
+            .send_and_recv(RenderLoopMessage::ExitRequested)
+            .log_error();
+          if let Err(_) | Ok(GameLoopMessage::Exit) = response {
+            if let Some(thread) = self.game_thread.take() {
+              let _ = thread.join();
             }
+            self.renderer.delete();
+            elwt.exit();
           }
-          WindowEvent::RedrawRequested => {
+        }
+        Event::AboutToWait => {
+          if !elwt.exiting() {
             let render_data = self.render_queue.pop();
 
             if render_data.is_some() {
@@ -120,10 +124,17 @@ impl<T: 'static + Send + Sync> Framework<T> {
               }
             }
 
-            if let Err(error) = self.renderer.draw(self.render_time.time(), render_data) {
-              error!("`{error}` Aborting...");
-              let _ = self.render_mailbox.send_and_recv(RenderLoopMessage::MustExit);
-              elwt.exit();
+            match self.renderer.draw(self.render_time.time(), render_data) {
+              Ok(true) if !self.had_first_frame => {
+                self.had_first_frame = true;
+                self.window.set_visible(true);
+              }
+              Err(error) => {
+                error!("`{error}` Aborting...");
+                let _ = self.render_mailbox.send_and_recv(RenderLoopMessage::MustExit);
+                elwt.exit();
+              }
+              _ => (),
             }
 
             if self.fps_timer.has_elapsed(Duration::from_millis(300)) {
@@ -133,12 +144,6 @@ impl<T: 'static + Send + Sync> Framework<T> {
                 self.window.set_title(&format!("{} | {:.6}", self.original_title, ft,));
               }
             }
-          }
-          _ => (),
-        },
-        Event::AboutToWait => {
-          if let Polling::Poll = self.polling_strategy {
-            self.window.request_redraw();
           }
         }
         Event::LoopExiting => {

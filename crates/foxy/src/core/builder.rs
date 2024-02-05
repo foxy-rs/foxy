@@ -1,4 +1,5 @@
 use foxy_utils::time::TimeCreateInfo;
+use winit::dpi::Size;
 
 use crate::window::WindowCreateInfo;
 
@@ -26,6 +27,21 @@ pub struct FoxyCreateInfo {
 }
 
 impl FoxyCreateInfo {
+  pub fn with_window_info(mut self, window: WindowCreateInfo) -> Self {
+    self.window = window;
+    self
+  }
+
+  pub fn with_title(mut self, title: String) -> Self {
+    self.window.title = title;
+    self
+  }
+
+  pub fn with_size(mut self, size: Size) -> Self {
+    self.window.inner_size = Some(size);
+    self
+  }
+  
   pub fn with_polling(mut self, polling_strategy: Polling) -> Self {
     self.polling_strategy = polling_strategy;
     self
