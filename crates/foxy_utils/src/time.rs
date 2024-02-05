@@ -8,7 +8,7 @@ use quanta::Instant;
 use thiserror::Error;
 use tracing::*;
 
-use self::timer::Timer;
+use crate::types::ring_buffer::RingBuffer;
 
 #[derive(Debug, Clone, Copy)]
 pub struct Time {
@@ -57,6 +57,7 @@ impl Time {
 pub struct TimeCreateInfo {
   pub tick_rate: f64,
   pub bail_threshold: u32,
+  pub max_samples: usize,
 }
 
 impl Default for TimeCreateInfo {
@@ -64,13 +65,14 @@ impl Default for TimeCreateInfo {
     Self {
       tick_rate: 128.0,
       bail_threshold: 1024,
+      max_samples: 100,
     }
   }
 }
 
 impl TimeCreateInfo {
   pub fn build(&self) -> EngineTime {
-    EngineTime::new(self.tick_rate, self.bail_threshold)
+    EngineTime::new(self.tick_rate, self.bail_threshold, self.max_samples)
   }
 }
 
@@ -91,10 +93,7 @@ pub struct EngineTime {
   tick_current_frame: Instant,
   tick_delta_time: Duration,
 
-  averages_sampling_time: Duration,
-  frame_time_sum: Duration,
-  frame_count: u32,
-  fps_timer: Timer,
+  frame_times: RingBuffer<Duration>,
 }
 
 impl Default for EngineTime {
@@ -102,7 +101,6 @@ impl Default for EngineTime {
     const TICK_RATE: f64 = 128.0;
     let tick_time: Duration = Duration::from_secs_f64(1. / TICK_RATE);
     const BAIL_THRESHOLD: u32 = 1024;
-    let averages_sampling_time: Duration = Duration::from_secs_f64(1.0 / EngineTime::MAX_SAMPLES as f64);
     Self {
       tick_rate: TICK_RATE,
       tick_time,
@@ -116,21 +114,17 @@ impl Default for EngineTime {
       tick_previous_frame: Instant::now(),
       tick_current_frame: Instant::now(),
       tick_delta_time: Default::default(),
-      averages_sampling_time,
-      fps_timer: Default::default(),
-      frame_time_sum: Default::default(),
-      frame_count: 1,
+      frame_times: RingBuffer::new(100),
     }
   }
 }
 
 impl EngineTime {
-  const MAX_SAMPLES: usize = 25;
-
-  pub fn new(tick_rate: f64, bail_threshold: u32) -> Self {
+  pub fn new(tick_rate: f64, bail_threshold: u32, max_samples: usize) -> Self {
     Self {
       tick_rate,
       bail_threshold,
+      frame_times: RingBuffer::new(max_samples),
       ..Default::default()
     }
   }
@@ -145,18 +139,22 @@ impl EngineTime {
     self
   }
 
-  pub fn with_averages_sampling_time(mut self, averages_sampling_time: Duration) -> Self {
-    self.averages_sampling_time = averages_sampling_time;
-    self
-  }
-
   pub fn time(&self) -> Time {
     Time {
       start_time: self.start_time,
       delta_time: self.delta_time,
       tick_delta_time: self.tick_delta_time,
-      average_delta_time: self.frame_time_sum.checked_div(self.frame_count).unwrap_or_default(),
+      average_delta_time: self.average_delta(),
     }
+  }
+
+  fn average_delta(&self) -> Duration {
+    self
+      .frame_times
+      .iter()
+      .sum::<Duration>()
+      .checked_div(self.frame_times.len() as u32)
+      .unwrap_or_default()
   }
 
   pub fn next_tick(&mut self) -> Result<bool, (bool, TimeError)> {
@@ -174,15 +172,7 @@ impl EngineTime {
     self.lag_time += self.delta_time;
     self.step_count = 0;
 
-    if self.fps_timer.has_elapsed(self.averages_sampling_time) {
-      self.frame_time_sum += self.delta_time;
-      self.frame_count = if self.frame_count >= Self::MAX_SAMPLES as u32 {
-        self.frame_time_sum = self.delta_time;
-        1
-      } else {
-        self.frame_count + 1
-      };
-    }
+    self.frame_times.push(self.delta_time);
   }
 
   pub fn tick(&mut self) {
