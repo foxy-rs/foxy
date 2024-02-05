@@ -5,8 +5,9 @@ use ash::{
   vk,
 };
 use itertools::Itertools;
-use raw_window_handle::RawDisplayHandle;
+use raw_window_handle::HasRawDisplayHandle;
 use tracing::*;
+use winit::window::Window;
 
 use super::ValidationStatus;
 use crate::{
@@ -32,9 +33,9 @@ impl Instance {
     c"VK_LAYER_KHRONOS_validation",
   ];
 
-  pub fn new(display_handle: RawDisplayHandle, validation_status: ValidationStatus) -> Result<Self, VulkanError> {
+  pub fn new(window: &Window, validation_status: ValidationStatus) -> Result<Self, VulkanError> {
     let entry = ash::Entry::linked();
-    let instance = Self::new_instance(&entry, display_handle, validation_status)?;
+    let instance = Self::new_instance(&entry, window, validation_status)?;
     let debug = Debug::new(&entry, &instance)?;
 
     Ok(Self { debug, instance, entry })
@@ -57,7 +58,7 @@ impl Instance {
 
   fn new_instance(
     entry: &ash::Entry,
-    display_handle: RawDisplayHandle,
+    window: &Window,
     validation_status: ValidationStatus,
   ) -> Result<ash::Instance, VulkanError> {
     let version = Self::select_version(entry);
@@ -70,7 +71,7 @@ impl Instance {
       .application_version(vk::make_api_version(0, 1, 0, 0));
 
     let (requested_layers, requested_extensions) =
-      Self::request_layers_and_extensions(entry, display_handle, validation_status)?;
+      Self::request_layers_and_extensions(entry, window, validation_status)?;
 
     let instance_create_info = vk::InstanceCreateInfo::builder()
       .application_info(&app_info)
@@ -117,7 +118,7 @@ impl Instance {
 
   fn request_layers_and_extensions(
     entry: &ash::Entry,
-    display_handle: RawDisplayHandle,
+    window: &Window,
     validation_status: ValidationStatus,
   ) -> Result<(Vec<*const c_char>, Vec<*const c_char>), VulkanError> {
     let (supported_layers, supported_extensions) = Self::supported(entry)?;
@@ -158,7 +159,7 @@ impl Instance {
 
     // Extensions ------------------
 
-    let mut requested_extensions = ash_window::enumerate_required_extensions(display_handle)?
+    let mut requested_extensions = ash_window::enumerate_required_extensions(window.raw_display_handle())?
       .to_vec()
       .iter()
       .map(|c| unsafe { CStr::from_ptr(*c) })

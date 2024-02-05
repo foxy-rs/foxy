@@ -8,9 +8,7 @@ use crate::log::LogErr;
 pub type HandlesResult = Result<JoinHandle<Result<(), ThreadError>>, ThreadError>;
 
 pub trait ThreadLoop {
-  type Params;
-
-  fn run(self, thread_id: String, params: Self::Params) -> HandlesResult
+  fn run(self, thread_id: String) -> HandlesResult
   where
     Self: Sized;
 
@@ -19,31 +17,27 @@ pub trait ThreadLoop {
   }
 }
 
-pub struct LoopHandle<L: ThreadLoop, A> {
+pub struct LoopHandle<L: ThreadLoop> {
   id: String,
 
   thread_handle: Option<JoinHandle<Result<(), ThreadError>>>,
   thread_loop: Option<L>,
-  thread_args: Option<A>,
 }
 
-impl<L: ThreadLoop<Params = A>, A> LoopHandle<L, A> {
-  pub fn new(id: String, thread_loop: L, thread_args: A) -> Self {
+impl<L: ThreadLoop> LoopHandle<L> {
+  pub fn new(id: String, thread_loop: L) -> Self {
     Self {
       id,
       thread_handle: None,
       thread_loop: Some(thread_loop),
-      thread_args: Some(thread_args),
     }
   }
 
   pub fn run(&mut self) {
     if let Some(thread_loop) = self.thread_loop.take() {
-      if let Some(thread_args) = self.thread_args.take() {
-        match thread_loop.run(self.id.clone(), thread_args).log_error() {
-          Ok(value) => self.thread_handle = Some(value),
-          Err(_) => self.thread_handle = None,
-        }
+      match thread_loop.run(self.id.clone()).log_error() {
+        Ok(value) => self.thread_handle = Some(value),
+        Err(_) => self.thread_handle = None,
       }
     }
   }

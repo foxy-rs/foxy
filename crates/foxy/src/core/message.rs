@@ -1,18 +1,17 @@
-use std::time::Duration;
+
+use winit::event::Event;
 
 #[derive(Debug)]
-pub enum RenderLoopMessage {
-  EmergencyExit,
-  Response {
-    delta_time: Duration,
-    average_delta_time: Duration,
-  },
+pub enum RenderLoopMessage<T: 'static + Send> {
+  Start,
+  MustExit,
+  ExitRequested,
+  Winit(Event<T>),
   None,
 }
 
 #[derive(Debug)]
 pub enum GameLoopMessage {
-  Sync,
-  RenderInfo {},
   Exit,
+  DontExit,
 }

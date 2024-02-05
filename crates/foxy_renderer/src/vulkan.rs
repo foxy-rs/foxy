@@ -8,10 +8,9 @@ use foxy_utils::{
   time::Time,
   types::{handle::Handle, primitives::Dimensions},
 };
-use foxy_window::window::Window;
-use raw_window_handle::HasRawDisplayHandle;
 use tracing::*;
 use vk_mem::{Alloc, Allocator, AllocatorCreateInfo};
+use winit::{dpi::{LogicalSize, PhysicalSize}, window::Window};
 
 use self::{
   device::Device,
@@ -25,7 +24,7 @@ use self::{
 };
 use crate::{
   error::RendererError,
-  renderer::RenderBackend,
+  renderer::{render_data::RenderData, RenderBackend},
   store_shader,
   vulkan::{
     pipeline::ComputePipeline,
@@ -76,11 +75,10 @@ pub struct Vulkan {
   device: Device,
   surface: Surface,
   instance: Instance,
-  window: Handle<Window>,
 }
 
 impl RenderBackend for Vulkan {
-  fn new(window: Handle<Window>) -> Result<Self, crate::error::RendererError>
+  fn new(window: &Window, size: PhysicalSize<u32>) -> Result<Self, crate::error::RendererError>
   where
     Self: Sized,
   {
@@ -89,7 +87,7 @@ impl RenderBackend for Vulkan {
     // init vulkan
 
     let instance = Instance::new(
-      window.get().raw_display_handle(),
+      window,
       if cfg!(debug_assertions) {
         ValidationStatus::Enabled
       } else {
@@ -97,7 +95,7 @@ impl RenderBackend for Vulkan {
       },
     )?;
 
-    let surface = Surface::new(window.get().deref(), &instance)?;
+    let surface = Surface::new(window, &instance)?;
     let device = Device::new(&surface, instance.clone())?;
 
     let allocator_info = AllocatorCreateInfo::new(instance.raw(), device.logical(), *device.physical())
@@ -105,15 +103,15 @@ impl RenderBackend for Vulkan {
     let allocator = ManuallyDrop::new(Allocator::new(allocator_info).map_err(VulkanError::from)?);
 
     // init swapchain
-    let window_size = window.get().inner_size();
+    let window_size = window.inner_size();
 
     // TODO: Make this adjustable
     let preferred_swapchain_format = ImageFormat {
       color_space: ColorSpace::Unorm,
       present_mode: PresentMode::AutoImmediate,
     };
-    let swapchain = Swapchain::new(&instance, &surface, device.clone(), window_size, preferred_swapchain_format)?;
-    let (draw_image, draw_extent) = Self::new_draw_image(&device, &allocator, window_size)?;
+    let swapchain = Swapchain::new(&instance, &surface, device.clone(), size, preferred_swapchain_format)?;
+    let (draw_image, draw_extent) = Self::new_draw_image(&device, &allocator, size)?;
 
     let frame_data = (0..FrameData::FRAME_OVERLAP)
       .map(|_| FrameData::new(&device))
@@ -159,7 +157,6 @@ impl RenderBackend for Vulkan {
     )?;
 
     Ok(Self {
-      window,
       instance,
       surface,
       device,
@@ -215,7 +212,7 @@ impl RenderBackend for Vulkan {
     self.instance.delete();
   }
 
-  fn draw(&mut self, render_time: Time) -> Result<(), RendererError> {
+  fn draw(&mut self, render_time: Time, _render_data: RenderData) -> Result<(), RendererError> {
     match self.draw(render_time) {
       Ok(()) => Ok(()),
       Err(VulkanError::Suboptimal) => {
@@ -423,11 +420,11 @@ impl Vulkan {
   fn new_draw_image(
     device: &Device,
     allocator: &Allocator,
-    window_size: Dimensions,
+    window_size: PhysicalSize<u32>,
   ) -> Result<(AllocatedImage, vk::Extent2D), VulkanError> {
     let draw_extent = *vk::Extent3D::builder()
-      .width(window_size.width as u32)
-      .height(window_size.height as u32)
+      .width(window_size.width)
+      .height(window_size.height)
       .depth(1);
     let draw_image_format = vk::Format::R16G16B16A16_SFLOAT;
 

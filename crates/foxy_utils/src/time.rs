@@ -53,6 +53,27 @@ impl Time {
   }
 }
 
+#[derive(Debug)]
+pub struct TimeCreateInfo {
+  pub tick_rate: f64,
+  pub bail_threshold: u32,
+}
+
+impl Default for TimeCreateInfo {
+  fn default() -> Self {
+    Self {
+      tick_rate: 128.0,
+      bail_threshold: 1024,
+    }
+  }
+}
+
+impl TimeCreateInfo {
+  pub fn build(&self) -> EngineTime {
+    EngineTime::new(self.tick_rate, self.bail_threshold)
+  }
+}
+
 pub struct EngineTime {
   tick_rate: f64,
   tick_time: Duration,
@@ -105,6 +126,14 @@ impl Default for EngineTime {
 
 impl EngineTime {
   const MAX_SAMPLES: usize = 25;
+
+  pub fn new(tick_rate: f64, bail_threshold: u32) -> Self {
+    Self {
+      tick_rate,
+      bail_threshold,
+      ..Default::default()
+    }
+  }
 
   pub fn with_tick_rate(mut self, tick_rate: f64) -> Self {
     self.tick_rate = tick_rate;

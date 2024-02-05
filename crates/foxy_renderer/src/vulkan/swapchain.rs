@@ -1,6 +1,7 @@
 use ash::{extensions::khr, vk};
 use foxy_utils::types::{handle::Handle, primitives::Dimensions};
 use tracing::*;
+use winit::dpi::{LogicalSize, PhysicalSize};
 
 use self::image_format::{ColorSpace, ImageFormat, PresentMode};
 use super::{device::Device, instance::Instance, surface::Surface};
@@ -41,7 +42,7 @@ impl Swapchain {
     instance: &Instance,
     surface: &Surface,
     device: Device,
-    dims: Dimensions,
+    dims: PhysicalSize<u32>,
     preferred_image_format: ImageFormat,
   ) -> Result<Self, VulkanError> {
     debug!("Window extent: {dims:?}");
