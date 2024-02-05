@@ -3,36 +3,51 @@
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/R6R8PGIU6)
 
 ```rust
-use foxy::prelude::*;
-use tracing::*;
+use foxy::prelude::{
+  winit::event::{Event, WindowEvent},
+  *,
+};
+use tracing::debug;
 
-fn main() {
-  start_debug_logging_session!();
+pub struct App;
 
-  let framework = Framework::builder()
-    .with_title("Simple Foxy App")
-    .with_size(800, 450)
-    .build_unwrap();
+impl Runnable<()> for App {
+  fn foxy() -> FoxyCreateInfo {
+    FoxyCreateInfo::default()
+      .with_debug_info(DebugInfo::Shown)
+      .with_polling(Polling::Poll)
+  }
 
-  for stage in framework {
-    match stage {
-      Stage::FixedUpdate { .. } => debug!("FixedUpdate"),
-      Stage::Update { .. } => debug!("Update"),
-      _ => {}
+  fn new(_foxy: &mut Foxy) -> Self {
+    Self {}
+  }
+
+  fn update(&mut self, _foxy: &mut Foxy, event: &Option<Event<()>>) {
+    if let Some(Event::WindowEvent {
+      event: WindowEvent::KeyboardInput { event, .. },
+      ..
+    }) = event
+    {
+      debug!("UPDATE: {:?}", event)
     }
   }
+}
+
+fn main() -> FoxyResult<()> {
+  start_debug_logging_session!();
+
+  App::run()
 }
 ```
 
 ## `foxy` is a simple engine backbone and graphics renderer
 
-The main goal of `foxy` is to be a simple, easy-to-use API. ⚠️ This project is still very much a WIP; I am only one student, after all. ⚠️While high-performance is obviously a secondary goal, ease of implementation, with regards to the internal framework and the external API, are primary. It will be using Vulkan to allow for hardware raytracing. The window currently uses `foxy_window` to create a Win32 desktop window.
+The main goal of `foxy` is to be a simple, easy-to-use API. ⚠️ This project is still very much a WIP; I am only one student, after all. ⚠️ While high-performance is obviously a secondary goal, ease of implementation, with regards to the internal framework and the external API, are primary. It will be using Vulkan to allow for hardware raytracing.
 
-There are **3** primary threads in `foxy`:
+There are **2** primary threads in `foxy`:
 
-* **main:** where all the main application code is executed
-* **window:** where the window and window message pump live
-* **render:** where the rendering happens
+* **main:** where the rendering happens and the message pump lives
+* **foxy:** where all the main application code is executed
 
 This layout was chosen to allow for the window messages not to block the application, and to allow rendering not to block on the application code.
 
@@ -51,4 +66,5 @@ This repository contains a few crates as they each naturally evolved and split a
 * Winit: as a reference on events and how to best structure them.
 * Vulkan Guide (<https://vkguide.dev/>): for being a wealth of knowledge on architecturing a vulkan application.
 * Brenden Galea: for his amazing Vulkan tutorial series (which I would love for him to continue!).
+* One Lone Coder: for inspiration in simplicity and ease of use.
 * GetIntoGameDev: for his outstanding Vulkan tutorials in C++.

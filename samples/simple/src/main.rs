@@ -1,31 +1,37 @@
-// #![cfg_attr(all(windows, not(debug_assertions)), windows_subsystem =
-// "windows")]
+#![cfg_attr(all(windows, not(debug_assertions)), windows_subsystem = "windows")]
 
-// use foxy::prelude::*;
-// use tracing::*;
+use foxy::prelude::{
+  winit::event::{Event, WindowEvent},
+  *,
+};
+use tracing::debug;
 
-// fn main() {
-//   start_debug_logging_session!();
+pub struct App;
 
-//   let mut x: u32 = 0;
+impl Runnable<()> for App {
+  fn foxy() -> FoxyCreateInfo {
+    FoxyCreateInfo::default()
+      .with_debug_info(DebugInfo::Shown)
+      .with_polling(Polling::Poll)
+  }
 
-//   let framework = Framework::builder()
-//     .with_title("Simple Foxy App")
-//     .with_size(800, 450)
-//     .build_unwrap();
+  fn new(_foxy: &mut Foxy) -> Self {
+    Self {}
+  }
 
-//   for stage in framework {
-//     match stage {
-//       Stage::FixedUpdate { .. } => {
-//         x = x.wrapping_add(1);
-//         debug!("FixedUpdate")
-//       }
-//       Stage::Update { .. } => {
-//         debug!("Update {x}")
-//       }
-//       _ => {}
-//     }
-//   }
-// }
+  fn update(&mut self, _foxy: &mut Foxy, event: &Option<Event<()>>) {
+    if let Some(Event::WindowEvent {
+      event: WindowEvent::KeyboardInput { event, .. },
+      ..
+    }) = event
+    {
+      debug!("UPDATE: {:?}", event)
+    }
+  }
+}
 
-fn main() {}
+fn main() -> FoxyResult<()> {
+  start_debug_logging_session!();
+
+  App::run()
+}

@@ -1,6 +1,6 @@
 use winit::event::Event;
 
-use super::state::Foxy;
+use super::{builder::FoxyCreateInfo, framework::Framework, state::Foxy, FoxyResult};
 
 // pub type WindowEvent<T: 'static + Send + Sync> = Event<T>;
 
@@ -24,5 +24,16 @@ pub trait Runnable<T: 'static + Send + Sync> {
   where
     Self: Sized,
   {
+  }
+
+  fn foxy() -> FoxyCreateInfo {
+    FoxyCreateInfo::default()
+  }
+
+  fn run() -> FoxyResult<()>
+  where
+    Self: Sized,
+  {
+    Framework::with_events::<Self>(Self::foxy())?.run()
   }
 }

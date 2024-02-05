@@ -5,15 +5,15 @@ use crate::window::WindowCreateInfo;
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 #[allow(unused)]
 pub enum Polling {
-  #[default]
   Poll,
+  #[default]
   Wait,
 }
 
 #[derive(Debug, Default)]
 pub enum DebugInfo {
-  #[default]
   Shown,
+  #[default]
   Hidden,
 }
 
