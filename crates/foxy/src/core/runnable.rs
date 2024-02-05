@@ -2,8 +2,6 @@ use winit::event::Event;
 
 use super::{builder::FoxyCreateInfo, framework::Framework, state::Foxy, FoxyResult};
 
-// pub type WindowEvent<T: 'static + Send + Sync> = Event<T>;
-
 #[allow(unused)]
 pub trait Runnable<T: 'static + Send + Sync> {
   fn new(foxy: &mut Foxy) -> Self;
