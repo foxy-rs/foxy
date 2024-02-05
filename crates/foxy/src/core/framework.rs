@@ -37,7 +37,6 @@ pub struct Framework<T: 'static + Send + Sync> {
   render_time: EngineTime,
   render_queue: Arc<ArrayQueue<RenderData>>,
   render_mailbox: Mailbox<RenderLoopMessage<T>, GameLoopMessage>,
-  had_first_frame: bool,
 
   game_thread: Option<JoinHandle<FoxyResult<()>>>,
 
@@ -79,7 +78,6 @@ impl<T: 'static + Send + Sync> Framework<T> {
       render_time,
       render_queue,
       render_mailbox,
-      had_first_frame: false,
       game_thread,
       fps_timer: Timer::new(),
     })
@@ -94,6 +92,7 @@ impl<T: 'static + Send + Sync> Framework<T> {
       Polling::Wait => ControlFlow::Wait,
     });
 
+    let mut had_first_frame = false;
     Ok(self.event_loop.run(move |event, elwt| {
       match &event {
         Event::WindowEvent {
@@ -125,8 +124,8 @@ impl<T: 'static + Send + Sync> Framework<T> {
             }
 
             match self.renderer.draw(self.render_time.time(), render_data) {
-              Ok(true) if !self.had_first_frame => {
-                self.had_first_frame = true;
+              Ok(true) if !had_first_frame => {
+                had_first_frame = true;
                 self.window.set_visible(true);
               }
               Err(error) => {
