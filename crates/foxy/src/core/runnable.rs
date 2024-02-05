@@ -28,7 +28,7 @@ pub trait Runnable<T: 'static + Send + Sync> {
     FoxyCreateInfo::default()
   }
 
-  /// You don't want to override this method. It's implemented as a simple wrapper around the Framework::run() method.
+  /// ## You don't want to override this method. It's implemented as a simple wrapper around the Framework::run() method.
   fn run() -> FoxyResult<()>
   where
     Self: Sized,
