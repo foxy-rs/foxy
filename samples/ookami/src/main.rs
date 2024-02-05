@@ -1,8 +1,14 @@
 #![cfg_attr(all(windows, not(debug_assertions)), windows_subsystem = "windows")]
 
-use foxy::prelude::{
-  winit::event::{Event, WindowEvent},
-  *,
+use foxy::{
+  prelude::{
+    winit::{
+      dpi::{PhysicalSize, Size},
+      event::{Event, WindowEvent},
+    },
+    *,
+  },
+  window::WindowCreateInfo,
 };
 use tracing::debug;
 
@@ -10,9 +16,18 @@ pub struct App;
 
 impl Runnable<()> for App {
   fn foxy() -> FoxyCreateInfo {
-    FoxyCreateInfo::default()
-      .with_debug_info(DebugInfo::Shown)
-      .with_polling(Polling::Poll)
+    FoxyCreateInfo {
+      window: WindowCreateInfo {
+        inner_size: Some(Size::Physical(PhysicalSize {
+          width: 800,
+          height: 450,
+        })),
+        ..Default::default()
+      },
+      ..Default::default()
+    }
+    .with_debug_info(DebugInfo::Shown)
+    .with_polling(Polling::Poll)
   }
 
   fn new(_foxy: &mut Foxy) -> Self {
