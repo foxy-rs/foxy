@@ -45,10 +45,10 @@ impl<L: ThreadLoop> LoopHandle<L> {
   pub fn join(&mut self) {
     if let Some(thread_handle) = self.thread_handle.take() {
       if let Err(error) = thread_handle.join() {
-          error!("{error:?}");
-        } else {
-          trace!("`{}` thread has joined.", self.id);
-        }
+        error!("{error:?}");
+      } else {
+        trace!("`{}` thread has joined.", self.id);
+      }
     } else {
       error!("`{:?}` thread handle was None!", self.id);
     }

@@ -203,7 +203,7 @@ impl Source {
       Err(err) => {
         error!("[{:?}] Failed to compile stage: `{err:?}`", S::kind());
         Err(VulkanError::Shaderc(err))
-      },
+      }
     }
   }
 }

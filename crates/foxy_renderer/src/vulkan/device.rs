@@ -314,8 +314,8 @@ impl Device {
     // 1.1 features
     let supported_features = physical_device_features.p_next as *const vk::PhysicalDeviceVulkan11Features;
     if let Some(_supported_features) = unsafe { supported_features.as_ref() } {
-      // supported_ext_feature!(supported_features, <vk::PhysicalDeviceShaderClockFeaturesKHR>, shader_clock);
-      // 1.2 features
+      // supported_ext_feature!(supported_features,
+      // <vk::PhysicalDeviceShaderClockFeaturesKHR>, shader_clock); 1.2 features
       let supported_features = physical_device_features.p_next as *const vk::PhysicalDeviceVulkan12Features;
       if let Some(supported_features) = unsafe { supported_features.as_ref() } {
         supported_feature!(supported_features, buffer_device_address);

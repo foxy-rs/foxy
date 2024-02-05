@@ -1,4 +1,3 @@
-
 use winit::event::Event;
 
 #[derive(Debug)]

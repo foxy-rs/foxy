@@ -46,10 +46,7 @@ impl Swapchain {
     preferred_image_format: ImageFormat,
   ) -> Result<Self, VulkanError> {
     debug!("Window extent: {dims:?}");
-    let extent = vk::Extent2D::builder()
-      .width(dims.width)
-      .height(dims.height)
-      .build();
+    let extent = vk::Extent2D::builder().width(dims.width).height(dims.height).build();
     // debug!("Window extent (true): {extent:?}");
 
     let swapchain_loader = khr::Swapchain::new(instance.raw(), device.logical());

@@ -6,7 +6,6 @@ use super::state::Foxy;
 
 #[allow(unused)]
 pub trait Runnable<T: 'static + Send + Sync> {
-
   fn new(foxy: &mut Foxy) -> Self;
 
   fn start(&mut self, foxy: &mut Foxy) {}
@@ -21,5 +20,9 @@ pub trait Runnable<T: 'static + Send + Sync> {
     true
   }
 
-  fn delete(mut self) where Self: Sized {}
+  fn delete(mut self)
+  where
+    Self: Sized,
+  {
+  }
 }
