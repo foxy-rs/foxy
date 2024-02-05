@@ -119,12 +119,16 @@ impl<T: 'static + Send + Sync> Framework<T> {
             }
           }
           WindowEvent::RedrawRequested => {
-            self.render_time.update();
-            while self.render_time.should_do_tick_unchecked() {
-              self.render_time.tick();
+            let render_data = self.render_queue.pop();
+
+            if render_data.is_some() {
+              // only update time when a render is going to occur 
+              self.render_time.update();
+              while self.render_time.should_do_tick_unchecked() {
+                self.render_time.tick();
+              }
             }
 
-            let render_data = self.render_queue.pop();
             if let Err(error) = self.renderer.draw(self.render_time.time(), render_data) {
               error!("`{error}` Aborting...");
               let _ = self.render_mailbox.send_and_recv(RenderLoopMessage::MustExit);
@@ -135,9 +139,7 @@ impl<T: 'static + Send + Sync> Framework<T> {
               if let DebugInfo::Shown = self.debug_info {
                 let time = self.render_time.time();
                 let ft = 1.0 / time.average_delta_secs();
-                self
-                  .window
-                  .set_title(&format!("{} | {:.6}", self.original_title, ft,));
+                self.window.set_title(&format!("{} | {:.6}", self.original_title, ft,));
               }
             }
           }
