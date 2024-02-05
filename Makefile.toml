@@ -24,15 +24,21 @@ alias     = "build"
 
 [tasks.build]
 workspace    = false
-command      = "cargo"
-args         = ["build"]
-dependencies = ["copy-resources"]
+dependencies = ["build-debug", "build-release"]
+
+[tasks.build-debug]
+workspace          = false
+command            = "cargo"
+args               = ["build"]
+dependencies       = ["copy-resources"]
+condition.profiles = ["development"]
 
 [tasks.build-release]
-workspace    = false
-command      = "cargo"
-args         = ["build", "--release"]
-dependencies = ["copy-resources"]
+workspace          = false
+command            = "cargo"
+args               = ["build", "--release"]
+dependencies       = ["copy-resources"]
+condition.profiles = ["release"]
 
 ### OTHER ###
 
