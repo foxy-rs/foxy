@@ -1,7 +1,7 @@
 use ash::{extensions::khr, vk};
 use foxy_utils::types::{handle::Handle, primitives::Dimensions};
 use tracing::*;
-use winit::dpi::{LogicalSize, PhysicalSize};
+use winit::dpi::PhysicalSize;
 
 use self::image_format::{ColorSpace, ImageFormat, PresentMode};
 use super::{device::Device, instance::Instance, surface::Surface};
@@ -47,8 +47,8 @@ impl Swapchain {
   ) -> Result<Self, VulkanError> {
     debug!("Window extent: {dims:?}");
     let extent = vk::Extent2D::builder()
-      .width(dims.width as u32)
-      .height(dims.height as u32)
+      .width(dims.width)
+      .height(dims.height)
       .build();
     // debug!("Window extent (true): {extent:?}");
 

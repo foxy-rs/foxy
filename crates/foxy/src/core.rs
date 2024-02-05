@@ -7,7 +7,6 @@ pub mod state;
 pub mod framework;
 pub mod message;
 pub mod runnable;
-pub mod stage;
 
 pub type FoxyResult<T> = Result<T, FoxyError>;
 

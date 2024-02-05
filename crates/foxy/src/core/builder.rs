@@ -1,6 +1,6 @@
 use foxy_utils::time::TimeCreateInfo;
 
-use crate::window::create_info::WindowCreateInfo;
+use crate::window::WindowCreateInfo;
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 #[allow(unused)]

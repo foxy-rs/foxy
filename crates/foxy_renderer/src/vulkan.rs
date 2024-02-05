@@ -1,16 +1,12 @@
 #![deny(unsafe_op_in_unsafe_fn)]
 
-use std::{collections::HashSet, mem::ManuallyDrop, ops::Deref, time::Duration};
+use std::{collections::HashSet, mem::ManuallyDrop, time::Duration};
 
 use ash::vk;
-use foxy_utils::{
-  log::LogErr,
-  time::Time,
-  types::{handle::Handle, primitives::Dimensions},
-};
+use foxy_utils::{log::LogErr, time::Time};
 use tracing::*;
 use vk_mem::{Alloc, Allocator, AllocatorCreateInfo};
-use winit::{dpi::{LogicalSize, PhysicalSize}, window::Window};
+use winit::{dpi::PhysicalSize, window::Window};
 
 use self::{
   device::Device,
@@ -103,8 +99,6 @@ impl RenderBackend for Vulkan {
     let allocator = ManuallyDrop::new(Allocator::new(allocator_info).map_err(VulkanError::from)?);
 
     // init swapchain
-    let window_size = window.inner_size();
-
     // TODO: Make this adjustable
     let preferred_swapchain_format = ImageFormat {
       color_space: ColorSpace::Unorm,

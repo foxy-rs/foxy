@@ -1,6 +1,6 @@
 use winit::event::Event;
 
-use super::{builder::FoxyCreateInfo, framework::Framework, state::Foxy};
+use super::state::Foxy;
 
 // pub type WindowEvent<T: 'static + Send + Sync> = Event<T>;
 

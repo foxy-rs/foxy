@@ -1,8 +1,5 @@
 use foxy_utils::time::Time;
-use winit::{
-  dpi::{LogicalSize, PhysicalSize},
-  window::Window,
-};
+use winit::{dpi::PhysicalSize, window::Window};
 
 use self::render_data::RenderData;
 use crate::error::RendererError;
