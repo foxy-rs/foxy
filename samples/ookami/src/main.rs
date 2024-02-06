@@ -3,7 +3,7 @@
 use foxy::prelude::{
   winit::{
     dpi::{LogicalSize, Size},
-    event::{Event, WindowEvent},
+    event::{Event, KeyEvent, WindowEvent},
   },
   *,
 };
@@ -28,11 +28,11 @@ impl Runnable<()> for App {
 
   fn update(&mut self, _foxy: &mut Foxy, event: &Option<Event<()>>) {
     if let Some(Event::WindowEvent {
-      event: WindowEvent::KeyboardInput { event, .. },
+      event: WindowEvent::KeyboardInput { event: KeyEvent { physical_key, state, .. }, .. },
       ..
     }) = event
     {
-      debug!("UPDATE: {:?}", event)
+      debug!("UPDATE | {:?}: {:?}", physical_key, state)
     }
   }
 }
