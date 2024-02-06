@@ -3,7 +3,6 @@ use std::{sync::Arc, thread::JoinHandle, time::Duration};
 use crossbeam::{channel::TryRecvError, queue::ArrayQueue};
 use foxy_renderer::{
   renderer::{render_data::RenderData, Renderer},
-  vulkan::Vulkan,
 };
 use foxy_utils::{
   log::LogErr,
@@ -33,7 +32,7 @@ pub struct Framework<T: 'static + Send + Sync> {
   original_title: String,
   window: Arc<Window>,
 
-  renderer: Renderer<Vulkan>,
+  renderer: Renderer,
   render_time: EngineTime,
   render_queue: Arc<ArrayQueue<RenderData>>,
   render_mailbox: Mailbox<RenderLoopMessage<T>, GameLoopMessage>,
@@ -140,7 +139,9 @@ impl<T: 'static + Send + Sync> Framework<T> {
               if let DebugInfo::Shown = self.debug_info {
                 let time = self.render_time.time();
                 let ft = time.average_delta_secs();
-                self.window.set_title(&format!("{} | {:^5.4} s | {:>5.0} FPS", self.original_title, ft, 1.0 / ft));
+                self
+                  .window
+                  .set_title(&format!("{} | {:^5.4} s | {:>5.0} FPS", self.original_title, ft, 1.0 / ft));
               }
             }
           }
