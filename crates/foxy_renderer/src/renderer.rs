@@ -135,13 +135,13 @@ impl Renderer {
 
           // submit will accept anything that implements IntoIter
           self.queue.submit(std::iter::once(encoder.finish()));
-          
+
           self.window.pre_present_notify();
           output.present();
 
           Ok(true)
         }
-        Err(SurfaceError::Lost) => {
+        Err(SurfaceError::Lost | SurfaceError::Outdated) => {
           self.resize();
           Ok(false)
         }
