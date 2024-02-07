@@ -25,14 +25,14 @@ use crate::core::{
   FoxyError,
 };
 
-struct State<T: 'static + Send + Sync> {
+struct State {
   polling_strategy: Polling,
   debug_info: DebugInfo,
 
   renderer: Renderer,
   render_time: EngineTime,
   render_queue: Arc<ArrayQueue<RenderData>>,
-  render_mailbox: Mailbox<RenderLoopMessage<T>, GameLoopMessage>,
+  render_mailbox: Mailbox<RenderLoopMessage, GameLoopMessage>,
 
   // Keep window below the renderer to ensure proper drop order
   window: Arc<Window>,
@@ -45,12 +45,12 @@ struct State<T: 'static + Send + Sync> {
 }
 
 pub struct Framework<T: 'static + Send + Sync> {
-  state: Option<State<T>>,
+  state: Option<State>,
   event_loop: EventLoop<T>,
 }
 
 impl Framework<()> {
-  pub fn new<App: Runnable<()>>(create_info: FoxyCreateInfo) -> FoxyResult<Self> {
+  pub fn new<App: Runnable>(create_info: FoxyCreateInfo) -> FoxyResult<Self> {
     Self::with_events::<App>(create_info)
   }
 }
@@ -59,7 +59,7 @@ impl<T: 'static + Send + Sync> Framework<T> {
   const GAME_THREAD_ID: &'static str = "foxy";
   const MAX_FRAME_DATA_IN_FLIGHT: usize = 2;
 
-  pub fn with_events<App: Runnable<T>>(create_info: FoxyCreateInfo) -> FoxyResult<Self> {
+  pub fn with_events<App: Runnable>(create_info: FoxyCreateInfo) -> FoxyResult<Self> {
     trace!("Firing up Foxy");
 
     let (event_loop, window) = create_info.window.create_window()?;
@@ -108,9 +108,12 @@ impl<T: 'static + Send + Sync> Framework<T> {
     Ok(self.event_loop.run(move |event, elwt| {
       let _ = &state; // ensure state is moved
 
-      match &event {
+      match event {
         Event::WindowEvent { event, .. } => {
-          if !state.renderer.input(event) {
+          let was_handled = state.renderer.input(&event);
+
+          // first check
+          if !was_handled {
             match event {
               WindowEvent::CloseRequested => {
                 let response = state
@@ -118,9 +121,6 @@ impl<T: 'static + Send + Sync> Framework<T> {
                   .send_and_recv(RenderLoopMessage::ExitRequested)
                   .log_error();
                 if let Err(_) | Ok(GameLoopMessage::Exit) = response {
-                  if let Some(thread) = state.game_thread.take() {
-                    let _ = thread.join();
-                  }
                   elwt.exit();
                 }
               }
@@ -133,6 +133,10 @@ impl<T: 'static + Send + Sync> Framework<T> {
               }
               _ => (),
             }
+
+            if let Err(error) = state.render_mailbox.send(RenderLoopMessage::Winit(event)) {
+              error!("{error:?}")
+            }
           }
         }
         Event::AboutToWait => {
@@ -144,18 +148,17 @@ impl<T: 'static + Send + Sync> Framework<T> {
           }
         }
         Event::LoopExiting => {
+          if let Some(thread) = state.game_thread.take() {
+            let _ = thread.join();
+          }
           info!("OTSU KON DESHITA!");
         }
         _ => (),
       }
-
-      if !elwt.exiting() {
-        let _ = state.render_mailbox.send(RenderLoopMessage::Winit(event)).log_error();
-      }
     })?)
   }
 
-  fn render(state: &mut State<T>, elwt: &EventLoopWindowTarget<T>) {
+  fn render(state: &mut State, elwt: &EventLoopWindowTarget<T>) {
     let render_data = state.render_queue.pop();
     let Some(render_data) = render_data else {
       return;
@@ -190,8 +193,8 @@ impl<T: 'static + Send + Sync> Framework<T> {
     }
   }
 
-  fn game_loop<App: Runnable<T>>(
-    mailbox: Mailbox<GameLoopMessage, RenderLoopMessage<T>>,
+  fn game_loop<App: Runnable>(
+    mailbox: Mailbox<GameLoopMessage, RenderLoopMessage>,
     mut foxy: Foxy,
     render_queue: Arc<ArrayQueue<RenderData>>,
   ) -> FoxyResult<JoinHandle<FoxyResult<()>>> {
