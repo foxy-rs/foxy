@@ -1,7 +1,10 @@
 use std::{sync::Arc, thread::JoinHandle, time::Duration};
 
 use crossbeam::{channel::TryRecvError, queue::ArrayQueue};
-use foxy_renderer::{error::RendererError, renderer::{render_data::RenderData, Renderer}};
+use foxy_renderer::{
+  error::RendererError,
+  renderer::{render_data::RenderData, Renderer},
+};
 use foxy_utils::{
   log::LogErr,
   mailbox::{Mailbox, MessagingError},
@@ -134,8 +137,10 @@ impl<T: 'static + Send + Sync> Framework<T> {
               _ => (),
             }
 
-            if let Err(error) = state.render_mailbox.send(RenderLoopMessage::Winit(event)) {
-              error!("{error:?}")
+            if !elwt.exiting() {
+              if let Err(error) = state.render_mailbox.send(RenderLoopMessage::Winit(event)) {
+                error!("{error:?}")
+              }
             }
           }
         }
