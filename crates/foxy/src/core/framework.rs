@@ -10,28 +10,27 @@ use foxy_utils::{
   mailbox::{Mailbox, MessagingError},
   time::{timer::Timer, EngineTime},
 };
-use tracing::*;
+use tracing::{debug, error, info, trace};
 use winit::{
-  event::{Event, WindowEvent},
+  event::{Event as WinitEvent, KeyEvent, WindowEvent},
   event_loop::{ControlFlow, EventLoop, EventLoopWindowTarget},
   window::Window,
 };
 
 use super::{
   builder::{DebugInfo, FoxyCreateInfo, Polling},
+  engine_state::Foxy,
   runnable::Runnable,
-  state::Foxy,
   FoxyResult,
 };
 use crate::core::{
+  event::FoxyEvent,
   message::{GameLoopMessage, RenderLoopMessage},
+  runnable::Flow,
   FoxyError,
 };
 
 struct State {
-  polling_strategy: Polling,
-  debug_info: DebugInfo,
-
   renderer: Renderer,
   render_time: EngineTime,
   render_queue: Arc<ArrayQueue<RenderData>>,
@@ -41,27 +40,30 @@ struct State {
   window: Arc<Window>,
 
   game_thread: Option<JoinHandle<FoxyResult<()>>>,
-
-  original_title: String,
   fps_timer: Timer,
+
+  polling_strategy: Polling,
+  debug_info: DebugInfo,
   had_first_frame: bool,
+  original_title: String,
 }
 
-pub struct Framework<T: 'static + Send + Sync> {
+pub struct Framework {
   state: Option<State>,
-  event_loop: EventLoop<T>,
+  event_loop: EventLoop<()>,
 }
 
-impl Framework<()> {
+impl Framework {
   pub fn new<App: Runnable>(create_info: FoxyCreateInfo) -> FoxyResult<Self> {
     Self::with_events::<App>(create_info)
   }
 }
 
-impl<T: 'static + Send + Sync> Framework<T> {
+impl Framework {
   const GAME_THREAD_ID: &'static str = "foxy";
   const MAX_FRAME_DATA_IN_FLIGHT: usize = 2;
 
+  // A relic of ancient, more flexible times
   pub fn with_events<App: Runnable>(create_info: FoxyCreateInfo) -> FoxyResult<Self> {
     trace!("Firing up Foxy");
 
@@ -79,8 +81,6 @@ impl<T: 'static + Send + Sync> Framework<T> {
 
     Ok(Self {
       state: Some(State {
-        polling_strategy: create_info.polling_strategy,
-        debug_info: create_info.debug_info,
         renderer,
         render_time,
         render_queue,
@@ -88,6 +88,8 @@ impl<T: 'static + Send + Sync> Framework<T> {
         original_title: window.title(),
         window,
         game_thread,
+        polling_strategy: create_info.polling_strategy,
+        debug_info: create_info.debug_info,
         fps_timer: Timer::new(),
         had_first_frame: false,
       }),
@@ -112,7 +114,7 @@ impl<T: 'static + Send + Sync> Framework<T> {
       let _ = &state; // ensure state is moved
 
       match event {
-        Event::WindowEvent { event, .. } => {
+        WinitEvent::WindowEvent { event, .. } => {
           let was_handled = state.renderer.input(&event);
 
           if !was_handled {
@@ -144,14 +146,14 @@ impl<T: 'static + Send + Sync> Framework<T> {
             }
           }
         }
-        Event::AboutToWait => {
+        WinitEvent::AboutToWait => {
           if !state.had_first_frame {
             Self::render(&mut state, elwt);
           } else {
             state.window.request_redraw();
           }
         }
-        Event::LoopExiting => {
+        WinitEvent::LoopExiting => {
           if let Some(thread) = state.game_thread.take() {
             let _ = thread.join();
           }
@@ -162,7 +164,7 @@ impl<T: 'static + Send + Sync> Framework<T> {
     })?)
   }
 
-  fn render(state: &mut State, elwt: &EventLoopWindowTarget<T>) {
+  fn render(state: &mut State, elwt: &EventLoopWindowTarget<()>) {
     let render_data = state.render_queue.pop();
     let Some(render_data) = render_data else {
       return;
@@ -222,7 +224,7 @@ impl<T: 'static + Send + Sync> Framework<T> {
               break;
             }
             Ok(RenderLoopMessage::ExitRequested) => {
-              if app.stop(&mut foxy) {
+              if let Flow::Exit = app.stop(&mut foxy) {
                 let _ = mailbox.send(GameLoopMessage::Exit);
                 app.delete();
                 break;
@@ -231,7 +233,35 @@ impl<T: 'static + Send + Sync> Framework<T> {
               }
               None
             }
-            Ok(RenderLoopMessage::Winit(event)) => Some(event),
+            Ok(RenderLoopMessage::Winit(event)) => {
+              match event {
+                WindowEvent::KeyboardInput {
+                  event:
+                    KeyEvent {
+                      physical_key,
+                      state: element_state,
+                      repeat,
+                      ..
+                    },
+                  ..
+                } => {
+                  foxy.input.update_key_state(physical_key, element_state, repeat);
+                }
+                WindowEvent::MouseInput {
+                  button,
+                  state: element_state,
+                  ..
+                } => {
+                  foxy.input.update_mouse_button_state(button, element_state);
+                }
+                WindowEvent::ModifiersChanged(mods) => {
+                  foxy.input.update_modifiers_state(mods);
+                }
+                _ => (),
+              }
+
+              Some(event)
+            }
             Err(MessagingError::TryRecvError {
               error: TryRecvError::Disconnected,
             }) => {
@@ -243,6 +273,8 @@ impl<T: 'static + Send + Sync> Framework<T> {
           };
 
           // Loop
+
+          let event = FoxyEvent::from(event);
 
           foxy.time.update();
           while foxy.time.should_do_tick_unchecked() {

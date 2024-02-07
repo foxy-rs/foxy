@@ -1,6 +1,5 @@
 use winit::event::WindowEvent;
 
-
 #[derive(Debug)]
 pub enum RenderLoopMessage {
   Start,

@@ -31,9 +31,7 @@ impl Renderer {
     Ok(())
   }
 
-  pub fn resize(&mut self) {
-    
-  }
+  pub fn resize(&mut self) {}
 
   pub fn input(&mut self, event: &WindowEvent) -> bool {
     false
