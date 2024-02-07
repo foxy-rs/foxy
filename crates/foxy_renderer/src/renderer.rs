@@ -90,11 +90,9 @@ impl Renderer {
 
   pub fn resize(&mut self) {
     let new_size = self.window.inner_size();
-    if new_size.width > 0 && new_size.height > 0 {
-      self.config.width = new_size.width;
-      self.config.height = new_size.height;
+      self.config.width = new_size.width.max(1);
+      self.config.height = new_size.height.max(1);
       self.surface.configure(&self.device, &self.config);
-    }
   }
 
   pub fn input(&mut self, event: &WindowEvent) -> bool {
@@ -141,7 +139,7 @@ impl Renderer {
 
         Ok(())
       }
-      Err(SurfaceError::Lost | SurfaceError::Outdated) => Ok(()),
+      Err(SurfaceError::Lost | SurfaceError::Outdated) => Err(RendererError::RebuildSwapchain),
       Err(error) => Err(RendererError::SurfaceError(error)),
     }
   }

@@ -1,7 +1,7 @@
 use std::{sync::Arc, thread::JoinHandle, time::Duration};
 
 use crossbeam::{channel::TryRecvError, queue::ArrayQueue};
-use foxy_renderer::renderer::{render_data::RenderData, Renderer};
+use foxy_renderer::{error::RendererError, renderer::{render_data::RenderData, Renderer}};
 use foxy_utils::{
   log::LogErr,
   mailbox::{Mailbox, MessagingError},
@@ -173,6 +173,9 @@ impl<T: 'static + Send + Sync> Framework<T> {
       Ok(()) if !state.had_first_frame => {
         state.had_first_frame = true;
         state.window.set_visible(true);
+      }
+      Err(RendererError::RebuildSwapchain) => {
+        state.renderer.resize();
       }
       Err(error) => {
         error!("`{error}` Aborting...");
