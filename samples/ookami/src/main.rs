@@ -1,9 +1,6 @@
 #![cfg_attr(all(windows, not(debug_assertions)), windows_subsystem = "windows")]
 
-use foxy::prelude::{
-  winit::dpi::{LogicalSize, Size},
-  *,
-};
+use foxy::prelude::*;
 use tracing::debug;
 
 pub struct App;
@@ -11,10 +8,7 @@ pub struct App;
 impl Runnable for App {
   fn settings() -> FoxyCreateInfo {
     FoxyCreateInfo::default()
-      .with_size(Size::Logical(LogicalSize {
-        width: 800.0,
-        height: 450.0,
-      }))
+      .with_size(800, 450)
       .with_debug_info(DebugInfo::Shown)
       .with_polling(Polling::Poll)
   }

@@ -39,9 +39,9 @@ impl FoxyCreateInfo {
 
   pub fn with_size(mut self, width: u32, height: u32) -> Self {
     self.window.inner_size = Some(Size::Logical(LogicalSize {
-        width,
-        height,
-      }));
+      width: width.into(),
+      height: height.into(),
+    }));
     self
   }
 
