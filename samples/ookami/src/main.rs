@@ -1,11 +1,8 @@
 #![cfg_attr(all(windows, not(debug_assertions)), windows_subsystem = "windows")]
 
-use foxy::{
-  core::event::{FoxyEvent, InputEvent},
-  prelude::{
-    winit::dpi::{LogicalSize, Size},
-    *,
-  },
+use foxy::prelude::{
+  winit::dpi::{LogicalSize, Size},
+  *,
 };
 use tracing::debug;
 
@@ -26,8 +23,8 @@ impl Runnable for App {
     Self {}
   }
 
-  fn update(&mut self, foxy: &mut Foxy, event: &FoxyEvent) {
-    if let FoxyEvent::Input(InputEvent::Mouse(button, state)) = event {
+  fn input(&mut self, foxy: &mut Foxy, event: &InputEvent) {
+    if let InputEvent::Mouse(button, state) = event {
       debug!("UPDATE | {:?}: {:?} + {:?}", button, state, foxy.input().shift().is_pressed())
     }
   }

@@ -1,4 +1,10 @@
-use super::{builder::FoxyCreateInfo, engine_state::Foxy, event::FoxyEvent, framework::Framework, FoxyResult};
+use super::{
+  builder::FoxyCreateInfo,
+  engine_state::Foxy,
+  event::{FoxyEvent, InputEvent, WindowEvent},
+  framework::Framework,
+  FoxyResult,
+};
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum Flow {
@@ -13,6 +19,10 @@ pub trait Runnable {
   fn start(&mut self, foxy: &mut Foxy) {}
 
   fn fixed_update(&mut self, foxy: &mut Foxy, event: &FoxyEvent) {}
+
+  fn window(&mut self, foxy: &mut Foxy, event: &WindowEvent) {}
+
+  fn input(&mut self, foxy: &mut Foxy, event: &InputEvent) {}
 
   fn update(&mut self, foxy: &mut Foxy, event: &FoxyEvent) {}
 

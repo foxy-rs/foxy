@@ -281,8 +281,17 @@ impl Framework {
             foxy.time.tick();
             app.fixed_update(&mut foxy, &event);
           }
+
+          if let FoxyEvent::Input(event) = &event {
+            app.input(&mut foxy, event);
+          }
+
           app.update(&mut foxy, &event);
           render_queue.force_push(RenderData {});
+
+          if let FoxyEvent::Window(event) = &event {
+            app.window(&mut foxy, event);
+          }
         }
 
         debug!("Wrapping up game loop");
