@@ -1,12 +1,12 @@
 #![deny(unsafe_op_in_unsafe_fn)]
 
-use std::{collections::HashSet, mem::ManuallyDrop, time::Duration};
+use std::{collections::HashSet, mem::ManuallyDrop, sync::Arc, time::Duration};
 
 use ash::vk;
 use foxy_utils::{log::LogErr, time::Time};
 use tracing::*;
 use vk_mem::{Alloc, Allocator, AllocatorCreateInfo};
-use winit::{dpi::PhysicalSize, window::Window};
+use winit::{dpi::PhysicalSize, event::WindowEvent, window::Window};
 
 use self::{
   device::Device,
@@ -20,7 +20,7 @@ use self::{
 };
 use crate::{
   error::RendererError,
-  renderer::{render_data::RenderData, RenderBackend},
+  renderer::render_data::RenderData,
   store_shader,
   vulkan::{
     pipeline::ComputePipeline,
@@ -71,19 +71,17 @@ pub struct Vulkan {
   device: Device,
   surface: Surface,
   instance: Instance,
+  window: Arc<Window>,
 }
 
-impl RenderBackend for Vulkan {
-  fn new(window: &Window, size: PhysicalSize<u32>) -> Result<Self, crate::error::RendererError>
-  where
-    Self: Sized,
-  {
+impl Vulkan {
+  pub fn new(window: Arc<Window>) -> Result<Self, RendererError> {
     trace!("Initializing Vulkan");
 
     // init vulkan
 
     let instance = Instance::new(
-      window,
+      &window,
       if cfg!(debug_assertions) {
         ValidationStatus::Enabled
       } else {
@@ -91,7 +89,7 @@ impl RenderBackend for Vulkan {
       },
     )?;
 
-    let surface = Surface::new(window, &instance)?;
+    let surface = Surface::new(&window, &instance)?;
     let device = Device::new(&surface, instance.clone())?;
 
     let allocator_info = AllocatorCreateInfo::new(instance.raw(), device.logical(), *device.physical())
@@ -104,8 +102,14 @@ impl RenderBackend for Vulkan {
       color_space: ColorSpace::Unorm,
       present_mode: PresentMode::AutoImmediate,
     };
-    let swapchain = Swapchain::new(&instance, &surface, device.clone(), size, preferred_swapchain_format)?;
-    let (draw_image, draw_extent) = Self::new_draw_image(&device, &allocator, size)?;
+    let swapchain = Swapchain::new(
+      &instance,
+      &surface,
+      device.clone(),
+      window.inner_size(),
+      preferred_swapchain_format,
+    )?;
+    let (draw_image, draw_extent) = Self::new_draw_image(&device, &allocator, window.inner_size())?;
 
     let frame_data = (0..FrameData::FRAME_OVERLAP)
       .map(|_| FrameData::new(&device))
@@ -151,6 +155,7 @@ impl RenderBackend for Vulkan {
     )?;
 
     Ok(Self {
+      window,
       instance,
       surface,
       device,
@@ -170,7 +175,7 @@ impl RenderBackend for Vulkan {
     })
   }
 
-  fn delete(&mut self) {
+  pub fn delete(&mut self) {
     trace!("Waiting for GPU to finish...");
     let _ = unsafe { self.device.logical().device_wait_idle() }.log_error();
 
@@ -206,7 +211,7 @@ impl RenderBackend for Vulkan {
     self.instance.delete();
   }
 
-  fn draw(&mut self, render_time: Time, _render_data: RenderData) -> Result<bool, RendererError> {
+  pub fn render(&mut self, render_time: Time, _render_data: RenderData) -> Result<bool, RendererError> {
     let result = {
       let (image_index, is_suboptimal) = self.start_commands()?;
       if is_suboptimal {
@@ -231,6 +236,14 @@ impl RenderBackend for Vulkan {
       }
       Err(error) => Err(error)?,
     }
+  }
+
+  pub fn resize(&mut self) {
+    
+  }
+
+  pub fn input(&mut self, event: &WindowEvent) -> bool {
+    false
   }
 }
 

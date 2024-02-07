@@ -4,7 +4,7 @@
 
 pub mod error;
 pub mod renderer;
-pub mod vulkan;
+mod vulkan;
 
 #[macro_export]
 macro_rules! include_shader {

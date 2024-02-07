@@ -1,31 +1,23 @@
+use std::sync::Arc;
+
 use foxy_utils::time::Time;
-use winit::{dpi::PhysicalSize, window::Window};
+use winit::{event::WindowEvent, window::Window};
 
 use self::render_data::RenderData;
-use crate::error::RendererError;
+use crate::{error::RendererError, vulkan::Vulkan};
 
 pub mod command;
 pub mod render_data;
 
-pub trait RenderBackend {
-  fn new(window: &Window, size: PhysicalSize<u32>) -> Result<Self, RendererError>
-  where
-    Self: Sized;
-
-  fn delete(&mut self);
-
-  fn draw(&mut self, render_time: Time, render_data: RenderData) -> Result<bool, RendererError>;
-}
-
 // Renderer is just a thin wrapper to allow for other APIs in the future if I so
 // please
-pub struct Renderer<B: RenderBackend> {
-  backend: B,
+pub struct Renderer {
+  backend: Vulkan,
 }
 
-impl<B: RenderBackend> Renderer<B> {
-  pub fn new(window: &Window, size: PhysicalSize<u32>) -> Result<Self, RendererError> {
-    let backend = B::new(window, size)?;
+impl Renderer {
+  pub fn new(window: Arc<Window>) -> Result<Self, RendererError> {
+    let backend = Vulkan::new(window)?;
 
     Ok(Self { backend })
   }
@@ -34,11 +26,16 @@ impl<B: RenderBackend> Renderer<B> {
     self.backend.delete();
   }
 
-  pub fn draw(&mut self, render_time: Time, render_data: Option<RenderData>) -> Result<bool, RendererError> {
-    if let Some(render_data) = render_data {
-      self.backend.draw(render_time, render_data)
-    } else {
-      Ok(false)
-    }
+  pub fn render(&mut self, render_time: Time, render_data: RenderData) -> Result<(), RendererError> {
+    self.backend.render(render_time, render_data)?;
+    Ok(())
+  }
+
+  pub fn resize(&mut self) {
+    
+  }
+
+  pub fn input(&mut self, event: &WindowEvent) -> bool {
+    false
   }
 }

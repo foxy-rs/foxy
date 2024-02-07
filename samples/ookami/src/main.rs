@@ -3,7 +3,7 @@
 use foxy::prelude::{
   winit::{
     dpi::{LogicalSize, Size},
-    event::{Event, WindowEvent},
+    event::{KeyEvent, WindowEvent},
   },
   *,
 };
@@ -11,7 +11,7 @@ use tracing::debug;
 
 pub struct App;
 
-impl Runnable<()> for App {
+impl Runnable for App {
   fn foxy() -> FoxyCreateInfo {
     FoxyCreateInfo::default()
       .with_size(Size::Logical(LogicalSize {
@@ -26,13 +26,26 @@ impl Runnable<()> for App {
     Self {}
   }
 
-  fn update(&mut self, _foxy: &mut Foxy, event: &Option<Event<()>>) {
-    if let Some(Event::WindowEvent {
-      event: WindowEvent::KeyboardInput { event, .. },
-      ..
-    }) = event
+  fn update(&mut self, _foxy: &mut Foxy, event: &Option<WindowEvent>) {
+    if let Some(
+      WindowEvent::KeyboardInput {
+        event: KeyEvent {
+          physical_key, state, ..
+        },
+        ..
+      },
+    ) = event
     {
-      debug!("UPDATE: {:?}", event)
+      debug!("UPDATE | {:?}: {:?}", physical_key, state)
+    } else if let Some(
+      WindowEvent::MouseInput {
+        button,
+        state,
+        ..
+      },
+    ) = event
+    {
+      debug!("UPDATE | {:?}: {:?}", button, state)
     }
   }
 }
