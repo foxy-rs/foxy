@@ -90,9 +90,9 @@ impl Renderer {
 
   pub fn resize(&mut self) {
     let new_size = self.window.inner_size();
-      self.config.width = new_size.width.max(1);
-      self.config.height = new_size.height.max(1);
-      self.surface.configure(&self.device, &self.config);
+    self.config.width = new_size.width.max(1);
+    self.config.height = new_size.height.max(1);
+    self.surface.configure(&self.device, &self.config);
   }
 
   pub fn input(&mut self, event: &WindowEvent) -> bool {
