@@ -101,54 +101,48 @@ impl Renderer {
     false
   }
 
-  pub fn draw(&mut self, render_time: Time, render_data: Option<RenderData>) -> Result<bool, RendererError> {
-    if let Some(render_data) = render_data {
-      match self.surface.get_current_texture() {
-        Ok(output) => {
-          // render
-          let view = output.texture.create_view(&wgpu::TextureViewDescriptor::default());
-          let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
-            label: Some("Render Encoder"),
+  pub fn draw(&mut self, render_time: Time, render_data: RenderData) -> Result<(), RendererError> {
+    match self.surface.get_current_texture() {
+      Ok(frame) => {
+        // render
+        let view = frame.texture.create_view(&wgpu::TextureViewDescriptor::default());
+
+        let mut command_encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+          label: Some("Render Encoder"),
+        });
+
+        {
+          let mut render_pass = command_encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+            label: Some("Render Pass"),
+            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+              view: &view,
+              resolve_target: None,
+              ops: wgpu::Operations {
+                load: wgpu::LoadOp::Clear(wgpu::Color {
+                  r: 0.1,
+                  g: 0.2,
+                  b: 0.3,
+                  a: 1.0,
+                }),
+                store: wgpu::StoreOp::Store,
+              },
+            })],
+            depth_stencil_attachment: None,
+            occlusion_query_set: None,
+            timestamp_writes: None,
           });
-
-          {
-            let _render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-              label: Some("Render Pass"),
-              color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                view: &view,
-                resolve_target: None,
-                ops: wgpu::Operations {
-                  load: wgpu::LoadOp::Clear(wgpu::Color {
-                    r: 0.1,
-                    g: 0.2,
-                    b: 0.3,
-                    a: 1.0,
-                  }),
-                  store: wgpu::StoreOp::Store,
-                },
-              })],
-              depth_stencil_attachment: None,
-              occlusion_query_set: None,
-              timestamp_writes: None,
-            });
-          }
-
-          // submit will accept anything that implements IntoIter
-          self.queue.submit(std::iter::once(encoder.finish()));
-
-          self.window.pre_present_notify();
-          output.present();
-
-          Ok(true)
         }
-        Err(SurfaceError::Lost | SurfaceError::Outdated) => {
-          self.resize();
-          Ok(false)
-        }
-        Err(error) => Err(error)?,
+
+        // submit will accept anything that implements IntoIter
+        self.queue.submit(Some(command_encoder.finish()));
+
+        self.window.pre_present_notify();
+        frame.present();
+
+        Ok(())
       }
-    } else {
-      Ok(false)
+      Err(SurfaceError::Lost | SurfaceError::Outdated) => Ok(()),
+      Err(error) => Err(RendererError::SurfaceError(error)),
     }
   }
 }

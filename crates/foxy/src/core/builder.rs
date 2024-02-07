@@ -41,7 +41,7 @@ impl FoxyCreateInfo {
     self.window.inner_size = Some(size);
     self
   }
-  
+
   pub fn with_polling(mut self, polling_strategy: Polling) -> Self {
     self.polling_strategy = polling_strategy;
     self

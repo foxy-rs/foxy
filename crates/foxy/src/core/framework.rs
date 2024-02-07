@@ -106,6 +106,8 @@ impl<T: 'static + Send + Sync> Framework<T> {
     });
 
     Ok(self.event_loop.run(move |event, elwt| {
+      let _ = &state; // ensure state is moved
+
       match &event {
         Event::WindowEvent { event, .. } => {
           if !state.renderer.input(event) {
@@ -124,6 +126,7 @@ impl<T: 'static + Send + Sync> Framework<T> {
               }
               WindowEvent::Resized(_) | WindowEvent::ScaleFactorChanged { .. } => {
                 state.renderer.resize();
+                state.window.request_redraw();
               }
               WindowEvent::RedrawRequested => {
                 Self::render(&mut state, elwt);
@@ -154,17 +157,17 @@ impl<T: 'static + Send + Sync> Framework<T> {
 
   fn render(state: &mut State<T>, elwt: &EventLoopWindowTarget<T>) {
     let render_data = state.render_queue.pop();
+    let Some(render_data) = render_data else {
+      return;
+    };
 
-    if render_data.is_some() {
-      // only update time when a render is going to occur
-      state.render_time.update();
-      while state.render_time.should_do_tick_unchecked() {
-        state.render_time.tick();
-      }
+    state.render_time.update();
+    while state.render_time.should_do_tick_unchecked() {
+      state.render_time.tick();
     }
 
     match state.renderer.draw(state.render_time.time(), render_data) {
-      Ok(true) if !state.had_first_frame => {
+      Ok(()) if !state.had_first_frame => {
         state.had_first_frame = true;
         state.window.set_visible(true);
       }

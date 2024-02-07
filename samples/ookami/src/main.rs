@@ -28,7 +28,13 @@ impl Runnable<()> for App {
 
   fn update(&mut self, _foxy: &mut Foxy, event: &Option<Event<()>>) {
     if let Some(Event::WindowEvent {
-      event: WindowEvent::KeyboardInput { event: KeyEvent { physical_key, state, .. }, .. },
+      event:
+        WindowEvent::KeyboardInput {
+          event: KeyEvent {
+            physical_key, state, ..
+          },
+          ..
+        },
       ..
     }) = event
     {
