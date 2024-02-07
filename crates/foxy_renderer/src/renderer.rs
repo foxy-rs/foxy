@@ -100,7 +100,7 @@ impl Renderer {
   }
 
   pub fn draw(&mut self, render_time: Time, render_data: RenderData) -> Result<(), RendererError> {
-    match self.surface.get_current_texture() {
+    match self.next_frame() {
       Ok(frame) => {
         // render
         let view = frame.texture.create_view(&wgpu::TextureViewDescriptor::default());
@@ -139,7 +139,19 @@ impl Renderer {
 
         Ok(())
       }
-      Err(SurfaceError::Lost | SurfaceError::Outdated) => Err(RendererError::RebuildSwapchain),
+      Err(error) => Err(error),
+    }
+  }
+}
+
+impl Renderer {
+  fn next_frame(&mut self) -> Result<wgpu::SurfaceTexture, RendererError> {
+    match self.surface.get_current_texture() {
+      Ok(frame) => Ok(frame),
+      Err(SurfaceError::Lost | SurfaceError::Outdated | SurfaceError::OutOfMemory) => {
+        self.resize();
+        self.surface.get_current_texture().map_err(RendererError::from)
+      }
       Err(error) => Err(RendererError::SurfaceError(error)),
     }
   }
