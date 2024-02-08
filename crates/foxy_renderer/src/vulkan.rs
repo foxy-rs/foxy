@@ -20,7 +20,7 @@ use self::{
 };
 use crate::{
   error::RendererError,
-  renderer::render_data::RenderData,
+  renderer::{render_data::RenderData, Egui},
   store_shader,
   vulkan::{
     pipeline::ComputePipeline,
@@ -246,6 +246,102 @@ impl Vulkan {
 }
 
 impl Vulkan {
+  fn init_egui(device: &Device) -> Result<(), VulkanError> {
+    let pool_sizes = [
+      vk::DescriptorPoolSize {
+        ty: vk::DescriptorType::SAMPLER,
+        descriptor_count: 1000,
+      },
+      vk::DescriptorPoolSize {
+        ty: vk::DescriptorType::COMBINED_IMAGE_SAMPLER,
+        descriptor_count: 1000,
+      },
+      vk::DescriptorPoolSize {
+        ty: vk::DescriptorType::SAMPLED_IMAGE,
+        descriptor_count: 1000,
+      },
+      vk::DescriptorPoolSize {
+        ty: vk::DescriptorType::STORAGE_IMAGE,
+        descriptor_count: 1000,
+      },
+      vk::DescriptorPoolSize {
+        ty: vk::DescriptorType::UNIFORM_TEXEL_BUFFER,
+        descriptor_count: 1000,
+      },
+      vk::DescriptorPoolSize {
+        ty: vk::DescriptorType::STORAGE_TEXEL_BUFFER,
+        descriptor_count: 1000,
+      },
+      vk::DescriptorPoolSize {
+        ty: vk::DescriptorType::UNIFORM_BUFFER,
+        descriptor_count: 1000,
+      },
+      vk::DescriptorPoolSize {
+        ty: vk::DescriptorType::STORAGE_BUFFER,
+        descriptor_count: 1000,
+      },
+      vk::DescriptorPoolSize {
+        ty: vk::DescriptorType::UNIFORM_BUFFER_DYNAMIC,
+        descriptor_count: 1000,
+      },
+      vk::DescriptorPoolSize {
+        ty: vk::DescriptorType::STORAGE_BUFFER_DYNAMIC,
+        descriptor_count: 1000,
+      },
+      vk::DescriptorPoolSize {
+        ty: vk::DescriptorType::INPUT_ATTACHMENT,
+        descriptor_count: 1000,
+      },
+    ];
+
+    let pool_info = vk::DescriptorPoolCreateInfo::builder()
+      .flags(vk::DescriptorPoolCreateFlags::FREE_DESCRIPTOR_SET)
+      .max_sets(1000)
+      .pool_sizes(&pool_sizes);
+
+    let egui_pool = unsafe { device.logical().create_descriptor_pool(&pool_info, None) }?;
+
+    todo!()
+  }
+
+  fn immediate_submit(&mut self, mut submitter: impl FnMut(vk::CommandBuffer)) -> Result<(), VulkanError> {
+    let current_frame = self
+      .frame_data
+      .get_mut(self.frame_index)
+      .ok_or_else(|| vulkan_error!("invalid frame"))?;
+    let cmd = current_frame.imm_command_buffer;
+    unsafe {
+      self
+        .device
+        .logical()
+        .reset_command_buffer(cmd, vk::CommandBufferResetFlags::empty())
+    }?;
+
+    let fences = &[current_frame.imm_fence];
+    unsafe { self.device.logical().reset_fences(fences) }?;
+
+    let cmd_begin_info = vk::CommandBufferBeginInfo::builder().flags(vk::CommandBufferUsageFlags::ONE_TIME_SUBMIT);
+    unsafe { self.device.logical().begin_command_buffer(cmd, &cmd_begin_info) }?;
+
+    submitter(cmd);
+
+    unsafe { self.device.logical().end_command_buffer(cmd) }?;
+
+    let cmd_infos = &[command_buffer_submit_info(cmd)];
+    let submit = submit_info(cmd_infos, &[], &[]);
+
+    unsafe {
+      self
+        .device
+        .logical()
+        .queue_submit2(self.device.graphics().queue(), &[submit], current_frame.imm_fence)
+    }?;
+
+    unsafe { self.device.logical().wait_for_fences(fences, true, u64::MAX) }?;
+
+    Ok(())
+  }
+
   fn rebuild_swapchain(&mut self) -> Result<(), VulkanError> {
     Ok(())
   }

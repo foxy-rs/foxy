@@ -31,3 +31,5 @@ ash-window        = "0.12"
 ash               = { version = "0.37", features = ["linked", "debug"] }
 shaderc           = "0.8"
 vk-mem            = "0.3"
+egui              = "0.26"
+egui-winit        = "0.26"

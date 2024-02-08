@@ -9,25 +9,34 @@ use crate::{error::RendererError, vulkan::Vulkan};
 pub mod command;
 pub mod render_data;
 
+pub struct Egui {
+  context: egui::Context,
+  input: egui::RawInput,
+  state: egui_winit::State,
+}
+
 // Renderer is just a thin wrapper to allow for other APIs in the future if I so
 // please
 pub struct Renderer {
-  backend: Vulkan,
+  vk: Vulkan,
 }
 
 impl Renderer {
   pub fn new(window: Arc<Window>) -> Result<Self, RendererError> {
-    let backend = Vulkan::new(window)?;
+    let vk = Vulkan::new(window)?;
+    let ectx = egui::Context::default();
 
-    Ok(Self { backend })
+    Ok(Self {
+      vk,
+    })
   }
 
   pub fn delete(&mut self) {
-    self.backend.delete();
+    self.vk.delete();
   }
 
   pub fn render(&mut self, render_time: Time, render_data: RenderData) -> Result<(), RendererError> {
-    self.backend.render(render_time, render_data)?;
+    self.vk.render(render_time, render_data)?;
     Ok(())
   }
 
