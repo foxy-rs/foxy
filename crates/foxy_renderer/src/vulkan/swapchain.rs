@@ -1,10 +1,10 @@
-use ash::{extensions::khr, vk};
+
 use foxy_utils::types::{handle::Handle, primitives::Dimensions};
 use tracing::*;
 use winit::dpi::PhysicalSize;
 
 use self::image_format::{ColorSpace, ImageFormat, PresentMode};
-use super::{device::Device, instance::Instance, surface::Surface};
+use super::{device::Device, instance::FoxyInstance, surface::Surface};
 use crate::vulkan::error::VulkanError;
 
 pub struct Swapchain {
@@ -39,7 +39,7 @@ impl Swapchain {
 
 impl Swapchain {
   pub fn new(
-    instance: &Instance,
+    instance: &FoxyInstance,
     surface: &Surface,
     device: Device,
     dims: PhysicalSize<u32>,

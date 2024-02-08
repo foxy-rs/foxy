@@ -4,14 +4,13 @@ use std::{
 };
 
 use anyhow::Context;
-use ash::{extensions::khr, vk};
 use itertools::Itertools;
 use tracing::*;
 
 use super::{
   error::VulkanError,
   image,
-  instance::Instance,
+  instance::FoxyInstance,
   surface::Surface,
   types::queue::{Queue, QueueFamilyIndices},
 };
@@ -19,7 +18,7 @@ use crate::vulkan_unsupported_error;
 
 #[derive(Clone)]
 pub struct Device {
-  instance: Instance,
+  instance: FoxyInstance,
   physical: vk::PhysicalDevice,
   logical: ash::Device,
   graphics: Queue,
@@ -29,7 +28,7 @@ pub struct Device {
 impl Device {
   const DEVICE_EXTENSIONS: &'static [&'static CStr] = &[khr::Swapchain::name()];
 
-  pub fn new(surface: &Surface, instance: Instance) -> Result<Self, VulkanError> {
+  pub fn new(surface: &Surface, instance: FoxyInstance) -> Result<Self, VulkanError> {
     let physical = Self::pick_physical_device(surface, &instance)?;
     let (logical, graphics, present) = Self::new_logical_device(surface, &instance, physical)?;
 
@@ -178,7 +177,7 @@ impl Device {
     vk::MemoryType::default()
   }
 
-  fn pick_physical_device(surface: &Surface, instance: &Instance) -> Result<vk::PhysicalDevice, VulkanError> {
+  fn pick_physical_device(surface: &Surface, instance: &FoxyInstance) -> Result<vk::PhysicalDevice, VulkanError> {
     let physical_devices = unsafe { instance.raw().enumerate_physical_devices() }?;
     info!("Physical device count: {}", physical_devices.len());
 
@@ -208,7 +207,7 @@ impl Device {
 
   fn new_logical_device(
     surface: &Surface,
-    instance: &Instance,
+    instance: &FoxyInstance,
     physical_device: vk::PhysicalDevice,
   ) -> Result<(ash::Device, Queue, Queue), VulkanError> {
     let indices = Self::find_queue_families(surface, instance, physical_device)?;
@@ -262,7 +261,10 @@ impl Device {
     Ok((device, graphics, present))
   }
 
-  fn device_extensions_supported(instance: &Instance, physical_device: vk::PhysicalDevice) -> Result<(), VulkanError> {
+  fn device_extensions_supported(
+    instance: &FoxyInstance,
+    physical_device: vk::PhysicalDevice,
+  ) -> Result<(), VulkanError> {
     let supported_extensions = unsafe { instance.raw().enumerate_device_extension_properties(physical_device) }?;
     let supported_extensions = supported_extensions
       .iter()
@@ -287,7 +289,10 @@ impl Device {
     Ok(())
   }
 
-  fn device_features_supported(instance: &Instance, physical_device: vk::PhysicalDevice) -> Result<(), VulkanError> {
+  fn device_features_supported(
+    instance: &FoxyInstance,
+    physical_device: vk::PhysicalDevice,
+  ) -> Result<(), VulkanError> {
     let mut physical_device_features = vk::PhysicalDeviceFeatures2::default();
     unsafe {
       instance
@@ -332,7 +337,7 @@ impl Device {
     Ok(())
   }
 
-  fn is_suitable(surface: &Surface, instance: &Instance, physical_device: vk::PhysicalDevice) -> bool {
+  fn is_suitable(surface: &Surface, instance: &FoxyInstance, physical_device: vk::PhysicalDevice) -> bool {
     let indices = Self::find_queue_families(surface, instance, physical_device);
     let props = unsafe { instance.raw().get_physical_device_properties(physical_device) };
     let device_name = unsafe { CStr::from_ptr(props.device_name.as_ptr()) };
@@ -376,7 +381,7 @@ impl Device {
 
   fn find_queue_families(
     surface: &Surface,
-    instance: &Instance,
+    instance: &FoxyInstance,
     physical_device: vk::PhysicalDevice,
   ) -> Result<QueueFamilyIndices, VulkanError> {
     let queue_families = unsafe {

@@ -1,12 +1,32 @@
-use std::ffi::CStr;
+use std::sync::Arc;
 
-use ash::{extensions::ext, vk};
 use thiserror::Error;
+use tracing::{error, warn};
+use vulkano::{
+  instance::{
+    debug::{
+      DebugUtilsMessageSeverity,
+      DebugUtilsMessageType,
+      DebugUtilsMessenger,
+      DebugUtilsMessengerCallback,
+      DebugUtilsMessengerCreateInfo,
+    },
+    Instance,
+  }, Validated, VulkanLibrary
+};
+
+use super::instance::FoxyInstance;
 
 #[derive(Error, Debug)]
 pub enum VulkanError {
-  #[error("VkResult: `{0}`")]
-  Ash(#[from] ash::vk::Result),
+  #[error("{0}")]
+  VulkanoError(#[from] vulkano::VulkanError),
+  #[error("{0}")]
+  ValidatedVulkanoError(#[from] Validated<vulkano::VulkanError>),
+  #[error("{0}")]
+  LoadingError(#[from] vulkano::LoadingError),
+  #[error("{0}")]
+  ValidationError(#[from] vulkano::ValidationError),
   #[error("{0}")]
   Shaderc(#[from] shaderc::Error),
   #[error("{0}")]
@@ -55,102 +75,39 @@ macro_rules! vulkan_error {
   }}
 }
 
-#[derive(Clone)]
 pub struct Debug {
-  debug_utils: Option<ext::DebugUtils>,
-  debug_messenger: Option<vk::DebugUtilsMessengerEXT>,
+  debug: Option<DebugUtilsMessenger>,
 }
 
 impl Debug {
-  pub fn delete(&mut self) {
-    if let Some(debug_utils) = self.debug_utils.take() {
-      if let Some(debug_messenger) = self.debug_messenger.take() {
-        unsafe {
-          debug_utils.destroy_debug_utils_messenger(debug_messenger, None);
-        }
-      }
-    }
-  }
-}
+  pub fn new(instance: Arc<Instance>) -> Result<Arc<Self>, VulkanError> {
+    if FoxyInstance::ENABLE_VALIDATION_LAYERS {
+      let debug = DebugUtilsMessenger::new(instance, DebugUtilsMessengerCreateInfo {
+        message_severity: DebugUtilsMessageSeverity::ERROR | DebugUtilsMessageSeverity::WARNING,
+        message_type: DebugUtilsMessageType::VALIDATION | DebugUtilsMessageType::PERFORMANCE,
+        ..DebugUtilsMessengerCreateInfo::user_callback(unsafe {
+          DebugUtilsMessengerCallback::new(|sev, ty, data| {
+            let ty = if ty.intersects(DebugUtilsMessageType::GENERAL) {
+              "General"
+            } else if ty.intersects(DebugUtilsMessageType::VALIDATION) {
+              "Validation"
+            } else {
+              "Performance"
+            };
 
-impl Debug {
-  pub fn new(entry: &ash::Entry, instance: &ash::Instance) -> Result<Self, VulkanError> {
-    if cfg!(debug_assertions) {
-      let debug_utils = ext::DebugUtils::new(entry, instance);
+            let msg = format!("Vulkan {ty}: {:?}", data.message);
 
-      let create_info = vk::DebugUtilsMessengerCreateInfoEXT::builder()
-        .message_severity(vk::DebugUtilsMessageSeverityFlagsEXT::ERROR | vk::DebugUtilsMessageSeverityFlagsEXT::WARNING)
-        .message_type(
-          vk::DebugUtilsMessageTypeFlagsEXT::DEVICE_ADDRESS_BINDING
-            | vk::DebugUtilsMessageTypeFlagsEXT::PERFORMANCE
-            | vk::DebugUtilsMessageTypeFlagsEXT::VALIDATION,
-        )
-        .pfn_user_callback(Some(debug_callback));
-
-      let debug_messenger = unsafe { debug_utils.create_debug_utils_messenger(&create_info, None) }?;
-
-      Ok(Self {
-        debug_utils: Some(debug_utils),
-        debug_messenger: Some(debug_messenger),
-      })
+            match sev {
+              DebugUtilsMessageSeverity::ERROR => error!(msg),
+              DebugUtilsMessageSeverity::WARNING => warn!(msg),
+              _ => (),
+            }
+          })
+        })
+      })?;
+      Ok(Arc::new(Self { debug: Some(debug) }))
     } else {
-      Ok(Self {
-        debug_utils: None,
-        debug_messenger: None,
-      })
+      Ok(Arc::new(Self { debug: None }))
     }
   }
-
-  // pub fn delete(&mut self) {
-  //   if let Some(debug_utils) = self.debug_utils.take() {
-  //     if let Some(debug_messenger) = self.debug_messenger.take() {
-  //       unsafe { debug_utils.destroy_debug_utils_messenger(debug_messenger,
-  // None); }     }
-  //   }
-  // }
-}
-
-unsafe extern "system" fn debug_callback(
-  message_severity: vk::DebugUtilsMessageSeverityFlagsEXT,
-  message_types: vk::DebugUtilsMessageTypeFlagsEXT,
-  p_callback_data: *const vk::DebugUtilsMessengerCallbackDataEXT,
-  _p_user_data: *mut std::ffi::c_void,
-) -> vk::Bool32 {
-  let callback_data = unsafe { *p_callback_data };
-  let message = unsafe { CStr::from_ptr(callback_data.p_message) };
-  // let message_id_name = unsafe { callback_data.message_id_name_as_c_str() };
-  // if let Some(message) =  {
-  match message_types {
-    vk::DebugUtilsMessageTypeFlagsEXT::VALIDATION => match message_severity {
-      vk::DebugUtilsMessageSeverityFlagsEXT::ERROR => {
-        tracing::error!("VULKAN VALIDATION: {message:?}")
-      }
-      vk::DebugUtilsMessageSeverityFlagsEXT::WARNING => {
-        tracing::error!("VULKAN VALIDATION: {message:?}")
-      }
-      _ => {}
-    },
-    vk::DebugUtilsMessageTypeFlagsEXT::DEVICE_ADDRESS_BINDING => match message_severity {
-      vk::DebugUtilsMessageSeverityFlagsEXT::ERROR => {
-        tracing::error!("VULKAN DEVICE_ADDRESS_BINDING: {message:?}")
-      }
-      vk::DebugUtilsMessageSeverityFlagsEXT::WARNING => {
-        tracing::error!("VULKAN DEVICE_ADDRESS_BINDING: {message:?}")
-      }
-      _ => {}
-    },
-    vk::DebugUtilsMessageTypeFlagsEXT::PERFORMANCE => match message_severity {
-      vk::DebugUtilsMessageSeverityFlagsEXT::ERROR => {
-        tracing::error!("VULKAN PERFORMANCE: {message:?}")
-      }
-      vk::DebugUtilsMessageSeverityFlagsEXT::WARNING => {
-        tracing::error!("VULKAN PERFORMANCE: {message:?}")
-      }
-      _ => {}
-    },
-    _ => {}
-  }
-  // }
-
-  false.into()
 }

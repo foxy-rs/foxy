@@ -1,4 +1,3 @@
-use ash::vk;
 
 use crate::{
   vulkan::{device::Device, error::VulkanError},

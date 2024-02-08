@@ -1,6 +1,5 @@
 use std::{ffi::CStr, hash::Hash, path::PathBuf};
 
-use ash::vk;
 use strum::{Display, EnumDiscriminants};
 use tracing::*;
 

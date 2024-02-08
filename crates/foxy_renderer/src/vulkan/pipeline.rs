@@ -1,6 +1,5 @@
 use std::collections::HashSet;
 
-use ash::vk;
 use strum::{Display, EnumDiscriminants};
 use tracing::debug;
 

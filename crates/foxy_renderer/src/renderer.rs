@@ -12,11 +12,8 @@ pub mod render_data;
 pub struct Egui {
   context: egui::Context,
   input: egui::RawInput,
-  state: egui_winit::State,
 }
 
-// Renderer is just a thin wrapper to allow for other APIs in the future if I so
-// please
 pub struct Renderer {
   vk: Vulkan,
 }
@@ -32,7 +29,7 @@ impl Renderer {
   }
 
   pub fn delete(&mut self) {
-    self.vk.delete();
+    
   }
 
   pub fn render(&mut self, render_time: Time, render_data: RenderData) -> Result<(), RendererError> {

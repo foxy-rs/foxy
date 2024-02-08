@@ -1,9 +1,8 @@
 use anyhow::Context;
-use ash::{extensions::khr, vk};
 use raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle};
 
 use super::error::VulkanError;
-use crate::vulkan::instance::Instance;
+use crate::vulkan::instance::FoxyInstance;
 
 pub struct Surface {
   surface: vk::SurfaceKHR,
@@ -17,7 +16,10 @@ impl Surface {
 }
 
 impl Surface {
-  pub fn new(window: impl HasRawDisplayHandle + HasRawWindowHandle, instance: &Instance) -> Result<Self, VulkanError> {
+  pub fn new(
+    window: impl HasRawDisplayHandle + HasRawWindowHandle,
+    instance: &FoxyInstance,
+  ) -> Result<Self, VulkanError> {
     let surface = unsafe {
       ash_window::create_surface(
         instance.entry(),
