@@ -12,13 +12,16 @@ use vulkano::{
       DebugUtilsMessengerCreateInfo,
     },
     Instance,
-  }, Validated, VulkanLibrary
+  },
+  Validated,
 };
 
 use super::instance::FoxyInstance;
 
 #[derive(Error, Debug)]
 pub enum VulkanError {
+  #[error("{0}")]
+  Error(String),
   #[error("{0}")]
   VulkanoError(#[from] vulkano::VulkanError),
   #[error("{0}")]
@@ -31,10 +34,10 @@ pub enum VulkanError {
   Shaderc(#[from] shaderc::Error),
   #[error("{0}")]
   Unsupported(String),
+  #[error("no supported device found")]
+  NoValidDevice,
   #[error("{0}")]
   Shader(String),
-  #[error("{0}")]
-  Other(#[from] anyhow::Error),
   #[error("{0}")]
   SyncObjects(String),
   #[error("{0}")]
@@ -68,15 +71,15 @@ macro_rules! vulkan_shader_error {
 #[macro_export]
 macro_rules! vulkan_error {
   () => {
-    $crate::vulkan::error::VulkanError::Other(anyhow::anyhow!("vulkan error"))
+    $crate::vulkan::error::VulkanError::Error(format!("vulkan error"))
   };
   ($($arg:tt)*) => {{
-    $crate::vulkan::error::VulkanError::Other(anyhow::anyhow!(format!($($arg)*)))
+    $crate::vulkan::error::VulkanError::Error(format!($($arg)*))
   }}
 }
 
 pub struct Debug {
-  debug: Option<DebugUtilsMessenger>,
+  _debug: Option<DebugUtilsMessenger>,
 }
 
 impl Debug {
@@ -105,9 +108,9 @@ impl Debug {
           })
         })
       })?;
-      Ok(Arc::new(Self { debug: Some(debug) }))
+      Ok(Arc::new(Self { _debug: Some(debug) }))
     } else {
-      Ok(Arc::new(Self { debug: None }))
+      Ok(Arc::new(Self { _debug: None }))
     }
   }
 }

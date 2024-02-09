@@ -23,14 +23,10 @@ impl Renderer {
     let vk = Vulkan::new(window)?;
     let ectx = egui::Context::default();
 
-    Ok(Self {
-      vk,
-    })
+    Ok(Self { vk })
   }
 
-  pub fn delete(&mut self) {
-    
-  }
+  pub fn delete(&mut self) {}
 
   pub fn render(&mut self, render_time: Time, render_data: RenderData) -> Result<(), RendererError> {
     self.vk.render(render_time, render_data)?;

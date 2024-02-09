@@ -1,40 +1,64 @@
 #![deny(unsafe_op_in_unsafe_fn)]
 
-use std::{collections::HashSet, mem::ManuallyDrop, sync::Arc, time::Duration};
+use std::sync::Arc;
 
-use foxy_utils::{log::LogErr, time::Time};
+use foxy_utils::time::Time;
 use tracing::*;
-use winit::{dpi::PhysicalSize, event::WindowEvent, window::Window};
+use vulkano::{command_buffer::allocator::StandardCommandBufferAllocator, memory::allocator::StandardMemoryAllocator};
+use winit::{event::WindowEvent, window::Window};
 
-use crate::{error::RendererError, renderer::render_data::RenderData};
+use self::{instance::FoxyInstance, surface::FoxySurface};
+use crate::{
+  error::RendererError,
+  renderer::render_data::RenderData,
+  vulkan::{
+    device::FoxyDevice,
+    swapchain::{image_format::PresentMode, FoxySwapchain},
+  },
+};
 
-use self::instance::FoxyInstance;
-
-pub mod instance;
+mod device;
 pub mod error;
-
-#[derive(Default, PartialEq, Eq, Clone, Copy)]
-pub enum ValidationStatus {
-  Enabled,
-  #[default]
-  Disabled,
-}
+mod instance;
+mod surface;
+mod swapchain;
 
 pub struct Vulkan {
-  instance: FoxyInstance,
   window: Arc<Window>,
+  instance: FoxyInstance,
+  surface: FoxySurface,
+  device: FoxyDevice,
+  swapchain: FoxySwapchain,
+  allocator: Arc<StandardMemoryAllocator>,
+  cmd_buffer_allocator: Arc<StandardCommandBufferAllocator>,
 }
 
 impl Vulkan {
   pub fn new(window: Arc<Window>) -> Result<Self, RendererError> {
     trace!("Initializing Vulkan");
 
-    // init vulkan
     let instance = FoxyInstance::new(&window)?;
+    let surface = FoxySurface::new(instance.vk().clone(), window.clone())?;
+    let device = FoxyDevice::new(instance.vk().clone(), surface.vk().clone())?;
+    let swapchain = FoxySwapchain::new(
+      surface.vk().clone(),
+      device.vk().clone(),
+      window.inner_size(),
+      PresentMode::AutoImmediate,
+    )?;
+
+    let allocator = Arc::new(StandardMemoryAllocator::new_default(device.vk().clone()));
+
+    let cmd_buffer_allocator = Arc::new(StandardCommandBufferAllocator::new(device.vk().clone(), Default::default()));
 
     Ok(Self {
       window,
       instance,
+      surface,
+      device,
+      swapchain,
+      allocator,
+      cmd_buffer_allocator,
     })
   }
 
@@ -48,3 +72,5 @@ impl Vulkan {
     false
   }
 }
+
+impl Vulkan {}

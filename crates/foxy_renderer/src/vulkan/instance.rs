@@ -42,7 +42,7 @@ impl FoxyInstance {
     &self.library
   }
 
-  pub fn raw(&self) -> &Arc<Instance> {
+  pub fn vk(&self) -> &Arc<Instance> {
     &self.instance
   }
 
@@ -71,7 +71,7 @@ impl FoxyInstance {
   ) -> Result<(Vec<String>, InstanceExtensions), VulkanError> {
     let supported_layers = library.layer_properties()?;
     let supported_layers = supported_layers.map(|l| l.name().to_owned()).collect_vec();
-    debug!("Supported layers:\n{:#?}", supported_layers);
+    // debug!("Supported layers:\n{:#?}", supported_layers);
 
     // Layers ----------------------
 
@@ -97,7 +97,7 @@ impl FoxyInstance {
     // Extensions ------------------
 
     let supported_extensions = library.supported_extensions();
-    debug!("Supported instance extensions:\n{:#?}", supported_extensions);
+    // debug!("Supported instance extensions:\n{:#?}", supported_extensions);
 
     let mut requested_extensions = Surface::required_extensions(window);
     requested_extensions = requested_extensions.union(&InstanceExtensions {
