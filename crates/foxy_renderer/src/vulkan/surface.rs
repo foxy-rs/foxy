@@ -1,10 +1,6 @@
 use std::sync::Arc;
 
-use vulkano::{
-  format::Format,
-  instance::Instance,
-  swapchain::{PresentMode, Surface, SurfaceCapabilities},
-};
+use vulkano::{instance::Instance, swapchain::Surface};
 use winit::window::Window;
 
 use super::error::VulkanError;
@@ -22,10 +18,4 @@ impl FoxySurface {
   pub fn vk(&self) -> &Arc<Surface> {
     &self.surface
   }
-}
-
-pub struct SwapchainSupport {
-  pub capabilities: SurfaceCapabilities,
-  pub formats: Vec<Format>,
-  pub present_modes: Vec<PresentMode>,
 }

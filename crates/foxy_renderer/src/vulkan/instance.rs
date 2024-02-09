@@ -17,9 +17,9 @@ use crate::{
 
 #[derive(Clone)]
 pub struct FoxyInstance {
-  library: Arc<VulkanLibrary>,
+  _library: Arc<VulkanLibrary>,
   instance: Arc<Instance>,
-  debug: Arc<Debug>,
+  _debug: Arc<Debug>,
 }
 
 impl FoxyInstance {
@@ -32,14 +32,10 @@ impl FoxyInstance {
     let debug = Debug::new(instance.clone())?;
 
     Ok(Self {
-      debug,
+      _debug: debug,
       instance,
-      library,
+      _library: library,
     })
-  }
-
-  pub fn library(&self) -> &Arc<VulkanLibrary> {
-    &self.library
   }
 
   pub fn vk(&self) -> &Arc<Instance> {

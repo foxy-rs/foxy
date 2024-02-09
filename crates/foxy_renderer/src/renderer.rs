@@ -33,9 +33,11 @@ impl Renderer {
     Ok(())
   }
 
-  pub fn resize(&mut self) {}
+  pub fn resize(&mut self) {
+    self.vk.resize()
+  }
 
   pub fn input(&mut self, event: &WindowEvent) -> bool {
-    false
+    self.vk.input(event)
   }
 }

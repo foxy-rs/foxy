@@ -1,83 +1,99 @@
+use std::sync::Arc;
+
+use itertools::Itertools;
+use vulkano::{
+  command_buffer::{
+    allocator::{CommandBufferAllocator, CommandBufferBuilderAlloc, StandardCommandBufferAllocator},
+    pool::{CommandBufferAllocateInfo, CommandPool, CommandPoolCreateFlags, CommandPoolCreateInfo},
+    AutoCommandBufferBuilder,
+    CommandBufferLevel,
+    CommandBufferUsage,
+    PrimaryAutoCommandBuffer,
+  },
+  device::{Device, DeviceOwned, Queue},
+  sync::{
+    self,
+    fence::{Fence, FenceCreateFlags, FenceCreateInfo},
+    semaphore::{Semaphore, SemaphoreCreateInfo},
+    GpuFuture,
+  },
+};
 
 use crate::{
-  vulkan::{device::Device, error::VulkanError},
+  vulkan::{device::FoxyDevice, error::VulkanError},
   vulkan_error,
 };
 
-#[derive(Default)]
 pub struct FrameData {
-  pub command_pool: vk::CommandPool,
-  pub imm_command_pool: vk::CommandPool,
-  pub master_command_buffer: vk::CommandBuffer,
-  pub imm_command_buffer: vk::CommandBuffer,
+  pub cmd_buffer_allocator: Arc<StandardCommandBufferAllocator>,
+  pub imm_cmd_buffer_allocator: Arc<StandardCommandBufferAllocator>,
 
-  pub render_fence: vk::Fence,
-  pub imm_fence: vk::Fence,
-  pub present_semaphore: vk::Semaphore,
-  pub render_semaphore: vk::Semaphore,
+  // pub render_fence: Fence,
+  // pub imm_fence: Fence,
+  // pub present_semaphore: Semaphore,
+  // pub render_semaphore: Semaphore,
+
+  pub previous_frame_end: Option<Box<dyn GpuFuture>>,
 }
 
 impl FrameData {
   pub const FRAME_OVERLAP: usize = 2;
 
-  pub fn new(device: &Device) -> Result<FrameData, VulkanError> {
+  pub fn new(device: &FoxyDevice) -> Result<FrameData, VulkanError> {
     // init command pool
 
-    let create_info = vk::CommandPoolCreateInfo::builder()
-      .queue_family_index(device.graphics().family())
-      .flags(vk::CommandPoolCreateFlags::TRANSIENT | vk::CommandPoolCreateFlags::RESET_COMMAND_BUFFER);
+    let cmd_buffer_allocator = Arc::new(StandardCommandBufferAllocator::new(device.vk().clone(), Default::default()));
+    let imm_cmd_buffer_allocator =
+      Arc::new(StandardCommandBufferAllocator::new(device.vk().clone(), Default::default()));
 
-    let command_pool = unsafe { device.logical().create_command_pool(&create_info, None) }?;
-    let imm_command_pool = unsafe { device.logical().create_command_pool(&create_info, None) }?;
-
-    let buffer_info = vk::CommandBufferAllocateInfo::builder()
-      .command_pool(command_pool)
-      .command_buffer_count(1)
-      .level(vk::CommandBufferLevel::PRIMARY);
-
-    let master_command_buffer = unsafe { device.logical().allocate_command_buffers(&buffer_info) }?
-      .first()
-      .cloned()
-      .ok_or_else(|| vulkan_error!("invalid command buffers size"))?;
-
-    let imm_command_buffer = unsafe { device.logical().allocate_command_buffers(&buffer_info) }?
-      .first()
-      .cloned()
-      .ok_or_else(|| vulkan_error!("invalid command buffers size"))?;
+    let create_info = CommandPoolCreateInfo {
+      flags: CommandPoolCreateFlags::TRANSIENT | CommandPoolCreateFlags::RESET_COMMAND_BUFFER,
+      queue_family_index: device.graphics_queue().queue_family_index(),
+      ..Default::default()
+    };
 
     // init sync objects
 
-    let fence_info = vk::FenceCreateInfo::builder().flags(vk::FenceCreateFlags::SIGNALED);
-    let render_fence = unsafe { device.logical().create_fence(&fence_info, None) }?;
-    let imm_fence = unsafe { device.logical().create_fence(&fence_info, None) }?;
+    let fence_info = FenceCreateInfo {
+      flags: FenceCreateFlags::SIGNALED,
+      ..Default::default()
+    };
+    // let render_fence = Fence::new(device.vk().clone(), fence_info)?;
+    // let imm_fence = Fence::new(device.vk().clone(), fence_info)?;
 
-    let semaphore_info = vk::SemaphoreCreateInfo::builder();
-    let swapchain_semaphore = unsafe { device.logical().create_semaphore(&semaphore_info, None) }?;
-    let render_semaphore = unsafe { device.logical().create_semaphore(&semaphore_info, None) }?;
+    // let semaphore_info = SemaphoreCreateInfo::default();
+    // let swapchain_semaphore = Semaphore::new(device.vk().clone(), semaphore_info)?;
+    // let render_semaphore = Semaphore::new(device.vk().clone(), semaphore_info)?;
 
-    // init immediate buffers
+    let previous_frame_end = Some(sync::now(device.vk().clone()).boxed());
 
     Ok(FrameData {
-      command_pool,
-      master_command_buffer,
-      imm_command_buffer,
-      imm_command_pool,
-      render_fence,
-      present_semaphore: swapchain_semaphore,
-      render_semaphore,
-      imm_fence,
+      cmd_buffer_allocator,
+      imm_cmd_buffer_allocator,
+      // render_fence,
+      // present_semaphore: swapchain_semaphore,
+      // render_semaphore,
+      // imm_fence,
+      previous_frame_end,
     })
   }
 
-  pub fn delete(&mut self, device: &mut Device) {
-    unsafe {
-      device.logical().destroy_command_pool(self.command_pool, None);
-      device.logical().destroy_command_pool(self.imm_command_pool, None);
+  pub fn primary_command(
+    &self,
+    queue: &Arc<Queue>,
+  ) -> Result<
+    AutoCommandBufferBuilder<
+      PrimaryAutoCommandBuffer<Arc<StandardCommandBufferAllocator>>,
+      Arc<StandardCommandBufferAllocator>,
+    >,
+    VulkanError,
+  > {
+    let builder = AutoCommandBufferBuilder::primary(
+      &self.cmd_buffer_allocator,
+      queue.queue_family_index(),
+      CommandBufferUsage::OneTimeSubmit,
+    )?;
 
-      device.logical().destroy_fence(self.render_fence, None);
-      device.logical().destroy_fence(self.imm_fence, None);
-      device.logical().destroy_semaphore(self.present_semaphore, None);
-      device.logical().destroy_semaphore(self.render_semaphore, None);
-    }
+    Ok(builder)
   }
 }

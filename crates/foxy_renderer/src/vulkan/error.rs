@@ -3,7 +3,7 @@ use std::sync::Arc;
 use thiserror::Error;
 use tracing::{error, warn};
 use vulkano::{
-  instance::{
+  command_buffer::CommandBufferExecError, instance::{
     debug::{
       DebugUtilsMessageSeverity,
       DebugUtilsMessageType,
@@ -12,8 +12,7 @@ use vulkano::{
       DebugUtilsMessengerCreateInfo,
     },
     Instance,
-  },
-  Validated,
+  }, Validated
 };
 
 use super::instance::FoxyInstance;
@@ -29,7 +28,9 @@ pub enum VulkanError {
   #[error("{0}")]
   LoadingError(#[from] vulkano::LoadingError),
   #[error("{0}")]
-  ValidationError(#[from] vulkano::ValidationError),
+  ValidationError(#[from] Box<vulkano::ValidationError>),
+  #[error("{0}")]
+  CommandBufferExecError(#[from] CommandBufferExecError),
   #[error("{0}")]
   Shaderc(#[from] shaderc::Error),
   #[error("{0}")]

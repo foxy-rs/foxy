@@ -52,7 +52,7 @@ impl FoxyDevice {
     &self.device
   }
 
-  pub fn graphics_queue(&self) -> &Queue {
+  pub fn graphics_queue(&self) -> &Arc<Queue> {
     &self.graphics_queue
   }
 }

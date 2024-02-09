@@ -7,7 +7,7 @@ use vulkano::{
   format::Format,
   image::{view::ImageView, Image, ImageUsage},
   pipeline::graphics::viewport::Viewport,
-  swapchain::{ColorSpace, Surface, Swapchain, SwapchainCreateInfo},
+  swapchain::{acquire_next_image, ColorSpace, Surface, Swapchain, SwapchainAcquireFuture, SwapchainCreateInfo},
   sync::semaphore::Semaphore,
 };
 use winit::dpi::PhysicalSize;
@@ -73,7 +73,7 @@ impl FoxySwapchain {
       depth_range: 0.0..=1.0,
     };
 
-    let image_views = Self::window_size_dependent_setup(&images, &mut viewport);
+    let image_views = Self::generate_image_views(&images, &mut viewport);
 
     Ok(Self {
       swapchain,
@@ -83,7 +83,7 @@ impl FoxySwapchain {
     })
   }
 
-  fn window_size_dependent_setup(images: &[Arc<Image>], viewport: &mut Viewport) -> Vec<Arc<ImageView>> {
+  fn generate_image_views(images: &[Arc<Image>], viewport: &mut Viewport) -> Vec<Arc<ImageView>> {
     let extent = images.first().unwrap().extent();
     viewport.extent = [*extent.first().unwrap() as f32, *extent.last().unwrap() as f32];
 
@@ -115,7 +115,23 @@ impl FoxySwapchain {
     self.images.get(index).cloned()
   }
 
-  pub fn acquire_next_image(&mut self, semaphore: Semaphore) -> Result<(usize, bool), VulkanError> {
-    todo!()
+  pub fn image_view(&self, index: usize) -> Option<Arc<ImageView>> {
+    self.image_views.get(index).cloned()
+  }
+
+  pub fn acquire_next_image(&mut self) -> Result<(u32, bool, SwapchainAcquireFuture), VulkanError> {
+    Ok(acquire_next_image(self.swapchain.clone(), None)?)
+  }
+
+  pub fn rebuild(&mut self, size: PhysicalSize<u32>) -> Result<(), VulkanError> {
+    let image_extent: [u32; 2] = size.into();
+    (self.swapchain, self.images) = self.swapchain.recreate(SwapchainCreateInfo {
+      image_extent,
+      ..self.swapchain.create_info()
+    })?;
+
+    self.image_views = Self::generate_image_views(&self.images, &mut self.viewport);
+
+    Ok(())
   }
 }
