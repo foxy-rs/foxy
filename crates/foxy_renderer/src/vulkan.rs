@@ -2,19 +2,16 @@
 
 use std::sync::Arc;
 
-use foxy_utils::{log::LogErr, time::Time};
+use foxy_utils::time::Time;
 use tracing::*;
 use vulkano::{
-  command_buffer::{
-    allocator::{StandardCommandBufferAllocator, StandardCommandBufferAllocatorCreateInfo},
-    RenderingAttachmentInfo,
-    RenderingInfo,
-  },
+  command_buffer::{RenderingAttachmentInfo, RenderingInfo},
   format::ClearValue,
   memory::allocator::StandardMemoryAllocator,
   render_pass::{AttachmentLoadOp, AttachmentStoreOp},
   swapchain::SwapchainPresentInfo,
-  sync::{self, GpuFuture}, Validated,
+  sync::{self, GpuFuture},
+  Validated,
 };
 use winit::{event::WindowEvent, window::Window};
 
@@ -93,12 +90,7 @@ impl Vulkan {
       return Ok(false); // skip rendering when window is smol
     }
 
-    let current_frame = self
-      .frame_data
-      .get_mut(self.frame_index)
-      .ok_or_else(|| vulkan_error!("invalid frame"))?;
-
-    current_frame.previous_frame_end.as_mut().unwrap().cleanup_finished();
+    self.current_frame_mut().previous_frame_end.as_mut().unwrap().cleanup_finished();
 
     if self.is_dirty {
       self.swapchain.rebuild(self.window.inner_size())?;
@@ -118,7 +110,7 @@ impl Vulkan {
       self.is_dirty = true;
     }
 
-    let mut cmd_builder = current_frame.primary_command(self.device.graphics_queue())?;
+    let mut cmd_builder = self.current_frame().primary_command(self.device.graphics_queue())?;
 
     let render_info = Some(RenderingAttachmentInfo {
       load_op: AttachmentLoadOp::Clear,
@@ -136,7 +128,7 @@ impl Vulkan {
 
     let cmd = cmd_builder.build()?;
 
-    let future = current_frame
+    let future = self.current_frame_mut()
       .previous_frame_end
       .take()
       .unwrap()
@@ -149,15 +141,15 @@ impl Vulkan {
       .then_signal_fence_and_flush();
 
     match future.map_err(Validated::unwrap) {
-        Ok(future) => current_frame.previous_frame_end = Some(future.boxed()),
-        Err(vulkano::VulkanError::OutOfDate) => {
-          self.is_dirty = true;
-          current_frame.previous_frame_end = Some(sync::now(self.device.vk().clone()).boxed());
-        },
-        Err(error) => {
-          error!("failed to flush future: `{error:?}`");
-          current_frame.previous_frame_end = Some(sync::now(self.device.vk().clone()).boxed());
-        },
+      Ok(future) => self.current_frame_mut().previous_frame_end = Some(future.boxed()),
+      Err(vulkano::VulkanError::OutOfDate) => {
+        self.is_dirty = true;
+        self.current_frame_mut().previous_frame_end = Some(sync::now(self.device.vk().clone()).boxed());
+      }
+      Err(error) => {
+        error!("failed to flush future: `{error:?}`");
+        self.current_frame_mut().previous_frame_end = Some(sync::now(self.device.vk().clone()).boxed());
+      }
     }
 
     self.frame_index = (self.frame_index + 1) % FrameData::FRAME_OVERLAP;
@@ -174,4 +166,12 @@ impl Vulkan {
   }
 }
 
-impl Vulkan {}
+impl Vulkan {
+  fn current_frame(&self) -> &FrameData {
+    self.frame_data.get(self.frame_index).expect("invalid frame index")
+  }
+
+  fn current_frame_mut(&mut self) -> &mut FrameData {
+    self.frame_data.get_mut(self.frame_index).expect("invalid frame index")
+  }
+}
