@@ -5,18 +5,10 @@ use std::sync::Arc;
 use foxy_utils::time::Time;
 use tracing::*;
 use vulkano::{
-  command_buffer::{
-    BlitImageInfo,
-    ClearColorImageInfo,
-    CopyImageInfo,
-    ImageBlit,
-    ImageCopy,
-    RenderingAttachmentInfo,
-    RenderingInfo,
-  },
-  format::{ClearValue, Format},
-  image::{sampler::Filter, Image, ImageAspects, ImageCreateInfo, ImageLayout, ImageSubresourceLayers, ImageUsage},
-  memory::allocator::{AllocationCreateInfo, MemoryAllocatePreference, StandardMemoryAllocator},
+  command_buffer::{BlitImageInfo, ImageBlit, RenderingAttachmentInfo, RenderingInfo},
+  format::ClearValue,
+  image::{sampler::Filter, ImageAspects, ImageLayout, ImageSubresourceLayers},
+  memory::allocator::StandardMemoryAllocator,
   render_pass::{AttachmentLoadOp, AttachmentStoreOp},
   swapchain::SwapchainPresentInfo,
   sync::{self, GpuFuture},
@@ -30,14 +22,12 @@ use self::{
   types::frame_data::{FrameData, PrimaryCommandBufferBuilder},
 };
 use crate::{
-  error::RendererError,
   renderer::render_data::RenderData,
   vulkan::{
     device::FoxyDevice,
     error::VulkanError,
     swapchain::{image_format::PresentMode, FoxySwapchain},
   },
-  vulkan_error,
 };
 
 mod device;
@@ -217,10 +207,6 @@ impl Vulkan {
 impl Vulkan {
   fn current_frame(&self) -> &FrameData {
     self.frame_data.get(self.frame_index).expect("invalid frame index")
-  }
-
-  fn current_frame_mut(&mut self) -> &mut FrameData {
-    self.frame_data.get_mut(self.frame_index).expect("invalid frame index")
   }
 
   fn paint(&self, cmd_builder: &mut PrimaryCommandBufferBuilder, image_index: u32) -> Result<(), VulkanError> {

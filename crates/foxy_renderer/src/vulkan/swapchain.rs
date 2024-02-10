@@ -5,23 +5,12 @@ use tracing::*;
 use vulkano::{
   device::Device,
   format::Format,
-  image::{
-    view::{ImageView, ImageViewCreateInfo},
-    Image,
-    ImageCreateInfo,
-    ImageLayout,
-    ImageSubresourceRange,
-    ImageTiling,
-    ImageType,
-    ImageUsage,
-    SampleCount,
-  },
+  image::{view::ImageView, Image, ImageCreateInfo, ImageLayout, ImageTiling, ImageType, ImageUsage, SampleCount},
   memory::allocator::{AllocationCreateInfo, MemoryAllocatePreference, MemoryTypeFilter, StandardMemoryAllocator},
   pipeline::graphics::viewport::Viewport,
   swapchain::{acquire_next_image, ColorSpace, Surface, Swapchain, SwapchainAcquireFuture, SwapchainCreateInfo},
-  sync::semaphore::Semaphore,
 };
-use winit::{dpi::PhysicalSize, window::Window};
+use winit::window::Window;
 
 use crate::vulkan::{error::VulkanError, swapchain::image_format::PresentMode};
 

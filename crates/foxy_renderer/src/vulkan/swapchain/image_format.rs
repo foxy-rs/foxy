@@ -28,12 +28,12 @@ impl PresentMode {
           modes
             .iter()
             .find(|&mode| *mode == vulkano::swapchain::PresentMode::Mailbox)
-            .unwrap_or_else(|| &vulkano::swapchain::PresentMode::Fifo)
+            .unwrap_or(&vulkano::swapchain::PresentMode::Fifo)
         }),
       PresentMode::AutoVsync => modes
         .iter()
         .find(|&mode| *mode == vulkano::swapchain::PresentMode::FifoRelaxed)
-        .unwrap_or_else(|| &vulkano::swapchain::PresentMode::Fifo),
+        .unwrap_or(&vulkano::swapchain::PresentMode::Fifo),
     }
   }
 }
