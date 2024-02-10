@@ -130,7 +130,7 @@ impl<T: 'static + Send + Sync> Framework<T> {
                 }
               }
               WindowEvent::Resized(_) | WindowEvent::ScaleFactorChanged { .. } => {
-                state.renderer.resize();
+                state.renderer.refresh();
                 state.window.request_redraw();
               }
               WindowEvent::RedrawRequested => {
@@ -182,7 +182,7 @@ impl<T: 'static + Send + Sync> Framework<T> {
         state.window.set_visible(true);
       }
       Err(RendererError::RebuildSwapchain) => {
-        state.renderer.resize();
+        state.renderer.refresh();
       }
       Err(error) => {
         error!("`{error}` Aborting...");

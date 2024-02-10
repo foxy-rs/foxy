@@ -18,6 +18,7 @@ pub struct Renderer {
   device: wgpu::Device,
   queue: wgpu::Queue,
   config: wgpu::SurfaceConfiguration,
+  is_dirty: bool,
 }
 
 impl Renderer {
@@ -80,6 +81,7 @@ impl Renderer {
         device,
         queue,
         config,
+        is_dirty: false,
       })
     })
   }
@@ -88,11 +90,8 @@ impl Renderer {
     self.window.as_ref()
   }
 
-  pub fn resize(&mut self) {
-    let new_size = self.window.inner_size();
-    self.config.width = new_size.width.max(1);
-    self.config.height = new_size.height.max(1);
-    self.surface.configure(&self.device, &self.config);
+  pub fn refresh(&mut self) {
+    self.is_dirty = true;
   }
 
   pub fn input(&mut self, event: &WindowEvent) -> bool {
@@ -139,18 +138,36 @@ impl Renderer {
 
         Ok(())
       }
+      Err(RendererError::RebuildSwapchain) => Ok(()),
       Err(error) => Err(error),
     }
   }
 }
 
 impl Renderer {
+  fn rebuild_swapchain(&mut self) {
+    let new_size = self.window.inner_size();
+    self.config.width = new_size.width.max(1);
+    self.config.height = new_size.height.max(1);
+    self.surface.configure(&self.device, &self.config);
+  }
+
   fn next_frame(&mut self) -> Result<wgpu::SurfaceTexture, RendererError> {
+    if self.is_dirty {
+      self.rebuild_swapchain();
+      self.is_dirty = false;
+    }
+
     match self.surface.get_current_texture() {
-      Ok(frame) => Ok(frame),
+      Ok(frame) => {
+        if frame.suboptimal {
+          self.refresh();
+        }
+        Ok(frame)
+      }
       Err(SurfaceError::Lost | SurfaceError::Outdated | SurfaceError::OutOfMemory) => {
-        self.resize();
-        self.surface.get_current_texture().map_err(RendererError::from)
+        self.refresh();
+        Err(RendererError::RebuildSwapchain)
       }
       Err(error) => Err(RendererError::SurfaceError(error)),
     }

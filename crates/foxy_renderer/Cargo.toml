@@ -14,7 +14,6 @@ categories        = ["data-structures"]
 
 [dependencies]
 thiserror     = "1.0"
-anyhow        = "1.0"
 tracing       = "0.1"
 tracing-error = "0.2"
 
