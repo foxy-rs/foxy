@@ -5,9 +5,18 @@ use std::sync::Arc;
 use foxy_utils::time::Time;
 use tracing::*;
 use vulkano::{
-  command_buffer::{RenderingAttachmentInfo, RenderingInfo},
-  format::ClearValue,
-  memory::allocator::StandardMemoryAllocator,
+  command_buffer::{
+    BlitImageInfo,
+    ClearColorImageInfo,
+    CopyImageInfo,
+    ImageBlit,
+    ImageCopy,
+    RenderingAttachmentInfo,
+    RenderingInfo,
+  },
+  format::{ClearValue, Format},
+  image::{sampler::Filter, Image, ImageAspects, ImageCreateInfo, ImageLayout, ImageSubresourceLayers, ImageUsage},
+  memory::allocator::{AllocationCreateInfo, MemoryAllocatePreference, StandardMemoryAllocator},
   render_pass::{AttachmentLoadOp, AttachmentStoreOp},
   swapchain::SwapchainPresentInfo,
   sync::{self, GpuFuture},
@@ -15,7 +24,11 @@ use vulkano::{
 };
 use winit::{event::WindowEvent, window::Window};
 
-use self::{instance::FoxyInstance, surface::FoxySurface, types::frame_data::FrameData};
+use self::{
+  instance::FoxyInstance,
+  surface::FoxySurface,
+  types::frame_data::{FrameData, PrimaryCommandBufferBuilder},
+};
 use crate::{
   error::RendererError,
   renderer::render_data::RenderData,
@@ -39,28 +52,30 @@ pub struct Vulkan {
   instance: FoxyInstance,
   surface: FoxySurface,
   device: FoxyDevice,
+  allocator: Arc<StandardMemoryAllocator>,
 
   swapchain: FoxySwapchain,
   frame_index: usize,
   frame_data: Vec<FrameData>,
 
-  allocator: Arc<StandardMemoryAllocator>,
-
   is_dirty: bool,
+  previous_frame_end: Option<Box<dyn GpuFuture>>,
 }
 
 impl Vulkan {
-  pub fn new(window: Arc<Window>) -> Result<Self, RendererError> {
+  pub fn new(window: Arc<Window>) -> Result<Self, VulkanError> {
     trace!("Initializing Vulkan");
 
     let instance = FoxyInstance::new(&window)?;
     let surface = FoxySurface::new(instance.vk().clone(), window.clone())?;
     let device = FoxyDevice::new(instance.vk().clone(), surface.vk().clone())?;
+    let allocator = Arc::new(StandardMemoryAllocator::new_default(device.vk().clone()));
 
     let swapchain = FoxySwapchain::new(
+      window.clone(),
       surface.vk().clone(),
       device.vk().clone(),
-      window.inner_size(),
+      allocator.clone(),
       PresentMode::AutoImmediate,
     )?;
 
@@ -68,7 +83,7 @@ impl Vulkan {
       .map(|_| FrameData::new(&device))
       .collect::<Result<Vec<_>, VulkanError>>()?;
 
-    let allocator = Arc::new(StandardMemoryAllocator::new_default(device.vk().clone()));
+    let previous_frame_end = Some(sync::now(device.vk().clone()).boxed());
 
     Ok(Self {
       window,
@@ -80,20 +95,25 @@ impl Vulkan {
       frame_data,
       allocator,
       is_dirty: false,
+      previous_frame_end,
     })
   }
 
-  pub fn render(&mut self, render_time: Time, _render_data: RenderData) -> Result<bool, VulkanError> {
+  pub fn resize(&mut self) {
+    self.is_dirty = true;
+  }
+
+  pub fn render_frame(&mut self, _render_time: Time, _render_data: RenderData) -> Result<bool, VulkanError> {
     let image_extent: [u32; 2] = self.window.inner_size().into();
 
     if image_extent.contains(&0) {
       return Ok(false); // skip rendering when window is smol
     }
 
-    self.current_frame_mut().previous_frame_end.as_mut().unwrap().cleanup_finished();
+    self.previous_frame_end.as_mut().unwrap().cleanup_finished();
 
     if self.is_dirty {
-      self.swapchain.rebuild(self.window.inner_size())?;
+      self.swapchain.rebuild()?;
       self.is_dirty = false;
     }
 
@@ -112,23 +132,51 @@ impl Vulkan {
 
     let mut cmd_builder = self.current_frame().primary_command(self.device.graphics_queue())?;
 
-    let render_info = Some(RenderingAttachmentInfo {
+    let render_info = RenderingAttachmentInfo {
       load_op: AttachmentLoadOp::Clear,
       store_op: AttachmentStoreOp::Store,
+      image_layout: ImageLayout::General,
       clear_value: Some(ClearValue::Float([0.2, 0.2, 0.2, 1.0])),
-      ..RenderingAttachmentInfo::image_view(self.swapchain.image_view(image_index as usize).unwrap())
-    });
+      ..RenderingAttachmentInfo::image_view(self.swapchain.draw_image_view())
+    };
 
     cmd_builder
       .begin_rendering(RenderingInfo {
-        color_attachments: vec![render_info],
+        color_attachments: vec![Some(render_info)],
         ..Default::default()
       })?
-      .end_rendering()?;
+      .set_viewport(0, vec![self.swapchain.viewport().clone()].into())?;
+
+    self.paint(&mut cmd_builder, image_index)?;
+
+    cmd_builder.end_rendering()?;
+
+    let region = ImageBlit {
+      src_subresource: ImageSubresourceLayers {
+        array_layers: 0..1,
+        aspects: ImageAspects::COLOR,
+        mip_level: 0,
+      },
+      src_offsets: [[0, 0, 0], self.swapchain.draw_image().extent()],
+      dst_subresource: ImageSubresourceLayers {
+        array_layers: 0..1,
+        aspects: ImageAspects::COLOR,
+        mip_level: 0,
+      },
+      dst_offsets: [[0, 0, 0], self.swapchain.image(image_index as usize).extent()],
+      ..Default::default()
+    };
+    cmd_builder.blit_image(BlitImageInfo {
+      src_image_layout: ImageLayout::TransferSrcOptimal,
+      dst_image_layout: ImageLayout::TransferDstOptimal,
+      regions: vec![region].into(),
+      filter: Filter::Linear,
+      ..BlitImageInfo::images(self.swapchain.draw_image(), self.swapchain.image(image_index as usize))
+    })?;
 
     let cmd = cmd_builder.build()?;
 
-    let future = self.current_frame_mut()
+    let future = self
       .previous_frame_end
       .take()
       .unwrap()
@@ -140,15 +188,19 @@ impl Vulkan {
       )
       .then_signal_fence_and_flush();
 
-    match future.map_err(Validated::unwrap) {
-      Ok(future) => self.current_frame_mut().previous_frame_end = Some(future.boxed()),
-      Err(vulkano::VulkanError::OutOfDate) => {
+    match future {
+      Ok(future) => self.previous_frame_end = Some(future.boxed()),
+      Err(Validated::Error(vulkano::VulkanError::OutOfDate)) => {
         self.is_dirty = true;
-        self.current_frame_mut().previous_frame_end = Some(sync::now(self.device.vk().clone()).boxed());
+        self.previous_frame_end = Some(sync::now(self.device.vk().clone()).boxed());
+      }
+      Err(Validated::ValidationError(error)) => {
+        error!("Validation error: `{error:?}`");
+        self.previous_frame_end = Some(sync::now(self.device.vk().clone()).boxed());
       }
       Err(error) => {
         error!("failed to flush future: `{error:?}`");
-        self.current_frame_mut().previous_frame_end = Some(sync::now(self.device.vk().clone()).boxed());
+        self.previous_frame_end = Some(sync::now(self.device.vk().clone()).boxed());
       }
     }
 
@@ -157,11 +209,7 @@ impl Vulkan {
     Ok(false)
   }
 
-  pub fn resize(&mut self) {
-    self.is_dirty = true;
-  }
-
-  pub fn input(&mut self, event: &WindowEvent) -> bool {
+  pub fn input(&mut self, _event: &WindowEvent) -> bool {
     false
   }
 }
@@ -173,5 +221,9 @@ impl Vulkan {
 
   fn current_frame_mut(&mut self) -> &mut FrameData {
     self.frame_data.get_mut(self.frame_index).expect("invalid frame index")
+  }
+
+  fn paint(&self, cmd_builder: &mut PrimaryCommandBufferBuilder, image_index: u32) -> Result<(), VulkanError> {
+    Ok(())
   }
 }

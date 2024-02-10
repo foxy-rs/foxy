@@ -26,6 +26,8 @@ pub enum VulkanError {
   #[error("{0}")]
   ValidatedVulkanoError(#[from] Validated<vulkano::VulkanError>),
   #[error("{0}")]
+  AllocateImageError(#[from] Validated<vulkano::image::AllocateImageError>),
+  #[error("{0}")]
   LoadingError(#[from] vulkano::LoadingError),
   #[error("{0}")]
   ValidationError(#[from] Box<vulkano::ValidationError>),

@@ -24,6 +24,11 @@ use crate::{
   vulkan_error,
 };
 
+pub type PrimaryCommandBufferBuilder = AutoCommandBufferBuilder<
+  PrimaryAutoCommandBuffer<Arc<StandardCommandBufferAllocator>>,
+  Arc<StandardCommandBufferAllocator>,
+>;
+
 pub struct FrameData {
   pub cmd_buffer_allocator: Arc<StandardCommandBufferAllocator>,
   pub imm_cmd_buffer_allocator: Arc<StandardCommandBufferAllocator>,
@@ -32,8 +37,6 @@ pub struct FrameData {
   // pub imm_fence: Fence,
   // pub present_semaphore: Semaphore,
   // pub render_semaphore: Semaphore,
-
-  pub previous_frame_end: Option<Box<dyn GpuFuture>>,
 }
 
 impl FrameData {
@@ -46,48 +49,13 @@ impl FrameData {
     let imm_cmd_buffer_allocator =
       Arc::new(StandardCommandBufferAllocator::new(device.vk().clone(), Default::default()));
 
-    let create_info = CommandPoolCreateInfo {
-      flags: CommandPoolCreateFlags::TRANSIENT | CommandPoolCreateFlags::RESET_COMMAND_BUFFER,
-      queue_family_index: device.graphics_queue().queue_family_index(),
-      ..Default::default()
-    };
-
-    // init sync objects
-
-    let fence_info = FenceCreateInfo {
-      flags: FenceCreateFlags::SIGNALED,
-      ..Default::default()
-    };
-    // let render_fence = Fence::new(device.vk().clone(), fence_info)?;
-    // let imm_fence = Fence::new(device.vk().clone(), fence_info)?;
-
-    // let semaphore_info = SemaphoreCreateInfo::default();
-    // let swapchain_semaphore = Semaphore::new(device.vk().clone(), semaphore_info)?;
-    // let render_semaphore = Semaphore::new(device.vk().clone(), semaphore_info)?;
-
-    let previous_frame_end = Some(sync::now(device.vk().clone()).boxed());
-
     Ok(FrameData {
       cmd_buffer_allocator,
       imm_cmd_buffer_allocator,
-      // render_fence,
-      // present_semaphore: swapchain_semaphore,
-      // render_semaphore,
-      // imm_fence,
-      previous_frame_end,
     })
   }
 
-  pub fn primary_command(
-    &self,
-    queue: &Arc<Queue>,
-  ) -> Result<
-    AutoCommandBufferBuilder<
-      PrimaryAutoCommandBuffer<Arc<StandardCommandBufferAllocator>>,
-      Arc<StandardCommandBufferAllocator>,
-    >,
-    VulkanError,
-  > {
+  pub fn primary_command(&self, queue: &Arc<Queue>) -> Result<PrimaryCommandBufferBuilder, VulkanError> {
     let builder = AutoCommandBufferBuilder::primary(
       &self.cmd_buffer_allocator,
       queue.queue_family_index(),

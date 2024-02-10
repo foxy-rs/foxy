@@ -29,7 +29,7 @@ impl Renderer {
   pub fn delete(&mut self) {}
 
   pub fn render(&mut self, render_time: Time, render_data: RenderData) -> Result<(), RendererError> {
-    self.vk.render(render_time, render_data)?;
+    self.vk.render_frame(render_time, render_data)?;
     Ok(())
   }
 
