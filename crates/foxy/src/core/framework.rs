@@ -12,19 +12,21 @@ use foxy_utils::{
 };
 use tracing::*;
 use winit::{
-  event::{Event, WindowEvent},
+  event::{Event, KeyEvent, WindowEvent},
   event_loop::{ControlFlow, EventLoop, EventLoopWindowTarget},
   window::Window,
 };
 
 use super::{
   builder::{DebugInfo, FoxyCreateInfo, Polling},
+  engine_state::Foxy,
   runnable::Runnable,
-  state::Foxy,
   FoxyResult,
 };
 use crate::core::{
+  event::FoxyEvent,
   message::{GameLoopMessage, RenderLoopMessage},
+  runnable::Flow,
   FoxyError,
 };
 
@@ -225,7 +227,7 @@ impl<T: 'static + Send + Sync> Framework<T> {
               break;
             }
             Ok(RenderLoopMessage::ExitRequested) => {
-              if app.stop(&mut foxy) {
+              if let Flow::Exit = app.stop(&mut foxy) {
                 let _ = mailbox.send(GameLoopMessage::Exit);
                 app.delete();
                 break;
@@ -234,7 +236,35 @@ impl<T: 'static + Send + Sync> Framework<T> {
               }
               None
             }
-            Ok(RenderLoopMessage::Winit(event)) => Some(event),
+            Ok(RenderLoopMessage::Winit(event)) => {
+              match event {
+                WindowEvent::KeyboardInput {
+                  event:
+                    KeyEvent {
+                      physical_key,
+                      state: element_state,
+                      repeat,
+                      ..
+                    },
+                  ..
+                } => {
+                  foxy.input.update_key_state(physical_key, element_state, repeat);
+                }
+                WindowEvent::MouseInput {
+                  button,
+                  state: element_state,
+                  ..
+                } => {
+                  foxy.input.update_mouse_button_state(button, element_state);
+                }
+                WindowEvent::ModifiersChanged(mods) => {
+                  foxy.input.update_modifiers_state(mods);
+                }
+                _ => (),
+              }
+
+              Some(event)
+            }
             Err(MessagingError::TryRecvError {
               error: TryRecvError::Disconnected,
             }) => {
@@ -247,13 +277,24 @@ impl<T: 'static + Send + Sync> Framework<T> {
 
           // Loop
 
+          let event = FoxyEvent::from(event);
+
           foxy.time.update();
           while foxy.time.should_do_tick_unchecked() {
             foxy.time.tick();
             app.fixed_update(&mut foxy, &event);
           }
+
+          if let FoxyEvent::Input(event) = &event {
+            app.input(&mut foxy, event);
+          }
+
           app.update(&mut foxy, &event);
           render_queue.force_push(RenderData {});
+
+          if let FoxyEvent::Window(event) = &event {
+            app.window(&mut foxy, event);
+          }
         }
 
         debug!("BAU BAU FOR NOW");

@@ -1,5 +1,5 @@
 use foxy_utils::time::TimeCreateInfo;
-use winit::dpi::Size;
+use winit::dpi::{LogicalSize, Size};
 
 use crate::window::WindowCreateInfo;
 
@@ -37,8 +37,11 @@ impl FoxyCreateInfo {
     self
   }
 
-  pub fn with_size(mut self, size: Size) -> Self {
-    self.window.inner_size = Some(size);
+  pub fn with_size(mut self, width: u32, height: u32) -> Self {
+    self.window.inner_size = Some(Size::Logical(LogicalSize {
+      width: width.into(),
+      height: height.into(),
+    }));
     self
   }
 

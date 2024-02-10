@@ -1,23 +1,14 @@
 #![cfg_attr(all(windows, not(debug_assertions)), windows_subsystem = "windows")]
 
-use foxy::prelude::{
-  winit::{
-    dpi::{LogicalSize, Size},
-    event::{KeyEvent, MouseButton, WindowEvent},
-  },
-  *,
-};
+use foxy::prelude::*;
 use tracing::debug;
 
 pub struct App;
 
 impl Runnable for App {
-  fn foxy() -> FoxyCreateInfo {
+  fn settings() -> FoxyCreateInfo {
     FoxyCreateInfo::default()
-      .with_size(Size::Logical(LogicalSize {
-        width: 800.0,
-        height: 450.0,
-      }))
+      .with_size(800, 450)
       .with_debug_info(DebugInfo::Shown)
       .with_polling(Polling::Poll)
   }
@@ -26,31 +17,19 @@ impl Runnable for App {
     Self {}
   }
 
-  fn update(&mut self, _foxy: &mut Foxy, event: &Option<WindowEvent>) {
-    if let Some(
-      WindowEvent::KeyboardInput {
-        event: KeyEvent {
-          physical_key, state, ..
-        },
-        ..
-      },
-    ) = event
-    {
-      debug!("UPDATE | {:?}: {:?}", physical_key, state)
-    } else if let Some(
-      WindowEvent::MouseInput {
-        button,
-        state,
-        ..
-      },
-    ) = event
-    {
-      debug!("UPDATE | {:?}: {:?}", button, state)
+  fn input(&mut self, foxy: &mut Foxy, event: &InputEvent) {
+    if let InputEvent::Mouse(button, state) = event {
+      debug!("UPDATE | {:?}: {:?} + {:?}", button, state, foxy.input().shift().is_pressed())
     }
   }
 }
 
 fn main() -> FoxyResult<()> {
+  start_logging();
+  App::run()
+}
+
+fn start_logging() {
   if let Some(session) = debug_logging_session_ex!(
     ("foxy", Some(LogLevel::Trace)),
     ("foxy_renderer", Some(LogLevel::Trace)),
@@ -59,6 +38,4 @@ fn main() -> FoxyResult<()> {
   ) {
     session.with_line_numbers(true).with_file_names(true).start();
   }
-
-  App::run()
 }
