@@ -134,7 +134,9 @@ impl Framework {
                 state.window.request_redraw();
               }
               WindowEvent::RedrawRequested => {
-                Self::render(&mut state, elwt);
+                if !elwt.exiting() {
+                  Self::render(&mut state, elwt);
+                }
               }
               _ => (),
             }
@@ -147,7 +149,7 @@ impl Framework {
           }
         }
         WinitEvent::AboutToWait => {
-          if !state.had_first_frame {
+          if !state.had_first_frame && !elwt.exiting() {
             Self::render(&mut state, elwt);
           } else {
             state.window.request_redraw();
@@ -180,7 +182,6 @@ impl Framework {
         state.had_first_frame = true;
         state.window.set_visible(true);
       }
-      Err(RendererError::RebuildSwapchain) => {}
       Err(error) => {
         error!("`{error}` Aborting...");
         let _ = state.render_mailbox.send_and_recv(RenderLoopMessage::MustExit);

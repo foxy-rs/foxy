@@ -6,8 +6,6 @@ use crate::vulkan::error::VulkanError;
 pub enum RendererError {
   #[error("{0}")]
   Error(String),
-  #[error("must rebuild swapchain")]
-  RebuildSwapchain,
   #[error("{0}")]
   Vulkan(#[from] VulkanError),
 }
