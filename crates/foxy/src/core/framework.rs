@@ -1,10 +1,7 @@
 use std::{sync::Arc, thread::JoinHandle, time::Duration};
 
 use crossbeam::{channel::TryRecvError, queue::ArrayQueue};
-use foxy_renderer::{
-  error::RendererError,
-  renderer::{render_data::RenderData, Renderer},
-};
+use foxy_renderer::renderer::{render_data::RenderData, Renderer};
 use foxy_utils::{
   log::LogErr,
   mailbox::{Mailbox, MessagingError},

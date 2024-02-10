@@ -36,6 +36,7 @@ mod instance;
 mod surface;
 mod swapchain;
 mod types;
+mod shader;
 
 pub struct Vulkan {
   window: Arc<Window>,
