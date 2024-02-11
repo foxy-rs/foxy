@@ -115,7 +115,7 @@ impl Renderer {
             color: [0.0, 0.0, 1.0],
           },
         ],
-        &[],
+        None,
         standard_material.clone(),
       );
 

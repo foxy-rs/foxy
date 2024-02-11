@@ -108,7 +108,7 @@ pub struct Mesh {
 }
 
 impl Mesh {
-  pub fn new(device: &wgpu::Device, vertices: &[Vertex], indices: &[u32], material: Arc<impl Material + 'static>) -> Self {
+  pub fn new(device: &wgpu::Device, vertices: &[Vertex], indices: Option<&[u32]>, material: Arc<impl Material + 'static>) -> Self {
     let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
       label: Some("Vertex Buffer"),
       contents: bytemuck::cast_slice(vertices),
@@ -116,7 +116,7 @@ impl Mesh {
     });
     let num_vertices = vertices.len() as u32;
 
-    let index_buffer = if !indices.is_empty() {
+    let index_buffer = if let Some(indices) = indices {
       let buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
         label: Some("Index Buffer"),
         contents: bytemuck::cast_slice(indices),
