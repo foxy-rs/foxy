@@ -7,7 +7,7 @@ use winit::{event::WindowEvent, window::Window};
 use self::render_data::{Mesh, RenderData};
 use crate::{
   error::RendererError,
-  renderer::render_data::{StandardMaterial, VERTICES},
+  renderer::render_data::{StandardMaterial, Vertex},
 };
 
 pub mod render_data;
@@ -99,7 +99,25 @@ impl Renderer {
 
       let standard_material = StandardMaterial::new(&device, target_format);
 
-      let mesh = Mesh::new(&device, VERTICES, &[], standard_material.clone());
+      let mesh = Mesh::new(
+        &device,
+        &[
+          Vertex {
+            position: [0.0, 0.5, 0.0],
+            color: [1.0, 0.0, 0.0],
+          },
+          Vertex {
+            position: [-0.5, -0.5, 0.0],
+            color: [0.0, 1.0, 0.0],
+          },
+          Vertex {
+            position: [0.5, -0.5, 0.0],
+            color: [0.0, 0.0, 1.0],
+          },
+        ],
+        &[],
+        standard_material.clone(),
+      );
 
       Ok(Self {
         window,
