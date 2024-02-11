@@ -2,13 +2,12 @@ use std::sync::Arc;
 
 use foxy_utils::time::Time;
 use tracing::debug;
-use wgpu::util::DeviceExt;
 use winit::{event::WindowEvent, window::Window};
 
-use self::render_data::{Material, Mesh, RenderData};
+use self::render_data::{Mesh, RenderData};
 use crate::{
   error::RendererError,
-  renderer::render_data::{Vertex, VERTICES},
+  renderer::render_data::{StandardMaterial, VERTICES},
 };
 
 pub mod render_data;
@@ -22,7 +21,7 @@ pub struct Renderer {
   target_format: wgpu::TextureFormat,
   render_target: wgpu::Texture,
 
-  standard_material: Arc<Material>,
+  standard_material: Arc<StandardMaterial>,
   mesh: Mesh,
 
   is_dirty: bool,
@@ -98,33 +97,7 @@ impl Renderer {
 
       surface.configure(&device, &config);
 
-      let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-        label: None,
-        source: wgpu::ShaderSource::Wgsl(std::borrow::Cow::Borrowed(include_str!(
-          "../assets/foxy_renderer/shaders/shader.wgsl"
-        ))),
-      });
-
-      let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-        label: None,
-        layout: None,
-        vertex: wgpu::VertexState {
-          module: &shader,
-          entry_point: "vs_main",
-          buffers: &[Vertex::desc()],
-        },
-        fragment: Some(wgpu::FragmentState {
-          module: &shader,
-          entry_point: "fs_main",
-          targets: &[Some(target_format.into())],
-        }),
-        primitive: wgpu::PrimitiveState::default(),
-        depth_stencil: None,
-        multisample: wgpu::MultisampleState::default(),
-        multiview: None,
-      });
-
-      let standard_material = Arc::new(Material { shader, pipeline });
+      let standard_material = StandardMaterial::new(&device, target_format);
 
       let mesh = Mesh::new(&device, VERTICES, &[], standard_material.clone());
 
