@@ -5,15 +5,17 @@ pub enum RendererError {
   #[error("{0}")]
   Error(String),
   #[error("{0}")]
-  WgpuError(#[from] wgpu::Error),
+  GlutinError(#[from] glium::glutin::error::Error),
   #[error("{0}")]
-  SurfaceError(#[from] wgpu::SurfaceError),
-  #[error("must rebuild swapchain")]
-  RebuildSwapchain,
+  DrawError(#[from] glium::DrawError),
   #[error("{0}")]
-  CreateSurfaceError(#[from] wgpu::CreateSurfaceError),
+  ReadError(#[from] glium::ReadError),
   #[error("{0}")]
-  RequestDeviceError(#[from] wgpu::RequestDeviceError),
+  UuidError(#[from] glium::UuidError),
+  #[error("{0}")]
+  SwapBuffersError(#[from] glium::SwapBuffersError),
+  #[error("{0}")]
+  ProgramCreationError(#[from] glium::ProgramCreationError),
 }
 
 #[macro_export]

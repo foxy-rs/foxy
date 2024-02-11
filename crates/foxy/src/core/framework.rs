@@ -181,9 +181,9 @@ impl<T: 'static + Send + Sync> Framework<T> {
         state.had_first_frame = true;
         state.window.set_visible(true);
       }
-      Err(RendererError::RebuildSwapchain) => {
-        state.renderer.refresh();
-      }
+      // Err(RendererError::RebuildSwapchain) => {
+      //   state.renderer.refresh();
+      // }
       Err(error) => {
         error!("`{error}` Aborting...");
         let _ = state.render_mailbox.send_and_recv(RenderLoopMessage::MustExit);
