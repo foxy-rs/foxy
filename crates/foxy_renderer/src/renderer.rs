@@ -4,13 +4,13 @@ use foxy_utils::time::Time;
 use tracing::debug;
 use winit::{event::WindowEvent, window::Window};
 
-use self::render_data::{Mesh, RenderData};
-use crate::{
-  error::RendererError,
-  renderer::render_data::{StandardMaterial, Vertex},
-};
+use self::{material::StandardMaterial, mesh::Mesh, render_data::{Drawable, RenderData}};
+use crate::{error::RendererError, renderer::{material::Material, vertex::Vertex}};
 
+pub mod material;
+pub mod mesh;
 pub mod render_data;
+pub mod vertex;
 
 pub struct Renderer {
   window: Arc<Window>,
