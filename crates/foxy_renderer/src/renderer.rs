@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use foxy_utils::time::Time;
 use tracing::debug;
+use wgpu::TextureFormat;
 use winit::{event::WindowEvent, window::Window};
 
 use self::{material::StandardMaterial, mesh::Mesh, render_data::{Drawable, RenderData}};
@@ -28,6 +29,8 @@ pub struct Renderer {
 }
 
 impl Renderer {
+  const SWAPCHAIN_FORMAT: TextureFormat = TextureFormat::Rgba8UnormSrgb;
+
   pub fn new(window: Arc<Window>) -> Result<Self, RendererError> {
     pollster::block_on(async {
       let size = window.inner_size();
@@ -59,7 +62,7 @@ impl Renderer {
         )
         .await?;
 
-      let target_format = wgpu::TextureFormat::Rgba8UnormSrgb;
+      let target_format = Self::SWAPCHAIN_FORMAT;
       let render_target = device.create_texture(&wgpu::TextureDescriptor {
         label: Some("Render Target"),
         size: wgpu::Extent3d {
@@ -81,7 +84,7 @@ impl Renderer {
         .formats
         .iter()
         .copied()
-        .find(|f| *f == wgpu::TextureFormat::Rgba8UnormSrgb)
+        .find(|f| *f == Self::SWAPCHAIN_FORMAT)
         .unwrap_or(*surface_caps.formats.first().unwrap());
 
       let config = wgpu::SurfaceConfiguration {
@@ -97,7 +100,7 @@ impl Renderer {
 
       surface.configure(&device, &config);
 
-      let standard_material = StandardMaterial::new(&device, target_format);
+      let standard_material = StandardMaterial::new(&device);
 
       let mesh = Mesh::new(
         &device,

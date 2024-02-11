@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use wgpu::{Device, TextureFormat};
 
-use super::vertex::Vertex;
+use super::{vertex::Vertex, Renderer};
 
 #[repr(C)]
 pub struct MaterialUniforms {
@@ -10,9 +10,17 @@ pub struct MaterialUniforms {
 }
 
 pub trait Material {
-  fn new(device: &Device, format: TextureFormat) -> Arc<Self>
+  fn new(device: &Device) -> Arc<Self>
   where
     Self: Sized;
+
+  fn format() -> TextureFormat
+  where
+    Self: Sized,
+  {
+    Renderer::SWAPCHAIN_FORMAT
+  }
+
   fn bind<'a>(&'a self, render_pass: &mut wgpu::RenderPass<'a>);
 }
 
@@ -24,7 +32,7 @@ pub struct StandardMaterial {
 }
 
 impl Material for StandardMaterial {
-  fn new(device: &Device, format: TextureFormat) -> Arc<Self> {
+  fn new(device: &Device) -> Arc<Self> {
     let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
       label: None,
       source: wgpu::ShaderSource::Wgsl(std::borrow::Cow::Borrowed(include_str!(
@@ -43,7 +51,7 @@ impl Material for StandardMaterial {
       fragment: Some(wgpu::FragmentState {
         module: &shader,
         entry_point: "fs_main",
-        targets: &[Some(format.into())],
+        targets: &[Some(Self::format().into())],
       }),
       primitive: wgpu::PrimitiveState::default(),
       depth_stencil: None,
