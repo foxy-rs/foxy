@@ -5,8 +5,11 @@ use tracing::debug;
 use wgpu::util::DeviceExt;
 use winit::{event::WindowEvent, window::Window};
 
-use self::render_data::RenderData;
-use crate::{error::RendererError, renderer::render_data::VERTICES};
+use self::render_data::{Material, Mesh, RenderData};
+use crate::{
+  error::RendererError,
+  renderer::render_data::{Vertex, VERTICES},
+};
 
 pub mod render_data;
 
@@ -19,9 +22,8 @@ pub struct Renderer {
   target_format: wgpu::TextureFormat,
   render_target: wgpu::Texture,
 
-  shader: wgpu::ShaderModule,
-  pipeline: wgpu::RenderPipeline,
-  vertex_buffer: wgpu::Buffer,
+  standard_material: Arc<Material>,
+  mesh: Mesh,
 
   is_dirty: bool,
 }
@@ -109,7 +111,7 @@ impl Renderer {
         vertex: wgpu::VertexState {
           module: &shader,
           entry_point: "vs_main",
-          buffers: &[],
+          buffers: &[Vertex::desc()],
         },
         fragment: Some(wgpu::FragmentState {
           module: &shader,
@@ -122,11 +124,9 @@ impl Renderer {
         multiview: None,
       });
 
-      let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-        label: None,
-        contents: bytemuck::cast_slice(VERTICES),
-        usage: wgpu::BufferUsages::VERTEX,
-      });
+      let standard_material = Arc::new(Material { shader, pipeline });
+
+      let mesh = Mesh::new(&device, VERTICES, &[], standard_material.clone());
 
       Ok(Self {
         window,
@@ -136,9 +136,8 @@ impl Renderer {
         queue,
         target_format,
         render_target,
-        shader,
-        pipeline,
-        vertex_buffer,
+        standard_material,
+        mesh,
         is_dirty: false,
       })
     })
@@ -181,8 +180,7 @@ impl Renderer {
             timestamp_writes: None,
           });
 
-          render_pass.set_pipeline(&self.pipeline);
-          render_pass.draw(0..3, 0..1);
+          self.mesh.draw(&mut render_pass);
         }
 
         command_encoder.copy_texture_to_texture(

@@ -1,6 +1,7 @@
-use std::fmt::Debug;
+use std::{fmt::Debug, sync::Arc};
 
 use bytemuck::{Pod, Zeroable};
+use wgpu::{util::DeviceExt, IndexFormat};
 
 #[derive(Default)]
 pub struct RenderData {}
@@ -11,11 +12,38 @@ impl Debug for RenderData {
   }
 }
 
+// pub trait Vertex {
+//   fn desc() -> wgpu::VertexBufferLayout<'static>;
+// }
+
 #[repr(C)]
-#[derive(Debug, Copy, Clone, Pod, Zeroable)]
+#[derive(Debug, Default, Copy, Clone, Pod, Zeroable)]
 pub struct Vertex {
-  position: [f32; 3],
-  color: [f32; 3],
+  pub position: [f32; 3],
+  pub color: [f32; 3],
+}
+
+impl Vertex {
+  pub fn desc() -> wgpu::VertexBufferLayout<'static> {
+    const ATTRIBUTES: [wgpu::VertexAttribute; 2] = wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x3];
+    wgpu::VertexBufferLayout {
+      array_stride: std::mem::size_of::<Self>() as wgpu::BufferAddress,
+      step_mode: wgpu::VertexStepMode::Vertex,
+      attributes: &ATTRIBUTES,
+    }
+  }
+
+  pub fn with_position(mut self, x: f32, y: f32, z: f32) -> Self {
+    self.position = [x, y, z];
+
+    self
+  }
+
+  pub fn with_color(mut self, r: f32, g: f32, b: f32) -> Self {
+    self.color = [r, g, b];
+
+    self
+  }
 }
 
 pub const VERTICES: &[Vertex] = &[
@@ -32,3 +60,68 @@ pub const VERTICES: &[Vertex] = &[
     color: [0.0, 0.0, 1.0],
   },
 ];
+
+#[repr(C)]
+pub struct MaterialUniforms {
+  pub color: [f32; 4],
+}
+
+pub struct Material {
+  // pub uniforms: MaterialUniforms,
+  // pub uniforms_buffer: wgpu::Buffer,
+  pub shader: wgpu::ShaderModule,
+  pub pipeline: wgpu::RenderPipeline,
+}
+
+impl Material {
+  fn bind<'a>(&'a self, render_pass: &mut wgpu::RenderPass<'a>) {
+    render_pass.set_pipeline(&self.pipeline);
+  }
+}
+
+pub struct Mesh {
+  vertex_buffer: wgpu::Buffer,
+  num_vertices: u32,
+  index_buffer: Option<(wgpu::Buffer, u32)>,
+  material: Arc<Material>,
+}
+
+impl Mesh {
+  pub fn new(device: &wgpu::Device, vertices: &[Vertex], indices: &[u32], material: Arc<Material>) -> Self {
+    let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+      label: Some("Vertex Buffer"),
+      contents: bytemuck::cast_slice(vertices),
+      usage: wgpu::BufferUsages::VERTEX,
+    });
+    let num_vertices = vertices.len() as u32;
+
+    let index_buffer = if !indices.is_empty() {
+      let buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+        label: Some("Index Buffer"),
+        contents: bytemuck::cast_slice(indices),
+        usage: wgpu::BufferUsages::INDEX,
+      });
+      Some((buffer, indices.len() as u32))
+    } else {
+      None
+    };
+
+    Self {
+      vertex_buffer,
+      num_vertices,
+      index_buffer,
+      material,
+    }
+  }
+
+  pub fn draw<'a>(&'a self, render_pass: &mut wgpu::RenderPass<'a>) {
+    self.material.bind(render_pass);
+    render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
+    if let Some((buffer, count)) = &self.index_buffer {
+      render_pass.set_index_buffer(buffer.slice(..), IndexFormat::Uint32);
+      render_pass.draw_indexed(0..*count, 0, 0..1);
+    } else {
+      render_pass.draw(0..self.num_vertices, 0..1);
+    }
+  }
+}
