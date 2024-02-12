@@ -39,7 +39,7 @@ impl Pass for SimplePass {
     mesh: &Mesh,
   ) -> Result<(), crate::error::RendererError> {
     let mut render_pass = command_encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-      label: Some("Simple Render Pass"),
+      label: Some("Simple Pass"),
       color_attachments: &[Some(wgpu::RenderPassColorAttachment {
         view: render_target,
         resolve_target: None,
