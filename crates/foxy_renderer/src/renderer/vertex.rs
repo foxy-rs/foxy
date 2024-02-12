@@ -10,12 +10,12 @@ use bytemuck::{Pod, Zeroable};
 #[derive(Debug, Default, Copy, Clone, Pod, Zeroable)]
 pub struct Vertex {
   pub position: [f32; 3],
-  pub color: [f32; 3],
+  pub tex_coords: [f32; 2],
 }
 
 impl Vertex {
   pub fn desc() -> wgpu::VertexBufferLayout<'static> {
-    const ATTRIBUTES: [wgpu::VertexAttribute; 2] = wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x3];
+    const ATTRIBUTES: [wgpu::VertexAttribute; 2] = wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x2];
     wgpu::VertexBufferLayout {
       array_stride: std::mem::size_of::<Self>() as wgpu::BufferAddress,
       step_mode: wgpu::VertexStepMode::Vertex,
@@ -29,8 +29,8 @@ impl Vertex {
     self
   }
 
-  pub fn with_color(mut self, r: f32, g: f32, b: f32) -> Self {
-    self.color = [r, g, b];
+  pub fn with_tex_coords(mut self, u: f32, v: f32) -> Self {
+    self.tex_coords = [u, v];
 
     self
   }

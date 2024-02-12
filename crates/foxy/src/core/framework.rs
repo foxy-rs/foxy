@@ -212,7 +212,7 @@ impl<T: 'static + Send + Sync> Framework<T> {
       .name(Self::GAME_THREAD_ID.into())
       .spawn(move || -> FoxyResult<()> {
         let _ = mailbox.recv().log_error(); // wait for startup message
-        debug!("HELLO HELLO BAU BAU");
+        // debug!("HELLO HELLO BAU BAU");
 
         let mut app = App::new(&mut foxy);
         app.start(&mut foxy);
@@ -297,7 +297,7 @@ impl<T: 'static + Send + Sync> Framework<T> {
           }
         }
 
-        debug!("BAU BAU FOR NOW");
+        // debug!("BAU BAU FOR NOW");
         Ok(())
       })?;
 

@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
-use wgpu::{Device, TextureFormat};
+use wgpu::{include_wgsl, Device, Queue, TextureFormat};
 
-use super::{vertex::Vertex, Renderer};
+use super::{context::GraphicsContext, texture::DiffuseTexture, vertex::Vertex, Renderer};
 
 #[repr(C)]
 pub struct MaterialUniforms {
@@ -10,59 +10,35 @@ pub struct MaterialUniforms {
 }
 
 pub trait Material {
-  fn new(device: &Device) -> Arc<Self>
-  where
-    Self: Sized;
-
   fn format() -> TextureFormat
   where
     Self: Sized,
   {
-    Renderer::SWAPCHAIN_FORMAT
+    GraphicsContext::SURFACE_FORMAT
   }
 
-  fn bind<'a>(&'a self, render_pass: &mut wgpu::RenderPass<'a>);
+  fn albedo(&self) -> &DiffuseTexture;
 }
 
 pub struct StandardMaterial {
   // pub uniforms: MaterialUniforms,
   // pub uniforms_buffer: wgpu::Buffer,
-  pub shader: wgpu::ShaderModule,
-  pub pipeline: wgpu::RenderPipeline,
+  pub albedo: DiffuseTexture,
 }
 
 impl Material for StandardMaterial {
-  fn new(device: &Device) -> Arc<Self> {
-    let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-      label: None,
-      source: wgpu::ShaderSource::Wgsl(std::borrow::Cow::Borrowed(include_str!(
-        "../../assets/foxy_renderer/shaders/shader.wgsl"
-      ))),
-    });
-
-    let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-      label: None,
-      layout: None,
-      vertex: wgpu::VertexState {
-        module: &shader,
-        entry_point: "vs_main",
-        buffers: &[Vertex::desc()],
-      },
-      fragment: Some(wgpu::FragmentState {
-        module: &shader,
-        entry_point: "fs_main",
-        targets: &[Some(Self::format().into())],
-      }),
-      primitive: wgpu::PrimitiveState::default(),
-      depth_stencil: None,
-      multisample: wgpu::MultisampleState::default(),
-      multiview: None,
-    });
-
-    Arc::new(Self { shader, pipeline })
+  fn albedo(&self) -> &DiffuseTexture {
+    &self.albedo
   }
+}
 
-  fn bind<'a>(&'a self, render_pass: &mut wgpu::RenderPass<'a>) {
-    render_pass.set_pipeline(&self.pipeline);
+impl StandardMaterial {
+  pub fn new(device: &Device, queue: &Queue, texture: Option<DiffuseTexture>) -> Arc<Self> {
+    let albedo = match texture {
+      Some(texture) => texture,
+      None => DiffuseTexture::new(device, queue, include_bytes!("../../assets/textures/default.png")),
+    };
+
+    Arc::new(Self { albedo })
   }
 }

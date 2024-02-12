@@ -65,3 +65,8 @@ This repository contains a few crates as they each naturally evolved and split a
 * Brenden Galea: for his amazing Vulkan tutorial series (which I would love for him to continue!).
 * One Lone Coder: for inspiration in simplicity and ease of use.
 * GetIntoGameDev: for his outstanding Vulkan tutorials in C++.
+
+WGPU:
+
+* <https://whoisryosuke.com/blog/2022/render-pipelines-in-wgpu-and-rust>
+* <https://sotrh.github.io/learn-wgpu/>

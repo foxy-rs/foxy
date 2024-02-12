@@ -58,7 +58,6 @@ impl Mesh {
 
 impl Drawable for Mesh {
   fn draw<'a>(&'a self, render_pass: &mut wgpu::RenderPass<'a>) {
-    self.material.bind(render_pass);
     render_pass.set_vertex_buffer(0, self.vertices.buffer.slice(..));
     if let Some(indices) = &self.indices {
       render_pass.set_index_buffer(indices.buffer.slice(..), IndexFormat::Uint32);
