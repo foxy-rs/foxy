@@ -56,8 +56,8 @@ impl RenderTarget {
     self.texture = device.create_texture(&wgpu::TextureDescriptor {
       label: Some("HDR Render Texture"),
       size: wgpu::Extent3d {
-        width: self.window.inner_size().width,
-        height: self.window.inner_size().height,
+        width: self.window.inner_size().width.max(1),
+        height: self.window.inner_size().height.max(1),
         depth_or_array_layers: 1,
       },
       mip_level_count: 1,
