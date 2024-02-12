@@ -15,9 +15,9 @@ pub struct IndexData {
 }
 
 pub struct Mesh {
-  vertices: VertexData,
-  indices: Option<IndexData>,
-  material: Arc<dyn Material>,
+  pub vertices: VertexData,
+  pub indices: Option<IndexData>,
+  pub material: Arc<dyn Material>,
 }
 
 impl Mesh {

@@ -1,19 +1,21 @@
 use wgpu::{Color, CommandEncoder};
 
 use super::{create_render_pipeline, Pass};
-use crate::renderer::{context::GraphicsContext, mesh::Mesh, render_data::Drawable, target::RenderTarget, Renderer};
+use crate::renderer::{
+  context::GraphicsContext, mesh::Mesh, render_data::Drawable, target::RenderTarget, texture::DiffuseTexture, vertex::Vertex, Renderer
+};
 
 pub struct SimplePass {
   pipeline: wgpu::RenderPipeline,
 }
 
 impl SimplePass {
-  pub fn new(device: &wgpu::Device, config: &wgpu::SurfaceConfiguration, render_target: &RenderTarget) -> Self {
-    let shader = wgpu::include_wgsl!("../../../assets/shaders/shader.wgsl");
+  pub fn new(device: &wgpu::Device) -> Self {
+    let shader = wgpu::include_wgsl!("../../../assets/shaders/texture.wgsl");
 
     let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
       label: Some("Simple Pipeline Layout"),
-      bind_group_layouts: &[],
+      bind_group_layouts: &[DiffuseTexture::bind_group_layout(device)],
       push_constant_ranges: &[],
     });
 
@@ -23,7 +25,7 @@ impl SimplePass {
       &pipeline_layout,
       RenderTarget::RENDER_TARGET_FORMAT,
       None,
-      &[],
+      &[Vertex::desc()],
       shader,
     );
 
@@ -54,7 +56,8 @@ impl Pass for SimplePass {
     });
 
     render_pass.set_pipeline(&self.pipeline);
-    render_pass.draw(0..3, 0..1);
+    render_pass.set_bind_group(0, &mesh.material.albedo().bind_group, &[]);
+    mesh.draw(&mut render_pass);
 
     Ok(())
   }

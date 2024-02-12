@@ -56,7 +56,7 @@ impl Renderer {
       let context = GraphicsContext::new(window.clone())?;
       let render_target = RenderTarget::new(window.clone(), context.device());
 
-      let simple_pass = SimplePass::new(context.device(), context.config(), &render_target);
+      let simple_pass = SimplePass::new(context.device());
       let tone_map_pass = ToneMapPass::new(context.device(), context.config(), &render_target);
 
       let diffuse_texture = DiffuseTexture::new(
@@ -67,27 +67,53 @@ impl Renderer {
 
       let standard_material = StandardMaterial::new(context.device(), context.queue(), Some(diffuse_texture));
 
+      // let mesh = Mesh::new(
+      //   context.device(),
+      //   &[
+      //     Vertex {
+      //       position: [-0.5, -0.5, 0.0],
+      //       ..Default::default()
+      //     },
+      //     Vertex {
+      //       position: [0.5, -0.5, 0.0],
+      //       ..Default::default()
+      //     },
+      //     Vertex {
+      //       position: [0.5, 0.5, 0.0],
+      //       ..Default::default()
+      //     },
+      //     Vertex {
+      //       position: [-0.5, 0.5, 0.0],
+      //       ..Default::default()
+      //     },
+      //   ],
+      //   Some(&[0, 1, 2, 0, 2, 3]),
+      //   standard_material.clone(),
+      // );
+
       let mesh = Mesh::new(
         context.device(),
         &[
           Vertex {
             position: [-0.5, -0.5, 0.0],
+            color: [1.0, 0.0, 0.0, 1.0],
+            uv: [0., 0.],
             ..Default::default()
           },
           Vertex {
             position: [0.5, -0.5, 0.0],
+            color: [0.0, 1.0, 0.0, 1.0],
+            uv: [0., 1.],
             ..Default::default()
           },
           Vertex {
-            position: [0.5, 0.5, 0.0],
-            ..Default::default()
-          },
-          Vertex {
-            position: [-0.5, 0.5, 0.0],
+            position: [0.0, 0.5, 0.0],
+            color: [0.0, 0.0, 1.0, 1.0],
+            uv: [0.5, 1.],
             ..Default::default()
           },
         ],
-        Some(&[0, 1, 2, 0, 2, 3]),
+        Some(&[0, 1, 2]),
         standard_material.clone(),
       );
 
@@ -146,7 +172,9 @@ impl Renderer {
           });
         }
 
-        self.simple_pass.draw(&mut command_encoder, &self.render_target.view, &self.mesh)?;
+        self
+          .simple_pass
+          .draw(&mut command_encoder, &self.render_target.view, &self.mesh)?;
 
         // Finish by rendering onto the primary view
         self.tone_map_pass.draw(&mut command_encoder, &view, &self.mesh)?;
