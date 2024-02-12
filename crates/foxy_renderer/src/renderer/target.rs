@@ -68,6 +68,8 @@ impl RenderTarget {
       view_formats: &[],
     });
 
+    self.view = self.texture.create_view(&wgpu::TextureViewDescriptor::default());
+
     self.sampler = device.create_sampler(&wgpu::SamplerDescriptor {
       label: Some("HDR Render Sampler"),
       address_mode_u: wgpu::AddressMode::ClampToEdge,
