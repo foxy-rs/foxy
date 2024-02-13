@@ -67,55 +67,59 @@ impl Renderer {
 
       let standard_material = StandardMaterial::new(context.device(), context.queue(), Some(diffuse_texture));
 
-      // let mesh = Mesh::new(
-      //   context.device(),
-      //   &[
-      //     Vertex {
-      //       position: [-0.5, -0.5, 0.0],
-      //       ..Default::default()
-      //     },
-      //     Vertex {
-      //       position: [0.5, -0.5, 0.0],
-      //       ..Default::default()
-      //     },
-      //     Vertex {
-      //       position: [0.5, 0.5, 0.0],
-      //       ..Default::default()
-      //     },
-      //     Vertex {
-      //       position: [-0.5, 0.5, 0.0],
-      //       ..Default::default()
-      //     },
-      //   ],
-      //   Some(&[0, 1, 2, 0, 2, 3]),
-      //   standard_material.clone(),
-      // );
-
       let mesh = Mesh::new(
         context.device(),
         &[
           Vertex {
             position: [-0.5, -0.5, 0.0],
-            color: [1.0, 0.0, 0.0, 1.0],
-            uv: [0., 0.],
-            ..Default::default()
-          },
-          Vertex {
-            position: [0.5, -0.5, 0.0],
-            color: [0.0, 1.0, 0.0, 1.0],
             uv: [0., 1.],
             ..Default::default()
           },
           Vertex {
-            position: [0.0, 0.5, 0.0],
-            color: [0.0, 0.0, 1.0, 1.0],
-            uv: [0.5, 1.],
+            position: [0.5, -0.5, 0.0],
+            uv: [1., 1.],
+            ..Default::default()
+          },
+          Vertex {
+            position: [0.5, 0.5, 0.0],
+            uv: [1., 0.],
+            ..Default::default()
+          },
+          Vertex {
+            position: [-0.5, 0.5, 0.0],
+            uv: [0., 0.],
             ..Default::default()
           },
         ],
-        Some(&[0, 1, 2]),
+        Some(&[0, 1, 2, 0, 2, 3]),
         standard_material.clone(),
       );
+
+      // let mesh = Mesh::new(
+      //   context.device(),
+      //   &[
+      //     Vertex {
+      //       position: [-0.5, -0.5, 0.0],
+      //       color: [1.0, 0.0, 0.0, 1.0],
+      //       uv: [1., 0.],
+      //       ..Default::default()
+      //     },
+      //     Vertex {
+      //       position: [0.5, -0.5, 0.0],
+      //       color: [0.0, 1.0, 0.0, 1.0],
+      //       uv: [1., 1.],
+      //       ..Default::default()
+      //     },
+      //     Vertex {
+      //       position: [0.0, 0.5, 0.0],
+      //       color: [0.0, 0.0, 1.0, 1.0],
+      //       uv: [0., 0.],
+      //       ..Default::default()
+      //     },
+      //   ],
+      //   Some(&[0, 1, 2]),
+      //   standard_material.clone(),
+      // );
 
       Ok(Self {
         window,

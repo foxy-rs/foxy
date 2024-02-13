@@ -1,9 +1,11 @@
 use std::{
   cell::OnceCell,
+  mem::size_of,
   sync::{Arc, OnceLock},
 };
 
-use image::GenericImageView;
+use image::{EncodableLayout, GenericImageView, Pixel};
+use itertools::Itertools;
 use wgpu::{Device, Extent3d, Queue, Texture};
 use winit::window::Window;
 
@@ -28,34 +30,27 @@ impl DiffuseTexture {
       depth_or_array_layers: 1,
     };
 
-    let unpadded_bytes_per_row = size.width * 4;
-    let padded_bytes_per_row = ((unpadded_bytes_per_row + 255) & !255) as u32;
-
-    let padded_data = {
-      let mut padded_data = vec![0; (padded_bytes_per_row * size.height) as usize];
-
-      for y in 0..size.height {
-        let row_start = (y * padded_bytes_per_row) as usize;
-
-        padded_data
-          .get_mut(row_start..(row_start + unpadded_bytes_per_row as usize))
-          .unwrap()
-          .copy_from_slice(
-            data
-              .get((y * unpadded_bytes_per_row) as usize..((y + 1) * unpadded_bytes_per_row) as usize)
-              .unwrap(),
-          );
-      }
-
-      padded_data
-    };
+    let unpadded_bytes_per_row = size_of::<[u8; 4]>() * size.width as usize;
+    let padding = (256 - (unpadded_bytes_per_row % 256)) % 256;
+    let mut padded_data = Vec::with_capacity((unpadded_bytes_per_row + padding) * size.height as usize);
+    for (_, row) in data.enumerate_rows() {
+      padded_data.extend_from_slice(
+        &row
+          .flat_map(|(_, _, value)| {
+            let bytes = value.channels();
+            bytes.as_bytes().to_vec()
+          })
+          .collect_vec(),
+      );
+      padded_data.resize(padded_data.len() + padding, 0);
+    }
 
     let texture = device.create_texture(&wgpu::TextureDescriptor {
       size,
       mip_level_count: 1,
       sample_count: 1,
       dimension: wgpu::TextureDimension::D2,
-      format: RenderTarget::RENDER_TARGET_FORMAT,
+      format: wgpu::TextureFormat::Rgba8UnormSrgb,
       usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
       label: Some("Diffuse Texture"),
       view_formats: &[],
@@ -68,7 +63,7 @@ impl DiffuseTexture {
       address_mode_u: wgpu::AddressMode::ClampToEdge,
       address_mode_v: wgpu::AddressMode::ClampToEdge,
       address_mode_w: wgpu::AddressMode::ClampToEdge,
-      mag_filter: wgpu::FilterMode::Linear,
+      mag_filter: wgpu::FilterMode::Nearest,
       min_filter: wgpu::FilterMode::Nearest,
       mipmap_filter: wgpu::FilterMode::Nearest,
       ..Default::default()
@@ -79,7 +74,7 @@ impl DiffuseTexture {
       &padded_data,
       wgpu::ImageDataLayout {
         offset: 0,
-        bytes_per_row: Some(padded_bytes_per_row),
+        bytes_per_row: Some((unpadded_bytes_per_row + padding) as u32),
         rows_per_image: Some(size.height),
       },
       size,
