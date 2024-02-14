@@ -136,14 +136,6 @@ impl Renderer {
     self.is_dirty = true;
   }
 
-  pub fn handle_input(&mut self, event: &WindowEvent) -> bool {
-    self.egui.handle_input(event)
-  }
-
-  pub fn take_egui_input(&mut self) -> RawInput {
-    self.egui.state.take_egui_input(&self.window)
-  }
-
   pub fn draw(&mut self, render_time: Time, render_data: RenderData) -> Result<(), RendererError> {
     match self.next_frame() {
       Ok(frame) => {

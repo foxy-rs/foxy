@@ -1,6 +1,6 @@
 #![cfg_attr(all(windows, not(debug_assertions)), windows_subsystem = "windows")]
 
-use foxy::{egui, prelude::*};
+use foxy::{egui::{self, Align2}, prelude::*};
 use tracing::{debug, warn};
 
 pub struct App {
@@ -32,23 +32,19 @@ impl Runnable for App {
 
   fn gui(&mut self, foxy: &Foxy, egui: &foxy::egui::Context) {
     egui::Window::new("Settings")
-      .default_open(true)
-      .resizable(true)
+      .default_open(false)
       .default_size((50.0, 50.0))
-      .movable(true)
+      .resizable(false)
+      .anchor(Align2::LEFT_BOTTOM, (5.0, -5.0))
       .show(egui, |ui| {
-        ui.with_layout(egui::Layout::top_down_justified(egui::Align::Center), |ui| {
-          if ui.button("Test").clicked() {
-            warn!("PRESSED");
-          }
+        if ui.button("Test").clicked() {
+          debug!("PRESSED");
+        }
 
-          let slider = ui.add(egui::Slider::new(&mut self.x, 1..=10)).on_hover_text("Slider");
-          if slider.changed() {
-            warn!("x: {}", self.x);
-          }
-
-          ui.allocate_space(ui.available_size());
-        });
+        let slider = ui.add(egui::Slider::new(&mut self.x, 1..=10)).on_hover_text("Slider");
+        if slider.changed() {
+          debug!("x: {}", self.x);
+        }
       });
   }
 }

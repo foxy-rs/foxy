@@ -8,8 +8,7 @@ use winit::{event::WindowEvent, window::Window};
 
 pub struct EguiRenderer {
   window: Arc<Window>,
-  pub context: Context,
-  pub state: State,
+  context: Context,
   renderer: Renderer,
 }
 
@@ -25,37 +24,11 @@ impl EguiRenderer {
     
     let egui_renderer = Renderer::new(device, output_color_format, output_depth_format, msaa_samples);
 
-    let id = egui_context.viewport_id();
-
-    const BORDER_RADIUS: f32 = 6.0;
-
-    let visuals = Visuals {
-      window_rounding: Rounding::same(BORDER_RADIUS),
-      menu_rounding: Rounding::same(BORDER_RADIUS),
-      window_shadow: Shadow::NONE,
-      ..Default::default()
-    };
-
-    egui_context.set_visuals(visuals);
-
-    let egui_state = egui_winit::State::new(egui_context.clone(), id, &window, None, None);
-
     EguiRenderer {
       window,
       context: egui_context,
-      state: egui_state,
       renderer: egui_renderer,
     }
-  }
-
-  pub fn handle_input(&mut self, event: &WindowEvent) -> bool {
-    let response = self.state.on_window_event(&self.window, event);
-
-    if response.repaint {
-      self.context.request_repaint();
-    }
-
-    response.consumed
   }
 
   pub fn draw(
@@ -67,7 +40,6 @@ impl EguiRenderer {
     screen_descriptor: ScreenDescriptor,
     full_output: FullOutput,
   ) {
-    self.state.handle_platform_output(&self.window, full_output.platform_output);
 
     let tris = self
       .context
