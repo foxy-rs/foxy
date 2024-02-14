@@ -186,7 +186,6 @@ impl Renderer {
           self.context.device(),
           self.context.queue(),
           &mut command_encoder,
-          &self.window,
           &view,
           screen_descriptor,
           render_data.full_output,

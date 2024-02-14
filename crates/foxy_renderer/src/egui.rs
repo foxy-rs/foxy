@@ -31,8 +31,6 @@ impl EguiRenderer {
 
     egui_context.set_visuals(visuals);
 
-    let egui_state = egui_winit::State::new(egui_context.clone(), id, &window, None, None);
-
     // egui_state.set_pixels_per_point(window.scale_factor() as f32);
     let egui_renderer = Renderer::new(device, output_color_format, output_depth_format, msaa_samples);
 
@@ -47,7 +45,6 @@ impl EguiRenderer {
     device: &Device,
     queue: &Queue,
     encoder: &mut CommandEncoder,
-    window: &Window,
     window_surface_view: &TextureView,
     screen_descriptor: ScreenDescriptor,
     full_output: FullOutput,

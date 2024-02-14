@@ -4,7 +4,7 @@ use foxy::{
   egui::{self, Align2},
   prelude::*,
 };
-use tracing::debug;
+use tracing::{debug, warn};
 
 pub struct App;
 
@@ -26,7 +26,7 @@ impl Runnable for App {
     }
   }
 
-  fn gui(&mut self, foxy: &mut Foxy, egui: foxy::egui::Context) {
+  fn gui(&mut self, foxy: &mut Foxy, egui: &foxy::egui::Context) {
     egui::Window::new("Streamline CFD")
         // .vscroll(true)
         .default_open(true)
@@ -34,10 +34,10 @@ impl Runnable for App {
         .max_height(800.0)
         .default_width(800.0)
         .resizable(true)
-        .anchor(Align2::LEFT_TOP, [0.0, 0.0])
-        .show(&egui, |ui| {
+        .movable(true)
+        .show(egui, |ui| {
             if ui.add(egui::Button::new("Click me")).clicked() {
-                println!("PRESSED")
+                warn!("PRESSED")
             }
 
             ui.label("Slider");

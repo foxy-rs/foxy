@@ -30,7 +30,7 @@ pub trait Runnable {
 
   fn window(&mut self, foxy: &mut Foxy, event: &WindowEvent) {}
 
-  fn gui(&mut self, foxy: &mut Foxy, egui: Context) {}
+  fn gui(&mut self, foxy: &mut Foxy, egui: &Context) {}
 
   fn stop(&mut self, foxy: &mut Foxy) -> Flow {
     Flow::Exit

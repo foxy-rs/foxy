@@ -266,7 +266,13 @@ impl<T: 'static + Send + Sync> Framework<T> {
                 _ => (),
               }
 
-              Some(event)
+              let response = foxy.egui_state.on_window_event(&foxy.window, &event);
+
+              if response.consumed {
+                None
+              } else {
+                Some(event)
+              }
             }
             Err(MessagingError::TryRecvError {
               error: TryRecvError::Disconnected,
@@ -282,6 +288,8 @@ impl<T: 'static + Send + Sync> Framework<T> {
 
           let event = FoxyEvent::from(event);
 
+          let raw_input = foxy.egui_state.take_egui_input(&foxy.window);
+
           foxy.time.update();
           while foxy.time.should_do_tick_unchecked() {
             foxy.time.tick();
@@ -294,15 +302,14 @@ impl<T: 'static + Send + Sync> Framework<T> {
 
           app.update(&mut foxy, &event);
 
-          let raw_input = foxy.egui_state.take_egui_input(&foxy.window);
-          let ctx = foxy.egui_context.clone();
-          let full_output = ctx.run(raw_input, |_ui| {
-            app.gui(&mut foxy, ctx.clone());
+          let context = foxy.egui_context.clone();
+          let full_output = context.run(raw_input, |ui| {
+            app.gui(&mut foxy, ui);
           });
 
           foxy
             .egui_state
-            .handle_platform_output(&foxy.window, full_output.platform_output.clone());
+            .handle_platform_output(&foxy.window, full_output.clone().platform_output);
 
           render_queue.force_push(RenderData { full_output });
 
