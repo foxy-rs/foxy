@@ -37,6 +37,7 @@ pub struct Renderer {
   simple_pass: SimplePass,
   tone_map_pass: ToneMapPass,
 
+  textured_material: Arc<StandardMaterial>,
   standard_material: Arc<StandardMaterial>,
   mesh: Mesh,
 
@@ -65,34 +66,39 @@ impl Renderer {
         include_bytes!("../assets/textures/cobblestone.png"),
       );
 
-      let standard_material = StandardMaterial::new(context.device(), context.queue(), Some(diffuse_texture));
+      let textured_material = StandardMaterial::new(context.device(), context.queue(), Some(diffuse_texture));
+      let standard_material = StandardMaterial::new(context.device(), context.queue(), None);
 
       let mesh = Mesh::new(
         context.device(),
         &[
           Vertex {
             position: [-0.5, -0.5, 0.0],
+            color: [1.0, 0.0, 0.0, 1.0],
             uv: [0., 1.],
             ..Default::default()
           },
           Vertex {
             position: [0.5, -0.5, 0.0],
+            color: [1.0, 0.0, 0.0, 1.0],
             uv: [1., 1.],
             ..Default::default()
           },
           Vertex {
             position: [0.5, 0.5, 0.0],
+            color: [0.0, 1.0, 0.0, 1.0],
             uv: [1., 0.],
             ..Default::default()
           },
           Vertex {
             position: [-0.5, 0.5, 0.0],
+            color: [0.0, 0.0, 1.0, 1.0],
             uv: [0., 0.],
             ..Default::default()
           },
         ],
         Some(&[0, 1, 2, 0, 2, 3]),
-        standard_material.clone(),
+        textured_material.clone(),
       );
 
       // let mesh = Mesh::new(
@@ -127,6 +133,7 @@ impl Renderer {
         render_target,
         simple_pass,
         tone_map_pass,
+        textured_material,
         standard_material,
         mesh,
         is_dirty: false,

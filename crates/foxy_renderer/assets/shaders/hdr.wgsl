@@ -33,6 +33,7 @@ fn vs_main(
         f32(index & 2u),
     );
     out.clip_position = vec4<f32>(out.uv * -2.0 + 1.0, 0.0, 1.0);
+    out.uv.x = 1.0 - out.uv.x; // flip the image horizontally
     return out;
 }
 
