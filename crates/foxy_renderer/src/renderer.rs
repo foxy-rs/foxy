@@ -1,5 +1,7 @@
 use std::sync::Arc;
 
+use egui::{Context, FullOutput, RawInput};
+use egui_wgpu::ScreenDescriptor;
 use foxy_utils::time::Time;
 use image::{DynamicImage, GenericImageView};
 use tracing::debug;
@@ -15,23 +17,24 @@ use self::{
   target::RenderTarget,
 };
 use crate::{
+  egui::EguiRenderer,
   error::RendererError,
   renderer::{material::Material, texture::DiffuseTexture, vertex::Vertex},
 };
 
-mod context;
-// mod hdr_pipeline;
+pub mod context;
 pub mod material;
 pub mod mesh;
 pub mod render_data;
 pub mod render_pass;
-mod target;
+pub mod target;
 pub mod texture;
 pub mod vertex;
 
 pub struct Renderer {
   window: Arc<Window>,
   context: GraphicsContext,
+  egui: EguiRenderer,
   render_target: RenderTarget,
 
   simple_pass: SimplePass,
@@ -52,9 +55,18 @@ impl Renderer {
     a: 1.0,
   };
 
-  pub fn new(window: Arc<Window>) -> Result<Self, RendererError> {
+  pub fn new(window: Arc<Window>, egui_context: Context) -> Result<Self, RendererError> {
     pollster::block_on(async {
       let context = GraphicsContext::new(window.clone())?;
+      let egui = EguiRenderer::new(
+        context.device(),
+        egui_context,
+        GraphicsContext::SURFACE_FORMAT,
+        None,
+        1,
+        &window,
+      );
+
       let render_target = RenderTarget::new(window.clone(), context.device());
 
       let simple_pass = SimplePass::new(context.device());
@@ -101,35 +113,10 @@ impl Renderer {
         textured_material.clone(),
       );
 
-      // let mesh = Mesh::new(
-      //   context.device(),
-      //   &[
-      //     Vertex {
-      //       position: [-0.5, -0.5, 0.0],
-      //       color: [1.0, 0.0, 0.0, 1.0],
-      //       uv: [1., 0.],
-      //       ..Default::default()
-      //     },
-      //     Vertex {
-      //       position: [0.5, -0.5, 0.0],
-      //       color: [0.0, 1.0, 0.0, 1.0],
-      //       uv: [1., 1.],
-      //       ..Default::default()
-      //     },
-      //     Vertex {
-      //       position: [0.0, 0.5, 0.0],
-      //       color: [0.0, 0.0, 1.0, 1.0],
-      //       uv: [0., 0.],
-      //       ..Default::default()
-      //     },
-      //   ],
-      //   Some(&[0, 1, 2]),
-      //   standard_material.clone(),
-      // );
-
       Ok(Self {
         window,
         context,
+        egui,
         render_target,
         simple_pass,
         tone_map_pass,
@@ -189,6 +176,21 @@ impl Renderer {
 
         // Finish by rendering onto the primary view
         self.tone_map_pass.draw(&mut command_encoder, &view, &self.mesh)?;
+
+        let screen_descriptor = ScreenDescriptor {
+          size_in_pixels: [self.context.config().width, self.context.config().height],
+          pixels_per_point: self.window().scale_factor() as f32,
+        };
+
+        self.egui.draw(
+          self.context.device(),
+          self.context.queue(),
+          &mut command_encoder,
+          &self.window,
+          &view,
+          screen_descriptor,
+          render_data.full_output,
+        );
 
         // submit will accept anything that implements IntoIter
         self.context.queue().submit(Some(command_encoder.finish()));

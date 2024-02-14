@@ -1,6 +1,7 @@
 use std::{sync::Arc, thread::JoinHandle, time::Duration};
 
 use crossbeam::{channel::TryRecvError, queue::ArrayQueue};
+use egui::{epaint::Shadow, Context, FullOutput, Visuals};
 use foxy_renderer::{
   error::RendererError,
   renderer::{render_data::RenderData, Renderer},
@@ -70,14 +71,16 @@ impl<T: 'static + Send + Sync> Framework<T> {
     let (event_loop, window) = create_info.window.create_window()?;
     let window = Arc::new(window);
 
-    let renderer = Renderer::new(window.clone())?;
-    let render_time = create_info.time.build();
+    let time = create_info.time.build();
     let render_queue = Arc::new(ArrayQueue::new(Self::MAX_FRAME_DATA_IN_FLIGHT));
 
-    let time = create_info.time.build();
     let foxy = Foxy::new(time, window.clone());
+    let egui_context = foxy.egui_context.clone();
     let (game_mailbox, render_mailbox) = Mailbox::new_entangled_pair();
     let game_thread = Some(Self::game_loop::<App>(game_mailbox, foxy, render_queue.clone())?);
+
+    let renderer = Renderer::new(window.clone(), egui_context)?;
+    let render_time = create_info.time.build();
 
     Ok(Self {
       state: Some(State {
@@ -212,7 +215,7 @@ impl<T: 'static + Send + Sync> Framework<T> {
       .name(Self::GAME_THREAD_ID.into())
       .spawn(move || -> FoxyResult<()> {
         let _ = mailbox.recv().log_error(); // wait for startup message
-        // debug!("HELLO HELLO BAU BAU");
+                                            // debug!("HELLO HELLO BAU BAU");
 
         let mut app = App::new(&mut foxy);
         app.start(&mut foxy);
@@ -290,7 +293,18 @@ impl<T: 'static + Send + Sync> Framework<T> {
           }
 
           app.update(&mut foxy, &event);
-          render_queue.force_push(RenderData {});
+
+          let raw_input = foxy.egui_state.take_egui_input(&foxy.window);
+          let ctx = foxy.egui_context.clone();
+          let full_output = ctx.run(raw_input, |_ui| {
+            app.gui(&mut foxy, ctx.clone());
+          });
+
+          foxy
+            .egui_state
+            .handle_platform_output(&foxy.window, full_output.platform_output.clone());
+
+          render_queue.force_push(RenderData { full_output });
 
           if let FoxyEvent::Window(event) = &event {
             app.window(&mut foxy, event);

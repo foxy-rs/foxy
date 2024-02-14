@@ -1,3 +1,5 @@
+use egui::Context;
+
 use super::{
   builder::FoxyCreateInfo,
   engine_state::Foxy,
@@ -20,13 +22,15 @@ pub trait Runnable {
 
   fn fixed_update(&mut self, foxy: &mut Foxy, event: &FoxyEvent) {}
 
-  fn window(&mut self, foxy: &mut Foxy, event: &WindowEvent) {}
-
   fn input(&mut self, foxy: &mut Foxy, event: &InputEvent) {}
 
   fn update(&mut self, foxy: &mut Foxy, event: &FoxyEvent) {}
 
   fn late_update(&mut self, foxy: &mut Foxy, event: &FoxyEvent) {}
+
+  fn window(&mut self, foxy: &mut Foxy, event: &WindowEvent) {}
+
+  fn gui(&mut self, foxy: &mut Foxy, egui: Context) {}
 
   fn stop(&mut self, foxy: &mut Foxy) -> Flow {
     Flow::Exit

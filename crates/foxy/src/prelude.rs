@@ -1,5 +1,4 @@
 pub use foxy_utils::log::prelude::*;
-pub use winit;
 
 pub use crate::core::{
   builder::{DebugInfo, FoxyCreateInfo, Polling},

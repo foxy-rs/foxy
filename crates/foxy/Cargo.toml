@@ -25,3 +25,5 @@ crossbeam  = "0.8"
 winit         = { version = "0.29" }
 foxy_utils    = { version = "0.3", path = "../foxy_utils" }
 foxy_renderer = { version = "0.1", path = "../foxy_renderer" }
+egui          = "0.26"
+egui-winit    = "0.26"
