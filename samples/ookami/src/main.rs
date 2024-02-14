@@ -1,9 +1,6 @@
 #![cfg_attr(all(windows, not(debug_assertions)), windows_subsystem = "windows")]
 
-use foxy::{
-  egui,
-  prelude::*,
-};
+use foxy::{egui, prelude::*};
 use tracing::{debug, warn};
 
 pub struct App {
@@ -24,7 +21,12 @@ impl Runnable for App {
 
   fn input(&mut self, foxy: &Foxy, event: &InputEvent) {
     if let InputEvent::Mouse(button, state) = event {
-      debug!("UPDATE | {:?}: {:?} + {:?}", button, state, foxy.read().input().shift().is_pressed())
+      debug!(
+        "UPDATE | {:?}: {:?} + {:?}",
+        button,
+        state,
+        foxy.read().input().shift().is_pressed()
+      )
     }
   }
 
@@ -32,18 +34,21 @@ impl Runnable for App {
     egui::Window::new("Settings")
       .default_open(true)
       .resizable(true)
+      .default_size((50.0, 50.0))
       .movable(true)
       .show(egui, |ui| {
-        if ui.add(egui::Button::new("Click me")).clicked() {
-          warn!("PRESSED");
-        }
+        ui.with_layout(egui::Layout::top_down_justified(egui::Align::Center), |ui| {
+          if ui.button("Test").clicked() {
+            warn!("PRESSED");
+          }
 
-        ui.label("Slider");
-        if ui.add(egui::Slider::new(&mut self.x, 1..=10)).changed() {
-          warn!("x: {}", self.x);
-        }
-        
-        ui.end_row();
+          let slider = ui.add(egui::Slider::new(&mut self.x, 1..=10)).on_hover_text("Slider");
+          if slider.changed() {
+            warn!("x: {}", self.x);
+          }
+
+          ui.allocate_space(ui.available_size());
+        });
       });
   }
 }
