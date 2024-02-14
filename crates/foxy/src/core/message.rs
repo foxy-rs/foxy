@@ -1,3 +1,4 @@
+use egui::RawInput;
 use winit::event::WindowEvent;
 
 #[derive(Debug)]
@@ -5,7 +6,7 @@ pub enum RenderLoopMessage {
   Start,
   MustExit,
   ExitRequested,
-  Winit(WindowEvent),
+  Winit(WindowEvent, RawInput),
   None,
 }
 

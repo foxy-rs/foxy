@@ -2,7 +2,7 @@ use egui::Context;
 
 use super::{
   builder::FoxyCreateInfo,
-  engine_state::{Foxy, State},
+  engine_state::Foxy,
   event::{FoxyEvent, InputEvent, WindowEvent},
   framework::Framework,
   FoxyResult,

@@ -59,12 +59,12 @@ impl Renderer {
     pollster::block_on(async {
       let context = GraphicsContext::new(window.clone())?;
       let egui = EguiRenderer::new(
+        window.clone(),
         context.device(),
         egui_context,
         GraphicsContext::SURFACE_FORMAT,
         None,
         1,
-        &window,
       );
 
       let render_target = RenderTarget::new(window.clone(), context.device());
@@ -136,8 +136,12 @@ impl Renderer {
     self.is_dirty = true;
   }
 
-  pub fn input(&mut self, event: &WindowEvent) -> bool {
-    false
+  pub fn handle_input(&mut self, event: &WindowEvent) -> bool {
+    self.egui.handle_input(event)
+  }
+
+  pub fn take_egui_input(&mut self) -> RawInput {
+    self.egui.state.take_egui_input(&self.window)
   }
 
   pub fn draw(&mut self, render_time: Time, render_data: RenderData) -> Result<(), RendererError> {
@@ -176,6 +180,8 @@ impl Renderer {
 
         // Finish by rendering onto the primary view
         self.tone_map_pass.draw(&mut command_encoder, &view, &self.mesh)?;
+
+        // EGUI
 
         let screen_descriptor = ScreenDescriptor {
           size_in_pixels: [self.context.config().width, self.context.config().height],

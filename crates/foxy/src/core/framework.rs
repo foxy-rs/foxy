@@ -1,11 +1,6 @@
-use std::{
-  sync::{Arc, RwLock},
-  thread::JoinHandle,
-  time::Duration,
-};
+use std::{sync::Arc, thread::JoinHandle, time::Duration};
 
 use crossbeam::{channel::TryRecvError, queue::ArrayQueue};
-use egui::{epaint::Shadow, Context, FullOutput, Visuals};
 use foxy_renderer::{
   error::RendererError,
   renderer::{render_data::RenderData, Renderer},
@@ -122,34 +117,35 @@ impl<T: 'static + Send + Sync> Framework<T> {
 
       match event {
         Event::WindowEvent { event, .. } => {
-          let was_handled = state.renderer.input(&event);
+          let was_handled = state.renderer.handle_input(&event);
 
           // first check
-          if !was_handled {
-            match event {
-              WindowEvent::CloseRequested => {
-                let response = state
-                  .render_mailbox
-                  .send_and_recv(RenderLoopMessage::ExitRequested)
-                  .log_error();
-                if let Err(_) | Ok(GameLoopMessage::Exit) = response {
-                  elwt.exit();
-                }
+          match event {
+            WindowEvent::CloseRequested => {
+              let response = state
+                .render_mailbox
+                .send_and_recv(RenderLoopMessage::ExitRequested)
+                .log_error();
+              if let Err(_) | Ok(GameLoopMessage::Exit) = response {
+                elwt.exit();
               }
-              WindowEvent::Resized(_) | WindowEvent::ScaleFactorChanged { .. } => {
-                state.renderer.refresh();
-                state.window.request_redraw();
-              }
-              WindowEvent::RedrawRequested => {
-                Self::render(&mut state, elwt);
-              }
-              _ => (),
             }
+            WindowEvent::Resized(_) | WindowEvent::ScaleFactorChanged { .. } => {
+              state.renderer.refresh();
+              state.window.request_redraw();
+            }
+            WindowEvent::RedrawRequested => {
+              Self::render(&mut state, elwt);
+            }
+            _ => (),
+          }
 
-            if !elwt.exiting() {
-              if let Err(error) = state.render_mailbox.send(RenderLoopMessage::Winit(event)) {
-                error!("{error:?}")
-              }
+          if !was_handled && !elwt.exiting() {
+            if let Err(error) = state
+              .render_mailbox
+              .send(RenderLoopMessage::Winit(event, state.renderer.take_egui_input()))
+            {
+              error!("{error:?}")
             }
           }
         }
@@ -212,7 +208,7 @@ impl<T: 'static + Send + Sync> Framework<T> {
 
   fn game_loop<App: Runnable>(
     mailbox: Mailbox<GameLoopMessage, RenderLoopMessage>,
-    mut foxy: Foxy,
+    foxy: Foxy,
     render_queue: Arc<ArrayQueue<RenderData>>,
   ) -> FoxyResult<JoinHandle<FoxyResult<()>>> {
     let handle = std::thread::Builder::new()
@@ -221,30 +217,33 @@ impl<T: 'static + Send + Sync> Framework<T> {
         let _ = mailbox.recv().log_error();
         let window = foxy.read().window.clone();
 
-        let mut app = App::new(&mut foxy);
-        app.start(&mut foxy);
+        let mut app = App::new(&foxy);
+        app.start(&foxy);
         loop {
           let next_message = mailbox.try_recv();
 
-          let event = match next_message {
+          let (event, raw_input) = match next_message {
             Ok(RenderLoopMessage::MustExit) => {
               let _ = mailbox.send(GameLoopMessage::Exit);
-              app.stop(&mut foxy);
+              app.stop(&foxy);
               app.delete();
               break;
             }
             Ok(RenderLoopMessage::ExitRequested) => {
-              if let Flow::Exit = app.stop(&mut foxy) {
+              if let Flow::Exit = app.stop(&foxy) {
                 let _ = mailbox.send(GameLoopMessage::Exit);
                 app.delete();
                 break;
               } else {
                 let _ = mailbox.send(GameLoopMessage::DontExit);
               }
-              None
+              (None, None)
             }
-            Ok(RenderLoopMessage::Winit(event)) => {
+            Ok(RenderLoopMessage::Winit(event, raw_input)) => {
               match event {
+                WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
+                  foxy.write().egui_context.set_zoom_factor(scale_factor as f32);
+                }
                 WindowEvent::KeyboardInput {
                   event:
                     KeyEvent {
@@ -270,56 +269,51 @@ impl<T: 'static + Send + Sync> Framework<T> {
                 _ => (),
               }
 
-              let response = foxy.write().egui_state.on_window_event(&window, &event);
-
-              if response.consumed {
-                None
-              } else {
-                Some(event)
-              }
+              (Some(event), Some(raw_input))
             }
             Err(MessagingError::TryRecvError {
               error: TryRecvError::Disconnected,
             }) => {
-              app.stop(&mut foxy);
+              app.stop(&foxy);
               app.delete();
               break;
             }
-            _ => None,
+            _ => (None, None),
           };
 
           // Loop
 
           let event = FoxyEvent::from(event);
 
-          let raw_input = foxy.write().egui_state.take_egui_input(&window);
+          // let raw_input = foxy.write().egui_state.take_egui_input(&window);
 
           foxy.write().engine_time.update();
           while foxy.write().engine_time.should_do_tick_unchecked() {
             foxy.write().engine_time.tick();
-            app.fixed_update(&mut foxy, &event);
+            app.fixed_update(&foxy, &event);
           }
 
           if let FoxyEvent::Input(event) = &event {
-            app.input(&mut foxy, event);
+            app.input(&foxy, event);
           }
 
-          app.update(&mut foxy, &event);
+          app.update(&foxy, &event);
+
+          if let FoxyEvent::Window(event) = &event {
+            app.window(&foxy, event);
+          }
+
+          let Some(raw_input) = raw_input else {
+            continue;
+          };
 
           let context = foxy.read().egui_context.clone();
           let full_output = context.run(raw_input, |ui| {
-            app.gui(&mut foxy, ui);
+            app.gui(&foxy, ui);
           });
-
-          foxy.write()
-            .egui_state
-            .handle_platform_output(&window, full_output.clone().platform_output);
+          context.request_repaint();
 
           render_queue.force_push(RenderData { full_output });
-
-          if let FoxyEvent::Window(event) = &event {
-            app.window(&mut foxy, event);
-          }
         }
 
         // debug!("BAU BAU FOR NOW");

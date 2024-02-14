@@ -13,7 +13,7 @@ pub struct App {
 impl Runnable for App {
   fn settings() -> FoxyCreateInfo {
     FoxyCreateInfo::default()
-      .with_size(800, 450)
+      .with_size(800, 600)
       .with_debug_info(DebugInfo::Shown)
       .with_polling(Polling::Poll)
   }
@@ -29,11 +29,8 @@ impl Runnable for App {
   }
 
   fn gui(&mut self, foxy: &Foxy, egui: &foxy::egui::Context) {
-    egui::Window::new("Streamline CFD")
+    egui::Window::new("Settings")
       .default_open(true)
-      .max_width(10000.0)
-      .max_height(10000.0)
-      .default_width(800.0)
       .resizable(true)
       .movable(true)
       .show(egui, |ui| {
@@ -45,6 +42,7 @@ impl Runnable for App {
         if ui.add(egui::Slider::new(&mut self.x, 1..=10)).changed() {
           warn!("x: {}", self.x);
         }
+        
         ui.end_row();
       });
   }
