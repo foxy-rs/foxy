@@ -8,6 +8,8 @@ pub enum RendererError {
   WgpuError(#[from] wgpu::Error),
   #[error("{0}")]
   SurfaceError(#[from] wgpu::SurfaceError),
+  #[error("must rebuild swapchain")]
+  RebuildSwapchain,
   #[error("{0}")]
   CreateSurfaceError(#[from] wgpu::CreateSurfaceError),
   #[error("{0}")]

@@ -1,30 +1,23 @@
 #![cfg_attr(all(windows, not(debug_assertions)), windows_subsystem = "windows")]
 
-use foxy::prelude::{
-  winit::event::{Event, WindowEvent},
-  *,
-};
+use foxy::prelude::*;
 use tracing::debug;
 
 pub struct App;
 
-impl Runnable<()> for App {
-  fn foxy() -> FoxyCreateInfo {
+impl Runnable for App {
+  fn settings() -> FoxyCreateInfo {
     FoxyCreateInfo::default()
       .with_debug_info(DebugInfo::Shown)
       .with_polling(Polling::Poll)
   }
 
-  fn new(_foxy: &mut Foxy) -> Self {
+  fn new(_foxy: &Foxy) -> Self {
     Self {}
   }
 
-  fn update(&mut self, _foxy: &mut Foxy, event: &Option<Event<()>>) {
-    if let Some(Event::WindowEvent {
-      event: WindowEvent::KeyboardInput { event, .. },
-      ..
-    }) = event
-    {
+  fn update(&mut self, _foxy: &Foxy, event: &FoxyEvent) {
+    if let FoxyEvent::Input(InputEvent::Keyboard(..)) = event {
       debug!("UPDATE: {:?}", event)
     }
   }

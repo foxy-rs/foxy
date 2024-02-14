@@ -1,85 +1,129 @@
 use std::sync::Arc;
 
+use egui::{Context, FullOutput, RawInput};
+use egui_wgpu::ScreenDescriptor;
 use foxy_utils::time::Time;
+use image::{DynamicImage, GenericImageView};
 use tracing::debug;
-use wgpu::SurfaceError;
+use wgpu::{Color, TextureFormat};
 use winit::{event::WindowEvent, window::Window};
 
-use self::render_data::RenderData;
-use crate::error::RendererError;
+use self::{
+  context::GraphicsContext,
+  material::StandardMaterial,
+  mesh::Mesh,
+  render_data::{Drawable, RenderData},
+  render_pass::{simple::SimplePass, tonemap::ToneMapPass, Pass},
+  target::RenderTarget,
+};
+use crate::{
+  egui::EguiRenderer,
+  error::RendererError,
+  renderer::{material::Material, texture::DiffuseTexture, vertex::Vertex},
+};
 
+pub mod context;
+pub mod material;
+pub mod mesh;
 pub mod render_data;
+pub mod render_pass;
+pub mod target;
+pub mod texture;
+pub mod vertex;
 
-// Renderer is just a thin wrapper to allow for other APIs in the future if I so
-// please
 pub struct Renderer {
   window: Arc<Window>,
-  surface: wgpu::Surface<'static>,
-  device: wgpu::Device,
-  queue: wgpu::Queue,
-  config: wgpu::SurfaceConfiguration,
+  context: GraphicsContext,
+  egui: EguiRenderer,
+  render_target: RenderTarget,
+
+  simple_pass: SimplePass,
+  tone_map_pass: ToneMapPass,
+
+  textured_material: Arc<StandardMaterial>,
+  standard_material: Arc<StandardMaterial>,
+  mesh: Mesh,
+
+  is_dirty: bool,
 }
 
 impl Renderer {
-  pub fn new(window: Arc<Window>) -> Result<Self, RendererError> {
+  const CLEAR_VALUE: Color = Color {
+    r: 0.1,
+    g: 0.4,
+    b: 1.0,
+    a: 1.0,
+  };
+
+  pub fn new(window: Arc<Window>, egui_context: Context) -> Result<Self, RendererError> {
     pollster::block_on(async {
-      let size = window.inner_size();
+      let context = GraphicsContext::new(window.clone())?;
+      let egui = EguiRenderer::new(
+        window.clone(),
+        context.device(),
+        egui_context,
+        GraphicsContext::SURFACE_FORMAT,
+        None,
+        1,
+      );
 
-      let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
-        backends: wgpu::Backends::VULKAN,
-        ..Default::default()
-      });
+      let render_target = RenderTarget::new(window.clone(), context.device());
 
-      let surface = instance.create_surface(window.clone())?;
+      let simple_pass = SimplePass::new(context.device());
+      let tone_map_pass = ToneMapPass::new(context.device(), context.config(), &render_target);
 
-      let adapter = instance
-        .request_adapter(&wgpu::RequestAdapterOptions {
-          power_preference: wgpu::PowerPreference::HighPerformance,
-          compatible_surface: Some(&surface),
-          force_fallback_adapter: false,
-        })
-        .await
-        .expect("failed to request adapter");
+      let diffuse_texture = DiffuseTexture::new(
+        context.device(),
+        context.queue(),
+        include_bytes!("../assets/textures/cobblestone.png"),
+      );
 
-      let (device, queue) = adapter
-        .request_device(
-          &wgpu::DeviceDescriptor {
-            required_features: wgpu::Features::empty(),
-            required_limits: wgpu::Limits::default(),
-            label: None,
+      let textured_material = StandardMaterial::new(context.device(), context.queue(), Some(diffuse_texture));
+      let standard_material = StandardMaterial::new(context.device(), context.queue(), None);
+
+      let mesh = Mesh::new(
+        context.device(),
+        &[
+          Vertex {
+            position: [-0.5, -0.5, 0.0],
+            color: [1.0, 0.0, 0.0, 1.0],
+            uv: [0., 1.],
+            ..Default::default()
           },
-          None,
-        )
-        .await?;
-
-      let surface_caps = surface.get_capabilities(&adapter);
-      debug!("{surface_caps:#?}");
-      let surface_format = surface_caps
-        .formats
-        .iter()
-        .copied()
-        .find(|f| *f == wgpu::TextureFormat::Rgba8UnormSrgb)
-        .unwrap_or(*surface_caps.formats.first().unwrap());
-
-      let config = wgpu::SurfaceConfiguration {
-        usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
-        format: surface_format,
-        width: size.width,
-        height: size.height,
-        present_mode: wgpu::PresentMode::AutoNoVsync,
-        alpha_mode: *surface_caps.alpha_modes.first().unwrap(),
-        view_formats: vec![],
-        desired_maximum_frame_latency: 2,
-      };
-
-      surface.configure(&device, &config);
+          Vertex {
+            position: [0.5, -0.5, 0.0],
+            color: [1.0, 0.0, 0.0, 1.0],
+            uv: [1., 1.],
+            ..Default::default()
+          },
+          Vertex {
+            position: [0.5, 0.5, 0.0],
+            color: [0.0, 1.0, 0.0, 1.0],
+            uv: [1., 0.],
+            ..Default::default()
+          },
+          Vertex {
+            position: [-0.5, 0.5, 0.0],
+            color: [0.0, 0.0, 1.0, 1.0],
+            uv: [0., 0.],
+            ..Default::default()
+          },
+        ],
+        Some(&[0, 1, 2, 0, 2, 3]),
+        textured_material.clone(),
+      );
 
       Ok(Self {
         window,
-        surface,
-        device,
-        queue,
-        config,
+        context,
+        egui,
+        render_target,
+        simple_pass,
+        tone_map_pass,
+        textured_material,
+        standard_material,
+        mesh,
+        is_dirty: false,
       })
     })
   }
@@ -88,67 +132,110 @@ impl Renderer {
     self.window.as_ref()
   }
 
-  pub fn resize(&mut self) {
-    let new_size = self.window.inner_size();
-    if new_size.width > 0 && new_size.height > 0 {
-      self.config.width = new_size.width;
-      self.config.height = new_size.height;
-      self.surface.configure(&self.device, &self.config);
-    }
+  pub fn refresh(&mut self) {
+    self.is_dirty = true;
   }
 
-  pub fn input(&mut self, event: &WindowEvent) -> bool {
-    false
+  pub fn handle_input(&mut self, event: &WindowEvent) -> bool {
+    self.egui.handle_input(event)
   }
 
-  pub fn draw(&mut self, render_time: Time, render_data: Option<RenderData>) -> Result<bool, RendererError> {
-    if let Some(render_data) = render_data {
-      match self.surface.get_current_texture() {
-        Ok(output) => {
-          // render
-          let view = output.texture.create_view(&wgpu::TextureViewDescriptor::default());
-          let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+  pub fn take_egui_input(&mut self) -> RawInput {
+    self.egui.state.take_egui_input(&self.window)
+  }
+
+  pub fn draw(&mut self, render_time: Time, render_data: RenderData) -> Result<(), RendererError> {
+    match self.next_frame() {
+      Ok(frame) => {
+        let view = frame.texture.create_view(&wgpu::TextureViewDescriptor::default());
+
+        let mut command_encoder = self
+          .context
+          .device()
+          .create_command_encoder(&wgpu::CommandEncoderDescriptor {
             label: Some("Render Encoder"),
           });
-          {
-            let _render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-              label: Some("Render Pass"),
-              color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                view: &view,
-                resolve_target: None,
-                ops: wgpu::Operations {
-                  load: wgpu::LoadOp::Clear(wgpu::Color {
-                    r: 0.1,
-                    g: 0.2,
-                    b: 0.3,
-                    a: 1.0,
-                  }),
-                  store: wgpu::StoreOp::Store,
-                },
-              })],
-              depth_stencil_attachment: None,
-              occlusion_query_set: None,
-              timestamp_writes: None,
-            });
-          }
 
-
-          // submit will accept anything that implements IntoIter
-          self.queue.submit(std::iter::once(encoder.finish()));
-
-          self.window.pre_present_notify();
-          output.present();
-
-          Ok(true)
+        {
+          // clear attachment
+          let _render_pass = command_encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+            label: Some("Clearing Pass"),
+            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+              view: &self.render_target.view,
+              resolve_target: None,
+              ops: wgpu::Operations {
+                load: wgpu::LoadOp::Clear(Self::CLEAR_VALUE),
+                store: wgpu::StoreOp::Store,
+              },
+            })],
+            depth_stencil_attachment: None,
+            occlusion_query_set: None,
+            timestamp_writes: None,
+          });
         }
-        Err(SurfaceError::Lost | SurfaceError::Outdated) => {
-          self.resize();
-          Ok(false)
-        }
-        Err(error) => Err(error)?,
+
+        self
+          .simple_pass
+          .draw(&mut command_encoder, &self.render_target.view, &self.mesh)?;
+
+        // Finish by rendering onto the primary view
+        self.tone_map_pass.draw(&mut command_encoder, &view, &self.mesh)?;
+
+        // EGUI
+
+        let screen_descriptor = ScreenDescriptor {
+          size_in_pixels: [self.context.config().width, self.context.config().height],
+          pixels_per_point: self.window().scale_factor() as f32,
+        };
+
+        self.egui.draw(
+          self.context.device(),
+          self.context.queue(),
+          &mut command_encoder,
+          &view,
+          screen_descriptor,
+          render_data.full_output,
+        );
+
+        // submit will accept anything that implements IntoIter
+        self.context.queue().submit(Some(command_encoder.finish()));
+        self.window.pre_present_notify();
+        frame.present();
+
+        Ok(())
       }
-    } else {
-      Ok(false)
+      Err(RendererError::RebuildSwapchain) => Ok(()),
+      Err(error) => Err(error),
+    }
+  }
+}
+
+impl Renderer {
+  fn reconfigure(&mut self) {
+    self.context.reconfigure();
+    self.render_target.resize(self.context.device());
+    self.simple_pass.resize(self.context.device(), &self.render_target);
+    self.tone_map_pass.resize(self.context.device(), &self.render_target);
+  }
+
+  fn next_frame(&mut self) -> Result<wgpu::SurfaceTexture, RendererError> {
+    if self.is_dirty {
+      self.reconfigure();
+      self.is_dirty = false;
+    }
+
+    match self.context.surface().get_current_texture() {
+      Ok(frame) => {
+        if frame.suboptimal {
+          self.refresh();
+        }
+        Ok(frame)
+      }
+      Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated | wgpu::SurfaceError::OutOfMemory) => {
+        self.refresh();
+        Err(RendererError::RebuildSwapchain)
+      }
+      Err(error) => Err(RendererError::SurfaceError(error)),
     }
   }
 }

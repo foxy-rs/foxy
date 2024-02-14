@@ -10,10 +10,7 @@ impl<T> RingBuffer<T> {
   pub fn new(capacity: usize) -> Self {
     let mut items = VecDeque::new();
     items.shrink_to(capacity);
-    Self {
-      items,
-      capacity,
-    }
+    Self { items, capacity }
   }
 
   pub fn push(&mut self, item: T) -> Option<T> {

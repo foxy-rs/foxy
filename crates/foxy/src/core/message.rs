@@ -1,11 +1,12 @@
-use winit::event::Event;
+use egui::RawInput;
+use winit::event::WindowEvent;
 
 #[derive(Debug)]
-pub enum RenderLoopMessage<T: 'static + Send> {
+pub enum RenderLoopMessage {
   Start,
   MustExit,
   ExitRequested,
-  Winit(Event<T>),
+  Winit(WindowEvent, RawInput),
   None,
 }
 

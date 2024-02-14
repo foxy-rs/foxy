@@ -3,10 +3,12 @@ use foxy_utils::thread::error::ThreadError;
 use thiserror::Error;
 
 pub mod builder;
+pub mod engine_state;
+pub mod event;
 pub mod framework;
+pub mod input;
 pub mod message;
 pub mod runnable;
-pub mod state;
 
 pub type FoxyResult<T> = Result<T, FoxyError>;
 

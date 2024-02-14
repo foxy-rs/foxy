@@ -1,21 +1,39 @@
-use winit::event::Event;
+use egui::Context;
 
-use super::{builder::FoxyCreateInfo, framework::Framework, state::Foxy, FoxyResult};
+use super::{
+  builder::FoxyCreateInfo,
+  engine_state::Foxy,
+  event::{FoxyEvent, InputEvent, WindowEvent},
+  framework::Framework,
+  FoxyResult,
+};
+
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum Flow {
+  Exit,
+  Continue,
+}
 
 #[allow(unused)]
-pub trait Runnable<T: 'static + Send + Sync> {
-  fn new(foxy: &mut Foxy) -> Self;
+pub trait Runnable {
+  fn new(foxy: &Foxy) -> Self;
 
-  fn start(&mut self, foxy: &mut Foxy) {}
+  fn start(&mut self, foxy: &Foxy) {}
 
-  fn fixed_update(&mut self, foxy: &mut Foxy, event: &Option<Event<T>>) {}
+  fn fixed_update(&mut self, foxy: &Foxy, event: &FoxyEvent) {}
 
-  fn update(&mut self, foxy: &mut Foxy, event: &Option<Event<T>>) {}
+  fn input(&mut self, foxy: &Foxy, event: &InputEvent) {}
 
-  fn late_update(&mut self, foxy: &mut Foxy, event: &Option<Event<T>>) {}
+  fn update(&mut self, foxy: &Foxy, event: &FoxyEvent) {}
 
-  fn stop(&mut self, foxy: &mut Foxy) -> bool {
-    true
+  fn late_update(&mut self, foxy: &Foxy, event: &FoxyEvent) {}
+
+  fn window(&mut self, foxy: &Foxy, event: &WindowEvent) {}
+
+  fn gui(&mut self, foxy: &Foxy, egui: &Context) {}
+
+  fn stop(&mut self, foxy: &Foxy) -> Flow {
+    Flow::Exit
   }
 
   fn delete(mut self)
@@ -24,7 +42,7 @@ pub trait Runnable<T: 'static + Send + Sync> {
   {
   }
 
-  fn foxy() -> FoxyCreateInfo {
+  fn settings() -> FoxyCreateInfo {
     FoxyCreateInfo::default()
   }
 
@@ -33,6 +51,6 @@ pub trait Runnable<T: 'static + Send + Sync> {
   where
     Self: Sized,
   {
-    Framework::with_events::<Self>(Self::foxy())?.run()
+    Framework::new::<Self>(Self::settings())?.run()
   }
 }
