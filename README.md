@@ -3,36 +3,32 @@
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/R6R8PGIU6)
 
 ```rust
-use foxy::prelude::{
-  winit::event::{Event, WindowEvent},
-  *,
-};
+use foxy::prelude::*;
+use tracing::debug;
 
 pub struct App;
 
-impl Runnable<()> for App {
-  // fn foxy() -> FoxyCreateInfo {
-  //   FoxyCreateInfo::default()
-  //     .with_debug_info(DebugInfo::Shown)
-  //     .with_polling(Polling::Poll)
-  // }
+impl Runnable for App {
+  fn settings() -> FoxyCreateInfo {
+    FoxyCreateInfo::default()
+      .with_debug_info(DebugInfo::Shown)
+      .with_polling(Polling::Poll)
+  }
 
-  fn new(_foxy: &mut Foxy) -> Self {
+  fn new(_foxy: &Foxy) -> Self {
     Self {}
   }
 
-  fn update(&mut self, _foxy: &mut Foxy, event: &Option<Event<()>>) {
-    if let Some(Event::WindowEvent {
-      event: WindowEvent::KeyboardInput { event, .. },
-      ..
-    }) = event
-    {
-      println!("UPDATE: {:?}", event)
+  fn update(&mut self, _foxy: &Foxy, event: &FoxyEvent) {
+    if let FoxyEvent::Input(InputEvent::Keyboard(..)) = event {
+      debug!("UPDATE: {:?}", event)
     }
   }
 }
 
 fn main() -> FoxyResult<()> {
+  start_debug_logging_session!();
+
   App::run()
 }
 ```
