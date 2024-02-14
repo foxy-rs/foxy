@@ -1,12 +1,14 @@
 #![cfg_attr(all(windows, not(debug_assertions)), windows_subsystem = "windows")]
 
 use foxy::{
-  egui::{self, Align2},
+  egui,
   prelude::*,
 };
 use tracing::{debug, warn};
 
-pub struct App;
+pub struct App {
+  x: u32,
+}
 
 impl Runnable for App {
   fn settings() -> FoxyCreateInfo {
@@ -16,36 +18,35 @@ impl Runnable for App {
       .with_polling(Polling::Poll)
   }
 
-  fn new(_foxy: &mut Foxy) -> Self {
-    Self {}
+  fn new(_foxy: &Foxy) -> Self {
+    Self { x: 0 }
   }
 
-  fn input(&mut self, foxy: &mut Foxy, event: &InputEvent) {
+  fn input(&mut self, foxy: &Foxy, event: &InputEvent) {
     if let InputEvent::Mouse(button, state) = event {
-      debug!("UPDATE | {:?}: {:?} + {:?}", button, state, foxy.input().shift().is_pressed())
+      debug!("UPDATE | {:?}: {:?} + {:?}", button, state, foxy.read().input().shift().is_pressed())
     }
   }
 
-  fn gui(&mut self, foxy: &mut Foxy, egui: &foxy::egui::Context) {
+  fn gui(&mut self, foxy: &Foxy, egui: &foxy::egui::Context) {
     egui::Window::new("Streamline CFD")
-        // .vscroll(true)
-        .default_open(true)
-        .max_width(1000.0)
-        .max_height(800.0)
-        .default_width(800.0)
-        .resizable(true)
-        .movable(true)
-        .show(egui, |ui| {
-            if ui.add(egui::Button::new("Click me")).clicked() {
-                warn!("PRESSED")
-            }
+      .default_open(true)
+      .max_width(10000.0)
+      .max_height(10000.0)
+      .default_width(800.0)
+      .resizable(true)
+      .movable(true)
+      .show(egui, |ui| {
+        if ui.add(egui::Button::new("Click me")).clicked() {
+          warn!("PRESSED");
+        }
 
-            ui.label("Slider");
-            // ui.add(egui::Slider::new(_, 0..=120).text("age"));
-            ui.end_row();
-
-            // proto_scene.egui(ui);
-        });
+        ui.label("Slider");
+        if ui.add(egui::Slider::new(&mut self.x, 1..=10)).changed() {
+          warn!("x: {}", self.x);
+        }
+        ui.end_row();
+      });
   }
 }
 

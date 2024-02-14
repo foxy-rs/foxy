@@ -1,4 +1,8 @@
-use std::{sync::Arc, thread::JoinHandle, time::Duration};
+use std::{
+  sync::{Arc, RwLock},
+  thread::JoinHandle,
+  time::Duration,
+};
 
 use crossbeam::{channel::TryRecvError, queue::ArrayQueue};
 use egui::{epaint::Shadow, Context, FullOutput, Visuals};
@@ -20,11 +24,11 @@ use winit::{
 
 use super::{
   builder::{DebugInfo, FoxyCreateInfo, Polling},
-  engine_state::Foxy,
   runnable::Runnable,
   FoxyResult,
 };
 use crate::core::{
+  engine_state::{self, Foxy},
   event::FoxyEvent,
   message::{GameLoopMessage, RenderLoopMessage},
   runnable::Flow,
@@ -74,8 +78,8 @@ impl<T: 'static + Send + Sync> Framework<T> {
     let time = create_info.time.build();
     let render_queue = Arc::new(ArrayQueue::new(Self::MAX_FRAME_DATA_IN_FLIGHT));
 
-    let foxy = Foxy::new(time, window.clone());
-    let egui_context = foxy.egui_context.clone();
+    let foxy = Foxy::new(engine_state::State::new(time, window.clone()));
+    let egui_context = foxy.read().egui_context.clone();
     let (game_mailbox, render_mailbox) = Mailbox::new_entangled_pair();
     let game_thread = Some(Self::game_loop::<App>(game_mailbox, foxy, render_queue.clone())?);
 
@@ -214,8 +218,8 @@ impl<T: 'static + Send + Sync> Framework<T> {
     let handle = std::thread::Builder::new()
       .name(Self::GAME_THREAD_ID.into())
       .spawn(move || -> FoxyResult<()> {
-        let _ = mailbox.recv().log_error(); // wait for startup message
-                                            // debug!("HELLO HELLO BAU BAU");
+        let _ = mailbox.recv().log_error();
+        let window = foxy.read().window.clone();
 
         let mut app = App::new(&mut foxy);
         app.start(&mut foxy);
@@ -251,22 +255,22 @@ impl<T: 'static + Send + Sync> Framework<T> {
                     },
                   ..
                 } => {
-                  foxy.input.update_key_state(physical_key, element_state, repeat);
+                  foxy.write().input.update_key_state(physical_key, element_state, repeat);
                 }
                 WindowEvent::MouseInput {
                   button,
                   state: element_state,
                   ..
                 } => {
-                  foxy.input.update_mouse_button_state(button, element_state);
+                  foxy.write().input.update_mouse_button_state(button, element_state);
                 }
                 WindowEvent::ModifiersChanged(mods) => {
-                  foxy.input.update_modifiers_state(mods);
+                  foxy.write().input.update_modifiers_state(mods);
                 }
                 _ => (),
               }
 
-              let response = foxy.egui_state.on_window_event(&foxy.window, &event);
+              let response = foxy.write().egui_state.on_window_event(&window, &event);
 
               if response.consumed {
                 None
@@ -288,11 +292,11 @@ impl<T: 'static + Send + Sync> Framework<T> {
 
           let event = FoxyEvent::from(event);
 
-          let raw_input = foxy.egui_state.take_egui_input(&foxy.window);
+          let raw_input = foxy.write().egui_state.take_egui_input(&window);
 
-          foxy.time.update();
-          while foxy.time.should_do_tick_unchecked() {
-            foxy.time.tick();
+          foxy.write().engine_time.update();
+          while foxy.write().engine_time.should_do_tick_unchecked() {
+            foxy.write().engine_time.tick();
             app.fixed_update(&mut foxy, &event);
           }
 
@@ -302,14 +306,14 @@ impl<T: 'static + Send + Sync> Framework<T> {
 
           app.update(&mut foxy, &event);
 
-          let context = foxy.egui_context.clone();
+          let context = foxy.read().egui_context.clone();
           let full_output = context.run(raw_input, |ui| {
             app.gui(&mut foxy, ui);
           });
 
-          foxy
+          foxy.write()
             .egui_state
-            .handle_platform_output(&foxy.window, full_output.clone().platform_output);
+            .handle_platform_output(&window, full_output.clone().platform_output);
 
           render_queue.force_push(RenderData { full_output });
 

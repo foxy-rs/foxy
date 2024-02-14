@@ -2,7 +2,7 @@ use egui::Context;
 
 use super::{
   builder::FoxyCreateInfo,
-  engine_state::Foxy,
+  engine_state::{Foxy, State},
   event::{FoxyEvent, InputEvent, WindowEvent},
   framework::Framework,
   FoxyResult,
@@ -16,23 +16,23 @@ pub enum Flow {
 
 #[allow(unused)]
 pub trait Runnable {
-  fn new(foxy: &mut Foxy) -> Self;
+  fn new(foxy: &Foxy) -> Self;
 
-  fn start(&mut self, foxy: &mut Foxy) {}
+  fn start(&mut self, foxy: &Foxy) {}
 
-  fn fixed_update(&mut self, foxy: &mut Foxy, event: &FoxyEvent) {}
+  fn fixed_update(&mut self, foxy: &Foxy, event: &FoxyEvent) {}
 
-  fn input(&mut self, foxy: &mut Foxy, event: &InputEvent) {}
+  fn input(&mut self, foxy: &Foxy, event: &InputEvent) {}
 
-  fn update(&mut self, foxy: &mut Foxy, event: &FoxyEvent) {}
+  fn update(&mut self, foxy: &Foxy, event: &FoxyEvent) {}
 
-  fn late_update(&mut self, foxy: &mut Foxy, event: &FoxyEvent) {}
+  fn late_update(&mut self, foxy: &Foxy, event: &FoxyEvent) {}
 
-  fn window(&mut self, foxy: &mut Foxy, event: &WindowEvent) {}
+  fn window(&mut self, foxy: &Foxy, event: &WindowEvent) {}
 
-  fn gui(&mut self, foxy: &mut Foxy, egui: &Context) {}
+  fn gui(&mut self, foxy: &Foxy, egui: &Context) {}
 
-  fn stop(&mut self, foxy: &mut Foxy) -> Flow {
+  fn stop(&mut self, foxy: &Foxy) -> Flow {
     Flow::Exit
   }
 

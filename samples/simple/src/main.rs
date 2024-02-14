@@ -12,11 +12,11 @@ impl Runnable for App {
       .with_polling(Polling::Poll)
   }
 
-  fn new(_foxy: &mut Foxy) -> Self {
+  fn new(_foxy: &Foxy) -> Self {
     Self {}
   }
 
-  fn update(&mut self, _foxy: &mut Foxy, event: &FoxyEvent) {
+  fn update(&mut self, _foxy: &Foxy, event: &FoxyEvent) {
     if let FoxyEvent::Input(InputEvent::Keyboard(..)) = event {
       debug!("UPDATE: {:?}", event)
     }
