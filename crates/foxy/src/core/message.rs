@@ -6,7 +6,7 @@ pub enum RenderLoopMessage {
   Start,
   MustExit,
   ExitRequested,
-  Winit(WindowEvent, RawInput),
+  Winit(WindowEvent),
   None,
 }
 

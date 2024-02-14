@@ -23,8 +23,8 @@ use super::{
   FoxyResult,
 };
 use crate::core::{
-  engine_state::{self, Foxy},
   event::FoxyEvent,
+  foxy_state::{self, Foxy},
   message::{GameLoopMessage, RenderLoopMessage},
   runnable::Flow,
   FoxyError,
@@ -73,7 +73,7 @@ impl<T: 'static + Send + Sync> Framework<T> {
     let time = create_info.time.build();
     let render_queue = Arc::new(ArrayQueue::new(Self::MAX_FRAME_DATA_IN_FLIGHT));
 
-    let foxy = Foxy::new(engine_state::State::new(time, window.clone()));
+    let foxy = Foxy::new(foxy_state::State::new(time, window.clone()));
     let egui_context = foxy.read().egui_context.clone();
     let (game_mailbox, render_mailbox) = Mailbox::new_entangled_pair();
     let game_thread = Some(Self::game_loop::<App>(game_mailbox, foxy, render_queue.clone())?);
@@ -117,7 +117,7 @@ impl<T: 'static + Send + Sync> Framework<T> {
 
       match event {
         Event::WindowEvent { event, .. } => {
-          let was_handled = state.renderer.handle_input(&event);
+          // let was_handled = state.renderer.handle_input(&event);
 
           // first check
           match event {
@@ -140,11 +140,9 @@ impl<T: 'static + Send + Sync> Framework<T> {
             _ => (),
           }
 
-          if !was_handled && !elwt.exiting() {
-            if let Err(error) = state
-              .render_mailbox
-              .send(RenderLoopMessage::Winit(event, state.renderer.take_egui_input()))
-            {
+          if !elwt.exiting() {
+            // !was_handled went here
+            if let Err(error) = state.render_mailbox.send(RenderLoopMessage::Winit(event)) {
               error!("{error:?}")
             }
           }
@@ -222,7 +220,9 @@ impl<T: 'static + Send + Sync> Framework<T> {
         loop {
           let next_message = mailbox.try_recv();
 
-          let (event, raw_input) = match next_message {
+          let raw_input = foxy.write().take_egui_input();
+
+          let event = match next_message {
             Ok(RenderLoopMessage::MustExit) => {
               let _ = mailbox.send(GameLoopMessage::Exit);
               app.stop(&foxy);
@@ -237,39 +237,45 @@ impl<T: 'static + Send + Sync> Framework<T> {
               } else {
                 let _ = mailbox.send(GameLoopMessage::DontExit);
               }
-              (None, None)
+              None
             }
-            Ok(RenderLoopMessage::Winit(event, raw_input)) => {
-              match event {
-                WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
-                  foxy.write().egui_context.set_zoom_factor(scale_factor as f32);
-                }
-                WindowEvent::KeyboardInput {
-                  event:
-                    KeyEvent {
-                      physical_key,
-                      state: element_state,
-                      repeat,
-                      ..
-                    },
-                  ..
-                } => {
-                  foxy.write().input.update_key_state(physical_key, element_state, repeat);
-                }
-                WindowEvent::MouseInput {
-                  button,
-                  state: element_state,
-                  ..
-                } => {
-                  foxy.write().input.update_mouse_button_state(button, element_state);
-                }
-                WindowEvent::ModifiersChanged(mods) => {
-                  foxy.write().input.update_modifiers_state(mods);
-                }
-                _ => (),
-              }
+            Ok(RenderLoopMessage::Winit(event)) => {
+              let was_handled = foxy.write().handle_input(&event);
 
-              (Some(event), Some(raw_input))
+              if !was_handled {
+                match event {
+                  WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
+                    foxy.write().egui_context.set_zoom_factor(scale_factor as f32);
+                  }
+                  WindowEvent::KeyboardInput {
+                    event:
+                      KeyEvent {
+                        physical_key,
+                        state: element_state,
+                        repeat,
+                        ..
+                      },
+                    ..
+                  } => {
+                    foxy.write().input.update_key_state(physical_key, element_state, repeat);
+                  }
+                  WindowEvent::MouseInput {
+                    button,
+                    state: element_state,
+                    ..
+                  } => {
+                    foxy.write().input.update_mouse_button_state(button, element_state);
+                  }
+                  WindowEvent::ModifiersChanged(mods) => {
+                    foxy.write().input.update_modifiers_state(mods);
+                  }
+                  _ => (),
+                }
+
+                Some(event)
+              } else {
+                None
+              }
             }
             Err(MessagingError::TryRecvError {
               error: TryRecvError::Disconnected,
@@ -278,7 +284,7 @@ impl<T: 'static + Send + Sync> Framework<T> {
               app.delete();
               break;
             }
-            _ => (None, None),
+            _ => None,
           };
 
           // Loop
@@ -303,15 +309,14 @@ impl<T: 'static + Send + Sync> Framework<T> {
             app.window(&foxy, event);
           }
 
-          let Some(raw_input) = raw_input else {
-            continue;
-          };
-
-          let context = foxy.read().egui_context.clone();
-          let full_output = context.run(raw_input, |ui| {
+          let full_output = foxy.read().egui_context.run(raw_input, |ui| {
             app.gui(&foxy, ui);
           });
-          context.request_repaint();
+
+          foxy
+            .write()
+            .egui_state
+            .handle_platform_output(&window, full_output.platform_output.clone());
 
           render_queue.force_push(RenderData { full_output });
         }

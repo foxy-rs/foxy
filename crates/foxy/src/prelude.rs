@@ -2,9 +2,9 @@ pub use foxy_utils::log::prelude::*;
 
 pub use crate::core::{
   builder::{DebugInfo, FoxyCreateInfo, Polling},
-  engine_state::Foxy,
+  foxy_state::Foxy,
   event::{FoxyEvent, InputEvent, WindowEvent},
-  framework::Framework,
+  foxy_loop::Framework,
   message::RenderLoopMessage,
   runnable::Runnable,
   FoxyResult,
