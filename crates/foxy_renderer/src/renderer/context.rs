@@ -1,10 +1,26 @@
 use std::sync::Arc;
 
 use tracing::debug;
-use wgpu::TextureFormat;
 use winit::window::Window;
 
-use crate::error::RendererError;
+use crate::{error::RendererError, renderer::Renderer};
+
+// #[derive(Clone)]
+// pub struct GraphicsContext(Arc<RwLock<GraphicsContext>>);
+
+// impl GraphicsContext {
+//   pub fn new(ctx: Context) -> Self {
+//     Self(Arc::new(RwLock::new(ctx)))
+//   }
+
+//   pub fn read(&self) -> RwLockReadGuard<Context> {
+//     self.0.read().expect("reader panicked")
+//   }
+
+//   pub fn write(&self) -> RwLockWriteGuard<Context> {
+//     self.0.write().expect("reader panicked")
+//   }
+// }
 
 pub struct GraphicsContext {
   window: Arc<Window>,
@@ -15,8 +31,6 @@ pub struct GraphicsContext {
 }
 
 impl GraphicsContext {
-  pub const SURFACE_FORMAT: TextureFormat = TextureFormat::Rgba8UnormSrgb;
-
   pub fn new(window: Arc<Window>) -> Result<Self, RendererError> {
     pollster::block_on(async {
       let size = window.inner_size();
@@ -54,7 +68,7 @@ impl GraphicsContext {
         .formats
         .iter()
         .copied()
-        .find(|f| *f == Self::SURFACE_FORMAT)
+        .find(|f| *f == Renderer::SURFACE_FORMAT)
         .unwrap_or(*surface_caps.formats.first().unwrap());
 
       let config = wgpu::SurfaceConfiguration {

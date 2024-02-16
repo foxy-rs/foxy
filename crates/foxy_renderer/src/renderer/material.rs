@@ -1,44 +1,42 @@
 use std::sync::Arc;
 
-use wgpu::{include_wgsl, Device, Queue, TextureFormat};
+use wgpu::TextureFormat;
 
-use super::{context::GraphicsContext, texture::DiffuseTexture, vertex::Vertex, Renderer};
+use super::{shader::ShaderHandle, texture::TextureHandle, Renderer};
 
-#[repr(C)]
-pub struct MaterialUniforms {
-  pub color: [f32; 4],
-}
+// #[repr(C)]
+// pub struct MaterialUniforms {
+//   pub color: [f32; 4],
+// }
 
 pub trait Material {
+  // fn id() -> Uuid;
+
   fn format() -> TextureFormat
   where
     Self: Sized,
   {
-    GraphicsContext::SURFACE_FORMAT
+    Renderer::SURFACE_FORMAT
   }
 
-  fn albedo(&self) -> &DiffuseTexture;
+  fn albedo(&self) -> TextureHandle;
+  fn shader(&self) -> ShaderHandle;
 }
 
-pub struct StandardMaterial {
-  // pub uniforms: MaterialUniforms,
-  // pub uniforms_buffer: wgpu::Buffer,
-  pub albedo: DiffuseTexture,
-}
+pub struct StandardMaterial {}
 
 impl Material for StandardMaterial {
-  fn albedo(&self) -> &DiffuseTexture {
-    &self.albedo
+  fn albedo(&self) -> TextureHandle {
+    "assets/foxy/textures/default.png".into()
+  }
+
+  fn shader(&self) -> ShaderHandle {
+    "assets/foxy/shaders/texture.wgsl".into()
   }
 }
 
 impl StandardMaterial {
-  pub fn new(device: &Device, queue: &Queue, texture: Option<DiffuseTexture>) -> Arc<Self> {
-    let albedo = match texture {
-      Some(texture) => texture,
-      None => DiffuseTexture::new(device, queue, include_bytes!("../../assets/textures/default.png")),
-    };
-
-    Arc::new(Self { albedo })
+  pub fn new() -> Arc<Self> {
+    Arc::new(Self {})
   }
 }

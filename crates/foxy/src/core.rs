@@ -3,9 +3,9 @@ use foxy_utils::thread::error::ThreadError;
 use thiserror::Error;
 
 pub mod builder;
-pub mod foxy_state;
 pub mod event;
 pub mod foxy_loop;
+pub mod foxy_state;
 pub mod input;
 pub mod message;
 pub mod runnable;

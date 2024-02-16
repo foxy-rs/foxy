@@ -1,15 +1,17 @@
-use std::{
-  cell::OnceCell,
-  mem::size_of,
-  sync::{Arc, OnceLock},
-};
+use std::{mem::size_of, path::PathBuf, sync::OnceLock};
 
 use image::{EncodableLayout, GenericImageView, Pixel};
 use itertools::Itertools;
-use wgpu::{Device, Extent3d, Queue, Texture};
-use winit::window::Window;
+use wgpu::{Device, Queue, Texture};
 
-use super::target::RenderTarget;
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct TextureHandle(pub PathBuf);
+
+impl From<&str> for TextureHandle {
+  fn from(value: &str) -> Self {
+    Self(value.into())
+  }
+}
 
 pub struct DiffuseTexture {
   pub texture: Texture,

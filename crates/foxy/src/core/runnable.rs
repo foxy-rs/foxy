@@ -2,9 +2,9 @@ use egui::Context;
 
 use super::{
   builder::FoxyCreateInfo,
-  foxy_state::Foxy,
   event::{FoxyEvent, InputEvent, WindowEvent},
   foxy_loop::Framework,
+  foxy_state::Foxy,
   FoxyResult,
 };
 

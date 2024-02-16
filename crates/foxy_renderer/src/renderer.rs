@@ -1,32 +1,26 @@
 use std::sync::Arc;
 
-use egui::{Context, FullOutput, RawInput};
 use egui_wgpu::ScreenDescriptor;
 use foxy_utils::time::Time;
-use image::{DynamicImage, GenericImageView};
-use tracing::debug;
+use itertools::Itertools;
 use wgpu::{Color, TextureFormat};
-use winit::{event::WindowEvent, window::Window};
+use winit::window::Window;
 
 use self::{
   context::GraphicsContext,
-  material::StandardMaterial,
-  mesh::Mesh,
-  render_data::{Drawable, RenderData},
+  render_data::RenderData,
   render_pass::{simple::SimplePass, tonemap::ToneMapPass, Pass},
   target::RenderTarget,
 };
-use crate::{
-  egui::EguiRenderer,
-  error::RendererError,
-  renderer::{material::Material, texture::DiffuseTexture, vertex::Vertex},
-};
+use crate::{egui::EguiRenderer, error::RendererError, renderer::asset_manager::AssetManager};
 
+pub mod asset_manager;
 pub mod context;
 pub mod material;
 pub mod mesh;
 pub mod render_data;
 pub mod render_pass;
+pub mod shader;
 pub mod target;
 pub mod texture;
 pub mod vertex;
@@ -37,15 +31,24 @@ pub struct Renderer {
   egui: EguiRenderer,
   render_target: RenderTarget,
 
+  asset_manager: AssetManager,
+
   simple_pass: SimplePass,
   tone_map_pass: ToneMapPass,
 
-  textured_material: Arc<StandardMaterial>,
-  standard_material: Arc<StandardMaterial>,
-  mesh: Mesh,
-
+  // textured_material: Arc<StandardMaterial>,
+  // standard_material: Arc<StandardMaterial>,
   is_dirty: bool,
 }
+
+// TODO: BEVY ECS TO MAKE CONTEXT A RESOURCE
+
+// TODO: Change Material and Texture to make them baked on the render thread
+// somehow so the device and queue deps can be removed. Maybe look into how Bevy
+// does stuff.
+// It seems like I should change to dynamically reading shaders and textures
+// after all. As with the ash branch, use Strings as a key in a hash map of
+// shaders and textures.
 
 impl Renderer {
   const CLEAR_VALUE: Color = Color {
@@ -54,75 +57,39 @@ impl Renderer {
     b: 1.0,
     a: 1.0,
   };
+  pub const RENDER_TARGET_FORMAT: TextureFormat = TextureFormat::Rgba16Float;
+  pub const SURFACE_FORMAT: TextureFormat = TextureFormat::Rgba8UnormSrgb;
 
-  pub fn new(window: Arc<Window>, egui_context: Context) -> Result<Self, RendererError> {
+  pub fn new(window: Arc<Window>, egui_context: egui::Context) -> Result<Self, RendererError> {
     pollster::block_on(async {
       let context = GraphicsContext::new(window.clone())?;
-      let egui = EguiRenderer::new(
-        window.clone(),
-        context.device(),
-        egui_context,
-        GraphicsContext::SURFACE_FORMAT,
-        None,
-        1,
-      );
+      let egui = EguiRenderer::new(window.clone(), context.device(), egui_context, Self::SURFACE_FORMAT, None, 1);
 
       let render_target = RenderTarget::new(window.clone(), context.device());
 
+      let asset_manager = AssetManager::new();
+
       let simple_pass = SimplePass::new(context.device());
-      let tone_map_pass = ToneMapPass::new(context.device(), context.config(), &render_target);
-
-      let diffuse_texture = DiffuseTexture::new(
-        context.device(),
-        context.queue(),
-        include_bytes!("../assets/textures/cobblestone.png"),
-      );
-
-      let textured_material = StandardMaterial::new(context.device(), context.queue(), Some(diffuse_texture));
-      let standard_material = StandardMaterial::new(context.device(), context.queue(), None);
-
-      let mesh = Mesh::new(
-        context.device(),
-        &[
-          Vertex {
-            position: [-0.5, -0.5, 0.0],
-            color: [1.0, 0.0, 0.0, 1.0],
-            uv: [0., 1.],
-            ..Default::default()
-          },
-          Vertex {
-            position: [0.5, -0.5, 0.0],
-            color: [1.0, 0.0, 0.0, 1.0],
-            uv: [1., 1.],
-            ..Default::default()
-          },
-          Vertex {
-            position: [0.5, 0.5, 0.0],
-            color: [0.0, 1.0, 0.0, 1.0],
-            uv: [1., 0.],
-            ..Default::default()
-          },
-          Vertex {
-            position: [-0.5, 0.5, 0.0],
-            color: [0.0, 0.0, 1.0, 1.0],
-            uv: [0., 0.],
-            ..Default::default()
-          },
-        ],
-        Some(&[0, 1, 2, 0, 2, 3]),
-        textured_material.clone(),
-      );
+      let tone_map_pass = ToneMapPass::new(context.device(), &render_target);
+      //
+      // let diffuse_texture = DiffuseTexture::new(
+      //   context.device(),
+      //   context.queue(),
+      //   include_bytes!("../assets/textures/cobblestone.png"),
+      // );
+      //
+      // let textured_material = StandardMaterial::new(context.device(),
+      // context.queue(), Some(diffuse_texture)); let standard_material =
+      // StandardMaterial::new(context.device(), context.queue(), None);
 
       Ok(Self {
         window,
         context,
         egui,
         render_target,
+        asset_manager,
         simple_pass,
         tone_map_pass,
-        textured_material,
-        standard_material,
-        mesh,
         is_dirty: false,
       })
     })
@@ -136,10 +103,10 @@ impl Renderer {
     self.is_dirty = true;
   }
 
-  pub fn draw(&mut self, render_time: Time, render_data: RenderData) -> Result<(), RendererError> {
+  pub fn render_frame(&mut self, render_time: Time, render_data: RenderData) -> Result<(), RendererError> {
     match self.next_frame() {
       Ok(frame) => {
-        let view = frame.texture.create_view(&wgpu::TextureViewDescriptor::default());
+        let swapchain_view = frame.texture.create_view(&wgpu::TextureViewDescriptor::default());
 
         let mut command_encoder = self
           .context
@@ -166,12 +133,34 @@ impl Renderer {
           });
         }
 
-        self
-          .simple_pass
-          .draw(&mut command_encoder, &self.render_target.view, &self.mesh)?;
+        let meshes = render_data
+          .meshes
+          .into_iter()
+          .map(|m| m.bake(self.context.device()))
+          .collect_vec();
 
-        // Finish by rendering onto the primary view
-        self.tone_map_pass.draw(&mut command_encoder, &view, &self.mesh)?;
+        for mesh in meshes.iter() {
+          self.simple_pass.draw(
+            &mut command_encoder,
+            &self.asset_manager,
+            self.context.device(),
+            self.context.queue(),
+            &self.render_target.view,
+            mesh,
+          )?;
+        }
+
+        for mesh in meshes.iter() {
+          // Finish by rendering onto the primary view
+          self.tone_map_pass.draw(
+            &mut command_encoder,
+            &self.asset_manager,
+            self.context.device(),
+            self.context.queue(),
+            &swapchain_view,
+            mesh,
+          )?;
+        }
 
         // EGUI
 
@@ -184,7 +173,7 @@ impl Renderer {
           self.context.device(),
           self.context.queue(),
           &mut command_encoder,
-          &view,
+          &swapchain_view,
           screen_descriptor,
           render_data.full_output,
         );

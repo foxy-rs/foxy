@@ -1,10 +1,9 @@
 use std::sync::Arc;
 
-use egui::{epaint::Shadow, Context, FullOutput, RawInput, Rounding, Visuals};
+use egui::{Context, FullOutput};
 use egui_wgpu::{Renderer, ScreenDescriptor};
-use egui_winit::State;
 use wgpu::{CommandEncoder, Device, Queue, TextureFormat, TextureView};
-use winit::{event::WindowEvent, window::Window};
+use winit::window::Window;
 
 pub struct EguiRenderer {
   window: Arc<Window>,
@@ -21,7 +20,6 @@ impl EguiRenderer {
     output_depth_format: Option<TextureFormat>,
     msaa_samples: u32,
   ) -> EguiRenderer {
-    
     let egui_renderer = Renderer::new(device, output_color_format, output_depth_format, msaa_samples);
 
     EguiRenderer {
@@ -40,7 +38,6 @@ impl EguiRenderer {
     screen_descriptor: ScreenDescriptor,
     full_output: FullOutput,
   ) {
-
     let tris = self
       .context
       .tessellate(full_output.shapes, full_output.pixels_per_point);

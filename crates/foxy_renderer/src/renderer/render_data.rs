@@ -2,9 +2,12 @@ use std::fmt::Debug;
 
 use egui::FullOutput;
 
+use super::mesh::StaticMesh;
+
 #[derive(Default)]
 pub struct RenderData {
-  pub full_output: FullOutput
+  pub full_output: FullOutput,
+  pub meshes: Vec<StaticMesh>,
 }
 
 impl Debug for RenderData {

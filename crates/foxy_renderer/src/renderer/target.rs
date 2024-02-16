@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use wgpu::{Device, TextureFormat};
+use wgpu::Device;
 use winit::window::Window;
 
 use super::Renderer;
@@ -13,8 +13,6 @@ pub struct RenderTarget {
 }
 
 impl RenderTarget {
-  pub const RENDER_TARGET_FORMAT: TextureFormat = TextureFormat::Rgba16Float;
-
   pub fn new(window: Arc<Window>, device: &Device) -> Self {
     let texture = device.create_texture(&wgpu::TextureDescriptor {
       label: Some("HDR Render Texture"),
@@ -26,7 +24,7 @@ impl RenderTarget {
       mip_level_count: 1,
       sample_count: 1,
       dimension: wgpu::TextureDimension::D2,
-      format: Self::RENDER_TARGET_FORMAT,
+      format: Renderer::RENDER_TARGET_FORMAT,
       usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING,
       view_formats: &[],
     });
@@ -63,7 +61,7 @@ impl RenderTarget {
       mip_level_count: 1,
       sample_count: 1,
       dimension: wgpu::TextureDimension::D2,
-      format: Self::RENDER_TARGET_FORMAT,
+      format: Renderer::RENDER_TARGET_FORMAT,
       usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING,
       view_formats: &[],
     });

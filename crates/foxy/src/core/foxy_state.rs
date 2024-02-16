@@ -1,6 +1,7 @@
 use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
-use egui::{epaint::Shadow, style::HandleShape, Context, RawInput, Rounding, Visuals};
+use egui::{epaint::Shadow, Context, RawInput, Rounding, Visuals};
+use foxy_renderer::renderer::mesh::StaticMesh;
 use foxy_utils::time::{EngineTime, Time};
 use winit::{event::WindowEvent, window::Window};
 
@@ -29,6 +30,7 @@ pub struct State {
   pub(crate) egui_context: Context,
   pub(crate) egui_state: egui_winit::State,
   pub(crate) input: Input,
+  pub(crate) meshes: Vec<StaticMesh>,
 }
 
 impl State {
@@ -56,6 +58,7 @@ impl State {
       egui_context,
       egui_state,
       input: Input::new(),
+      meshes: Default::default(),
     }
   }
 
@@ -69,6 +72,11 @@ impl State {
 
   pub fn input(&self) -> &Input {
     &self.input
+  }
+
+  // TEMPORARY UNTIL ECS IS IMPLEMENTED
+  pub fn submit_mesh(&mut self, mesh: StaticMesh) {
+    self.meshes.push(mesh);
   }
 
   pub(crate) fn handle_input(&mut self, event: &WindowEvent) -> bool {

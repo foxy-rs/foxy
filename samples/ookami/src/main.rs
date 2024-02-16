@@ -1,22 +1,54 @@
 #![cfg_attr(all(windows, not(debug_assertions)), windows_subsystem = "windows")]
 
-use foxy::{egui::{self, Align2}, prelude::*};
-use tracing::{debug, warn};
+use foxy::{
+  egui::{self, Align2},
+  prelude::*,
+  StandardMaterial,
+  StaticMesh,
+  Vertex,
+};
+use tracing::*;
 
 pub struct App {
   x: u32,
 }
 
 impl Runnable for App {
-  fn settings() -> FoxyCreateInfo {
-    FoxyCreateInfo::default()
-      .with_size(800, 600)
-      .with_debug_info(DebugInfo::Shown)
-      .with_polling(Polling::Poll)
+  fn new(foxy: &Foxy) -> Self {
+    Self { x: 0 }
   }
 
-  fn new(_foxy: &Foxy) -> Self {
-    Self { x: 0 }
+  fn update(&mut self, foxy: &Foxy, event: &FoxyEvent) {
+    foxy.write().submit_mesh(StaticMesh::new(
+      &[
+        Vertex {
+          position: [-0.5, -0.5, 0.0],
+          color: [1.0, 0.0, 0.0, 1.0],
+          uv: [0., 1.],
+          ..Default::default()
+        },
+        Vertex {
+          position: [0.5, -0.5, 0.0],
+          color: [1.0, 0.0, 0.0, 1.0],
+          uv: [1., 1.],
+          ..Default::default()
+        },
+        Vertex {
+          position: [0.5, 0.5, 0.0],
+          color: [0.0, 1.0, 0.0, 1.0],
+          uv: [1., 0.],
+          ..Default::default()
+        },
+        Vertex {
+          position: [-0.5, 0.5, 0.0],
+          color: [0.0, 0.0, 1.0, 1.0],
+          uv: [0., 0.],
+          ..Default::default()
+        },
+      ],
+      Some(&[0, 1, 2, 0, 2, 3]),
+      StandardMaterial::new(),
+    ))
   }
 
   fn input(&mut self, foxy: &Foxy, event: &InputEvent) {
@@ -46,6 +78,13 @@ impl Runnable for App {
           debug!("x: {}", self.x);
         }
       });
+  }
+
+  fn settings() -> FoxyCreateInfo {
+    FoxyCreateInfo::default()
+      .with_size(800, 600)
+      .with_debug_info(DebugInfo::Shown)
+      .with_polling(Polling::Poll)
   }
 }
 

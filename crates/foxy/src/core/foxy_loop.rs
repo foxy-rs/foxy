@@ -177,7 +177,7 @@ impl<T: 'static + Send + Sync> Framework<T> {
       state.render_time.tick();
     }
 
-    match state.renderer.draw(state.render_time.time(), render_data) {
+    match state.renderer.render_frame(state.render_time.time(), render_data) {
       Ok(()) if !state.had_first_frame => {
         state.had_first_frame = true;
         state.window.set_visible(true);
@@ -318,7 +318,10 @@ impl<T: 'static + Send + Sync> Framework<T> {
             .egui_state
             .handle_platform_output(&window, full_output.platform_output.clone());
 
-          render_queue.force_push(RenderData { full_output });
+          let mesh_count = foxy.read().meshes.len();
+          let meshes = foxy.write().meshes.drain(0..mesh_count).collect();
+
+          render_queue.force_push(RenderData { full_output, meshes });
         }
 
         // debug!("BAU BAU FOR NOW");

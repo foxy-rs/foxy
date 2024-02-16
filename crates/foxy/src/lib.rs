@@ -7,5 +7,10 @@ pub mod core;
 pub mod prelude;
 pub mod window;
 
-pub use winit;
 pub use egui;
+pub use foxy_renderer::renderer::{
+  material::{Material, StandardMaterial},
+  mesh::StaticMesh,
+  vertex::Vertex,
+};
+pub use winit;
