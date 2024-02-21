@@ -35,20 +35,9 @@ pub struct Renderer {
 
   simple_pass: SimplePass,
   tone_map_pass: ToneMapPass,
-
-  // textured_material: Arc<StandardMaterial>,
-  // standard_material: Arc<StandardMaterial>,
+  
   is_dirty: bool,
 }
-
-// TODO: BEVY ECS TO MAKE CONTEXT A RESOURCE
-
-// TODO: Change Material and Texture to make them baked on the render thread
-// somehow so the device and queue deps can be removed. Maybe look into how Bevy
-// does stuff.
-// It seems like I should change to dynamically reading shaders and textures
-// after all. As with the ash branch, use Strings as a key in a hash map of
-// shaders and textures.
 
 impl Renderer {
   const CLEAR_VALUE: Color = Color {
@@ -71,16 +60,6 @@ impl Renderer {
 
       let simple_pass = SimplePass::new(context.device());
       let tone_map_pass = ToneMapPass::new(context.device(), &render_target);
-      //
-      // let diffuse_texture = DiffuseTexture::new(
-      //   context.device(),
-      //   context.queue(),
-      //   include_bytes!("../assets/textures/cobblestone.png"),
-      // );
-      //
-      // let textured_material = StandardMaterial::new(context.device(),
-      // context.queue(), Some(diffuse_texture)); let standard_material =
-      // StandardMaterial::new(context.device(), context.queue(), None);
 
       Ok(Self {
         window,
@@ -103,7 +82,7 @@ impl Renderer {
     self.is_dirty = true;
   }
 
-  pub fn render_frame(&mut self, render_time: Time, render_data: RenderData) -> Result<(), RendererError> {
+  pub fn render_frame(&mut self, _render_time: Time, render_data: RenderData) -> Result<(), RendererError> {
     match self.next_frame() {
       Ok(frame) => {
         let swapchain_view = frame.texture.create_view(&wgpu::TextureViewDescriptor::default());

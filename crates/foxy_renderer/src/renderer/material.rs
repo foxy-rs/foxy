@@ -23,11 +23,13 @@ pub trait Material {
   fn shader(&self) -> ShaderHandle;
 }
 
-pub struct StandardMaterial {}
+pub struct StandardMaterial {
+  albedo: TextureHandle,
+}
 
 impl Material for StandardMaterial {
   fn albedo(&self) -> TextureHandle {
-    "assets/foxy/textures/default.png".into()
+    self.albedo.clone()
   }
 
   fn shader(&self) -> ShaderHandle {
@@ -36,7 +38,9 @@ impl Material for StandardMaterial {
 }
 
 impl StandardMaterial {
-  pub fn new() -> Arc<Self> {
-    Arc::new(Self {})
+  pub fn new(albedo: Option<&'static str>) -> Arc<Self> {
+    Arc::new(Self {
+      albedo: TextureHandle(albedo.unwrap_or("assets/foxy/textures/default.png").into()),
+    })
   }
 }

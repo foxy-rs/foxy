@@ -5,12 +5,22 @@ use std::{
   sync::{Arc, RwLock},
 };
 
-use tracing::{debug, error};
+use tracing::error;
 use uuid::Uuid;
 use wgpu::{PrimitiveTopology, RenderPipeline, ShaderModule, ShaderModuleDescriptor, ShaderSource};
 
 use super::shader::ShaderHandle;
 use crate::renderer::texture::{DiffuseTexture, TextureHandle};
+
+pub struct RenderPipelineInfo<'a> {
+  pub id: Uuid,
+  pub label: Option<&'a str>,
+  pub layout: &'a wgpu::PipelineLayout,
+  pub color_format: wgpu::TextureFormat,
+  pub depth_format: Option<wgpu::TextureFormat>,
+  pub vertex_layouts: &'a [wgpu::VertexBufferLayout<'a>],
+  pub shader: &'a ShaderModule,
+}
 
 #[derive(Clone, Default)]
 pub struct AssetManager {
@@ -102,39 +112,33 @@ impl AssetManager {
 
   pub fn create_render_pipeline(
     &self,
-    id: Uuid,
-    label: Option<&str>,
     device: &wgpu::Device,
-    layout: &wgpu::PipelineLayout,
-    color_format: wgpu::TextureFormat,
-    depth_format: Option<wgpu::TextureFormat>,
-    vertex_layouts: &[wgpu::VertexBufferLayout],
-    shader: &ShaderModule,
+    info: &RenderPipelineInfo
   ) -> Arc<RenderPipeline> {
     let contains_key = {
       let pipelines = self.render_pipelines.read().unwrap();
-      pipelines.contains_key(&id)
+      pipelines.contains_key(&info.id)
     };
 
     if contains_key {
       let pipelines = self.render_pipelines.read().unwrap();
-      pipelines.get(&id).unwrap().clone()
+      pipelines.get(&info.id).unwrap().clone()
     } else {
       let mut pipelines = self.render_pipelines.write().unwrap();
 
       let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-        label,
-        layout: Some(layout),
+        label: info.label,
+        layout: Some(info.layout),
         vertex: wgpu::VertexState {
-          module: shader,
+          module: info.shader,
           entry_point: "vs_main",
-          buffers: vertex_layouts,
+          buffers: info.vertex_layouts,
         },
         fragment: Some(wgpu::FragmentState {
-          module: shader,
+          module: info.shader,
           entry_point: "fs_main",
           targets: &[Some(wgpu::ColorTargetState {
-            format: color_format,
+            format: info.color_format,
             blend: Some(wgpu::BlendState {
               alpha: wgpu::BlendComponent::REPLACE,
               color: wgpu::BlendComponent::REPLACE,
@@ -154,7 +158,7 @@ impl AssetManager {
           // Requires Features::CONSERVATIVE_RASTERIZATION
           conservative: false,
         },
-        depth_stencil: depth_format.map(|format| wgpu::DepthStencilState {
+        depth_stencil: info.depth_format.map(|format| wgpu::DepthStencilState {
           format,
           depth_write_enabled: true,
           depth_compare: wgpu::CompareFunction::Less,
@@ -171,9 +175,9 @@ impl AssetManager {
         multiview: None,
       });
 
-      pipelines.insert(id, Arc::from(pipeline));
+      pipelines.insert(info.id, Arc::from(pipeline));
 
-      pipelines.get(&id).unwrap().clone()
+      pipelines.get(&info.id).unwrap().clone()
     }
   }
 }

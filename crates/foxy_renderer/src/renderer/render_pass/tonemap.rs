@@ -3,7 +3,11 @@ use wgpu::CommandEncoder;
 
 use super::Pass;
 use crate::renderer::{
-  asset_manager::AssetManager, mesh::BakedStaticMesh, shader::ShaderHandle, target::RenderTarget, vertex::Vertex, Renderer
+  asset_manager::{AssetManager, RenderPipelineInfo},
+  mesh::BakedStaticMesh,
+  shader::ShaderHandle,
+  target::RenderTarget,
+  Renderer,
 };
 
 // create from material on first frame, then cache it. need hardcoded uuids
@@ -14,12 +18,7 @@ pub struct ToneMapPass {
 }
 
 impl ToneMapPass {
-  pub fn new(
-    device: &wgpu::Device,
-    // asset_manager: &AssetManager,
-    // config: &wgpu::SurfaceConfiguration,
-    render_target: &RenderTarget,
-  ) -> Self {
+  pub fn new(device: &wgpu::Device, render_target: &RenderTarget) -> Self {
     let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
       label: Some("HDR Layout"),
       entries: &[
@@ -64,12 +63,6 @@ impl ToneMapPass {
       push_constant_ranges: &[],
     });
 
-    // let shader = wgpu::include_wgsl!("../../../assets/foxy/shaders/hdr.wgsl");
-
-    // let pipeline =
-    //   create_render_pipeline(Some("HDR Pipeline"), device, &pipeline_layout,
-    // config.format, None, &[], shader);
-
     Self {
       pipeline_layout,
       bind_group,
@@ -89,18 +82,16 @@ impl Pass for ToneMapPass {
     _mesh: &BakedStaticMesh,
   ) -> Result<(), crate::error::RendererError> {
     let shader = asset_manager.read_shader(ShaderHandle("assets/foxy/shaders/hdr.wgsl".into()), device);
-    // let texture = asset_manager.read_texture(mesh.material.albedo(), device, queue);
 
-    let pipeline = asset_manager.create_render_pipeline(
-      Uuid::from_u128(0xa6a61819d926432987cb4c7c9c665b02),
-      Some("HDR Pipeline"),
-      device,
-      &self.pipeline_layout,
-      Renderer::SURFACE_FORMAT,
-      None,
-      &[],
-      &shader,
-    );
+    let pipeline = asset_manager.create_render_pipeline(device, &RenderPipelineInfo {
+      id: Uuid::from_u128(0xa6a61819d926432987cb4c7c9c665b02),
+      label: Some("HDR Pipeline"),
+      layout: &self.pipeline_layout,
+      color_format: Renderer::SURFACE_FORMAT,
+      depth_format: None,
+      vertex_layouts: &[],
+      shader: &shader,
+    });
 
     let mut render_pass = command_encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
       label: Some("HDR Pass"),

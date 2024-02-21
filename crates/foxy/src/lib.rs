@@ -6,6 +6,7 @@
 pub mod core;
 pub mod prelude;
 pub mod window;
+mod camera;
 
 pub use egui;
 pub use foxy_renderer::renderer::{

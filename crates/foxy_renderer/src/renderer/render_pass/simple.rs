@@ -3,7 +3,7 @@ use wgpu::CommandEncoder;
 
 use super::Pass;
 use crate::renderer::{
-  asset_manager::AssetManager,
+  asset_manager::{AssetManager, RenderPipelineInfo},
   mesh::BakedStaticMesh,
   render_data::Drawable,
   target::RenderTarget,
@@ -14,7 +14,6 @@ use crate::renderer::{
 
 pub struct SimplePass {
   pipeline_layout: wgpu::PipelineLayout,
-  // pipeline: wgpu::RenderPipeline,
 }
 
 impl SimplePass {
@@ -42,16 +41,15 @@ impl Pass for SimplePass {
     let shader = asset_manager.read_shader(mesh.material.shader(), device);
     let texture = asset_manager.read_texture(mesh.material.albedo(), device, queue);
 
-    let pipeline = asset_manager.create_render_pipeline(
-      Uuid::from_u128(0xe867c7ec8ca44b6ebe9a9281b94051ac),
-      Some("Simple Pipeline"),
-      device,
-      &self.pipeline_layout,
-      Renderer::RENDER_TARGET_FORMAT,
-      None,
-      &[Vertex::desc()],
-      &shader,
-    );
+    let pipeline = asset_manager.create_render_pipeline(device, &RenderPipelineInfo {
+      id: Uuid::from_u128(0xe867c7ec8ca44b6ebe9a9281b94051ac),
+      label: Some("Simple Pipeline"),
+      layout: &self.pipeline_layout,
+      color_format: Renderer::RENDER_TARGET_FORMAT,
+      depth_format: None,
+      vertex_layouts: &[Vertex::desc()],
+      shader: &shader,
+    });
 
     let mut render_pass = command_encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
       label: Some("Simple Pass"),
@@ -75,5 +73,5 @@ impl Pass for SimplePass {
     Ok(())
   }
 
-  fn resize(&mut self, device: &wgpu::Device, render_target: &RenderTarget) {}
+  fn resize(&mut self, _device: &wgpu::Device, _render_target: &RenderTarget) {}
 }

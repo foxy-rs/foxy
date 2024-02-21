@@ -10,44 +10,40 @@ use foxy::{
 use tracing::*;
 
 pub struct App {
-  x: u32,
+  x: f32,
 }
 
 impl Runnable for App {
   fn new(foxy: &Foxy) -> Self {
-    Self { x: 0 }
+    Self { x: 0.5 }
   }
 
   fn update(&mut self, foxy: &Foxy, event: &FoxyEvent) {
     foxy.write().submit_mesh(StaticMesh::new(
       &[
         Vertex {
-          position: [-0.5, -0.5, 0.0],
+          position: [-self.x, -self.x, 0.0],
           color: [1.0, 0.0, 0.0, 1.0],
           uv: [0., 1.],
-          ..Default::default()
         },
         Vertex {
-          position: [0.5, -0.5, 0.0],
-          color: [1.0, 0.0, 0.0, 1.0],
+          position: [self.x, -self.x, 0.0],
+          color: [1.0, 1.0, 0.0, 1.0],
           uv: [1., 1.],
-          ..Default::default()
         },
         Vertex {
-          position: [0.5, 0.5, 0.0],
-          color: [0.0, 1.0, 0.0, 1.0],
+          position: [self.x, self.x, 0.0],
+          color: [0.0, 1.0, 1.0, 1.0],
           uv: [1., 0.],
-          ..Default::default()
         },
         Vertex {
-          position: [-0.5, 0.5, 0.0],
+          position: [-self.x, self.x, 0.0],
           color: [0.0, 0.0, 1.0, 1.0],
           uv: [0., 0.],
-          ..Default::default()
         },
       ],
       Some(&[0, 1, 2, 0, 2, 3]),
-      StandardMaterial::new(),
+      StandardMaterial::new(None),
     ))
   }
 
@@ -73,7 +69,7 @@ impl Runnable for App {
           debug!("PRESSED");
         }
 
-        let slider = ui.add(egui::Slider::new(&mut self.x, 1..=10)).on_hover_text("Slider");
+        let slider = ui.add(egui::Slider::new(&mut self.x, 0.0..=1.0)).on_hover_text("Slider");
         if slider.changed() {
           debug!("x: {}", self.x);
         }

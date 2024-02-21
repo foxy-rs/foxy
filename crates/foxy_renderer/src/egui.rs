@@ -6,7 +6,7 @@ use wgpu::{CommandEncoder, Device, Queue, TextureFormat, TextureView};
 use winit::window::Window;
 
 pub struct EguiRenderer {
-  window: Arc<Window>,
+  _window: Arc<Window>,
   context: Context,
   renderer: Renderer,
 }
@@ -23,7 +23,7 @@ impl EguiRenderer {
     let egui_renderer = Renderer::new(device, output_color_format, output_depth_format, msaa_samples);
 
     EguiRenderer {
-      window,
+      _window: window,
       context: egui_context,
       renderer: egui_renderer,
     }
