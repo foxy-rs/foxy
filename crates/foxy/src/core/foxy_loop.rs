@@ -1,4 +1,5 @@
 use std::{sync::Arc, thread::JoinHandle, time::Duration};
+use std::sync::Mutex;
 
 use crossbeam::{channel::TryRecvError, queue::ArrayQueue};
 use foxy_renderer::{
@@ -30,12 +31,23 @@ use crate::core::{
   FoxyError,
 };
 
+// pub struct RenderBuffer {
+//   buffer: [RenderData; 3],
+// }
+// 
+// impl RenderBuffer {
+//   pub fn new() -> Self {
+//     Self { buffer:  }
+//   }
+// }
+
 struct State {
   polling_strategy: Polling,
   debug_info: DebugInfo,
 
   renderer: Renderer,
   render_time: EngineTime,
+  // render_buffer: Arc<Mutex<RenderBuffer>>,
   render_queue: Arc<ArrayQueue<RenderData>>,
   render_mailbox: Mailbox<RenderLoopMessage, GameLoopMessage>,
 
@@ -74,7 +86,7 @@ impl<T: 'static + Send + Sync> Framework<T> {
     let render_queue = Arc::new(ArrayQueue::new(Self::MAX_FRAME_DATA_IN_FLIGHT));
 
     let foxy = Foxy::new(foxy_state::State::new(time, window.clone()));
-    let egui_context = foxy.read().egui_context.clone();
+    let egui_context = foxy.as_ref().egui_context.clone();
     let (game_mailbox, render_mailbox) = Mailbox::new_entangled_pair();
     let game_thread = Some(Self::game_loop::<App>(game_mailbox, foxy, render_queue.clone())?);
 
@@ -213,14 +225,14 @@ impl<T: 'static + Send + Sync> Framework<T> {
       .name(Self::GAME_THREAD_ID.into())
       .spawn(move || -> FoxyResult<()> {
         let _ = mailbox.recv().log_error();
-        let window = foxy.read().window.clone();
+        let window = foxy.as_ref().window.clone();
 
         let mut app = App::new(&foxy);
         app.start(&foxy);
         loop {
           let next_message = mailbox.try_recv();
 
-          let raw_input = foxy.write().take_egui_input();
+          let raw_input = foxy.as_mut().take_egui_input();
 
           let event = match next_message {
             Ok(RenderLoopMessage::MustExit) => {
@@ -240,12 +252,12 @@ impl<T: 'static + Send + Sync> Framework<T> {
               None
             }
             Ok(RenderLoopMessage::Winit(event)) => {
-              let was_handled = foxy.write().handle_input(&event);
+              let was_handled = foxy.as_mut().handle_input(&event);
 
               if !was_handled {
                 match event {
                   WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
-                    foxy.write().egui_context.set_zoom_factor(scale_factor as f32);
+                    foxy.as_mut().egui_context.set_zoom_factor(scale_factor as f32);
                   }
                   WindowEvent::KeyboardInput {
                     event:
@@ -257,17 +269,20 @@ impl<T: 'static + Send + Sync> Framework<T> {
                       },
                     ..
                   } => {
-                    foxy.write().input.update_key_state(physical_key, element_state, repeat);
+                    foxy
+                      .as_mut()
+                      .input
+                      .update_key_state(physical_key, element_state, repeat);
                   }
                   WindowEvent::MouseInput {
                     button,
                     state: element_state,
                     ..
                   } => {
-                    foxy.write().input.update_mouse_button_state(button, element_state);
+                    foxy.as_mut().input.update_mouse_button_state(button, element_state);
                   }
                   WindowEvent::ModifiersChanged(mods) => {
-                    foxy.write().input.update_modifiers_state(mods);
+                    foxy.as_mut().input.update_modifiers_state(mods);
                   }
                   _ => (),
                 }
@@ -293,9 +308,9 @@ impl<T: 'static + Send + Sync> Framework<T> {
 
           // let raw_input = foxy.write().egui_state.take_egui_input(&window);
 
-          foxy.write().engine_time.update();
-          while foxy.write().engine_time.should_do_tick_unchecked() {
-            foxy.write().engine_time.tick();
+          foxy.as_mut().engine_time.update();
+          while foxy.as_mut().engine_time.should_do_tick_unchecked() {
+            foxy.as_mut().engine_time.tick();
             app.fixed_update(&foxy, &event);
           }
 
@@ -309,17 +324,17 @@ impl<T: 'static + Send + Sync> Framework<T> {
             app.window(&foxy, event);
           }
 
-          let full_output = foxy.read().egui_context.run(raw_input, |ui| {
+          let full_output = foxy.as_ref().egui_context.run(raw_input, |ui| {
             app.gui(&foxy, ui);
           });
 
           foxy
-            .write()
+            .as_mut()
             .egui_state
             .handle_platform_output(&window, full_output.platform_output.clone());
 
-          let mesh_count = foxy.read().meshes.len();
-          let meshes = foxy.write().meshes.drain(0..mesh_count).collect();
+          // let mesh_count = foxy.as_ref().meshes.len();
+          // let meshes = foxy.as_mut().meshes.drain(0..mesh_count).collect();
 
           render_queue.force_push(RenderData { full_output, meshes });
         }

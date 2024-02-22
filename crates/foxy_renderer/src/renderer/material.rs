@@ -4,14 +4,7 @@ use wgpu::TextureFormat;
 
 use super::{shader::ShaderHandle, texture::TextureHandle, Renderer};
 
-// #[repr(C)]
-// pub struct MaterialUniforms {
-//   pub color: [f32; 4],
-// }
-
 pub trait Material {
-  // fn id() -> Uuid;
-
   fn format() -> TextureFormat
   where
     Self: Sized,

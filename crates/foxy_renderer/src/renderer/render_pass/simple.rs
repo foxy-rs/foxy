@@ -36,8 +36,10 @@ impl Pass for SimplePass {
     device: &wgpu::Device,
     queue: &wgpu::Queue,
     view: &wgpu::TextureView,
-    mesh: &BakedStaticMesh,
+    mesh: Option<&BakedStaticMesh>,
   ) -> Result<(), crate::error::RendererError> {
+    let Some(mesh) = mesh else { return Ok(()) };
+
     let shader = asset_manager.read_shader(mesh.material.shader(), device);
     let texture = asset_manager.read_texture(mesh.material.albedo(), device, queue);
 

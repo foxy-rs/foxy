@@ -110,11 +110,7 @@ impl AssetManager {
     }
   }
 
-  pub fn create_render_pipeline(
-    &self,
-    device: &wgpu::Device,
-    info: &RenderPipelineInfo
-  ) -> Arc<RenderPipeline> {
+  pub fn create_render_pipeline(&self, device: &wgpu::Device, info: &RenderPipelineInfo) -> Arc<RenderPipeline> {
     let contains_key = {
       let pipelines = self.render_pipelines.read().unwrap();
       pipelines.contains_key(&info.id)

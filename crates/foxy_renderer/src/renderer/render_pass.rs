@@ -27,7 +27,7 @@ pub trait Pass {
     device: &wgpu::Device,
     queue: &wgpu::Queue,
     view: &wgpu::TextureView,
-    mesh: &BakedStaticMesh,
+    mesh: Option<&BakedStaticMesh>,
   ) -> Result<(), RendererError>;
 
   fn resize(&mut self, device: &wgpu::Device, render_target: &RenderTarget);

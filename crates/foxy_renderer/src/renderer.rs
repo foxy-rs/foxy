@@ -35,7 +35,7 @@ pub struct Renderer {
 
   simple_pass: SimplePass,
   tone_map_pass: ToneMapPass,
-  
+
   is_dirty: bool,
 }
 
@@ -125,21 +125,19 @@ impl Renderer {
             self.context.device(),
             self.context.queue(),
             &self.render_target.view,
-            mesh,
+            Some(mesh),
           )?;
         }
 
-        for mesh in meshes.iter() {
-          // Finish by rendering onto the primary view
-          self.tone_map_pass.draw(
-            &mut command_encoder,
-            &self.asset_manager,
-            self.context.device(),
-            self.context.queue(),
-            &swapchain_view,
-            mesh,
-          )?;
-        }
+        // Finish by rendering onto the primary view
+        self.tone_map_pass.draw(
+          &mut command_encoder,
+          &self.asset_manager,
+          self.context.device(),
+          self.context.queue(),
+          &swapchain_view,
+          None,
+        )?;
 
         // EGUI
 

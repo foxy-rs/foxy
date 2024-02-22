@@ -79,7 +79,7 @@ impl Pass for ToneMapPass {
     device: &wgpu::Device,
     _queue: &wgpu::Queue,
     view: &wgpu::TextureView,
-    _mesh: &BakedStaticMesh,
+    _mesh: Option<&BakedStaticMesh>,
   ) -> Result<(), crate::error::RendererError> {
     let shader = asset_manager.read_shader(ShaderHandle("assets/foxy/shaders/hdr.wgsl".into()), device);
 

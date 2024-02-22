@@ -1,5 +1,6 @@
 use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
+use bevy_ecs::world::World;
 use egui::{epaint::Shadow, Context, RawInput, Rounding, Visuals};
 use foxy_renderer::renderer::mesh::StaticMesh;
 use foxy_utils::time::{EngineTime, Time};
@@ -15,12 +16,12 @@ impl Foxy {
     Self(Arc::new(RwLock::new(state)))
   }
 
-  pub fn read(&self) -> RwLockReadGuard<State> {
-    self.0.read().expect("reader panicked")
+  pub fn as_ref(&self) -> RwLockReadGuard<State> {
+    self.0.read().expect("unable to obtain read lock")
   }
 
-  pub fn write(&self) -> RwLockWriteGuard<State> {
-    self.0.write().expect("reader panicked")
+  pub fn as_mut(&self) -> RwLockWriteGuard<State> {
+    self.0.write().expect("unable to obtain write lock")
   }
 }
 
@@ -30,7 +31,8 @@ pub struct State {
   pub(crate) egui_context: Context,
   pub(crate) egui_state: egui_winit::State,
   pub(crate) input: Input,
-  pub(crate) meshes: Vec<StaticMesh>,
+  // pub(crate) meshes: Vec<StaticMesh>,
+  pub(crate) world: World, 
 }
 
 impl State {
@@ -51,6 +53,8 @@ impl State {
     egui_context.set_visuals(visuals);
 
     let egui_state = egui_winit::State::new(egui_context.clone(), id, &window, None, None);
+    
+    let world = World::new();
 
     Self {
       engine_time,
@@ -58,7 +62,7 @@ impl State {
       egui_context,
       egui_state,
       input: Input::new(),
-      meshes: Default::default(),
+      world,
     }
   }
 
@@ -74,9 +78,17 @@ impl State {
     &self.input
   }
 
-  // TEMPORARY UNTIL ECS IS IMPLEMENTED
-  pub fn submit_mesh(&mut self, mesh: StaticMesh) {
-    self.meshes.push(mesh);
+  // // TEMPORARY UNTIL ECS IS IMPLEMENTED
+  // pub fn submit_mesh(&mut self, mesh: StaticMesh) {
+  //   self.meshes.push(mesh);
+  // }
+  
+  pub fn world(&self) -> &World {
+    &self.world
+  }
+
+  pub fn world_mut(&mut self) -> &mut World {
+    &mut self.world
   }
 
   pub(crate) fn handle_input(&mut self, event: &WindowEvent) -> bool {
