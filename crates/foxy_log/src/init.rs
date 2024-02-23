@@ -1,4 +1,4 @@
-use crate::log::level::LogLevel;
+use crate::level::LogLevel;
 
 #[allow(unused)]
 pub fn init_slice(crate_logging_levels: &[(&str, Option<LogLevel>)]) {
@@ -28,7 +28,7 @@ pub fn init_slice(crate_logging_levels: &[(&str, Option<LogLevel>)]) {
 macro_rules! log_init_max {
   () => {{
     const NAME: &str = env!("CARGO_PKG_NAME");
-    $crate::log::init::init_slice(&[("RUST_LOG", None), (NAME, Some($crate::log::level::LogLevel::Trace))])
+    $crate::init::init_slice(&[("RUST_LOG", None), (NAME, Some($crate::level::LogLevel::Trace))])
   }};
 }
 
@@ -36,7 +36,7 @@ macro_rules! log_init_max {
 macro_rules! log_init {
   ($level:expr) => {{
     const NAME: &str = env!("CARGO_PKG_NAME");
-    $crate::log::init::init_slice(&[("RUST_LOG", None), (NAME, $level)])
+    $crate::init::init_slice(&[("RUST_LOG", None), (NAME, $level)])
   }};
 }
 
@@ -45,7 +45,7 @@ macro_rules! log_init {
 #[macro_export]
 macro_rules! log_init_multiple {
     ($($levels:expr),+) => {{
-        $crate::log::init::init_slice(&[("RUST_LOG", None), $($levels),+])
+        $crate::init::init_slice(&[("RUST_LOG", None), $($levels),+])
     }};
 }
 
@@ -53,6 +53,6 @@ macro_rules! log_init_multiple {
 macro_rules! log_init_with_others {
     ($level:expr, $($levels:expr),+) => {{
         const NAME: &str = env!("CARGO_PKG_NAME");
-        $crate::log::init::init_slice(&[("RUST_LOG", None), (NAME, $level), $($levels),+])
+        $crate::init::init_slice(&[("RUST_LOG", None), (NAME, $level), $($levels),+])
     }};
 }

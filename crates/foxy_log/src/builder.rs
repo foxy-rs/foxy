@@ -87,9 +87,9 @@ impl LoggingSession {
 macro_rules! logging_session {
   () => {{
     const NAME: &str = env!("CARGO_PKG_NAME");
-    $crate::log::builder::LoggingSession::new().with_filter($crate::log::format::format_filter_slice(&[
+    $crate::builder::LoggingSession::new().with_filter($crate::format::format_filter_slice(&[
       ("RUST_LOG", None),
-      (NAME, Some($crate::log::level::LogLevel::Trace)),
+      (NAME, Some($crate::level::LogLevel::Trace)),
     ]))
   }};
 }
@@ -98,8 +98,8 @@ macro_rules! logging_session {
 macro_rules! logging_session_ex {
     ($($levels:expr),+) => {{
         const NAME: &str = env!("CARGO_PKG_NAME");
-        $crate::log::builder::LoggingSession::new()
-            .with_filter($crate::log::format::format_filter_slice(&[("RUST_LOG", None), (NAME, Some($crate::log::level::LogLevel::Trace)), $($levels),+]))
+        $crate::builder::LoggingSession::new()
+            .with_filter($crate::format::format_filter_slice(&[("RUST_LOG", None), (NAME, Some($crate::level::LogLevel::Trace)), $($levels),+]))
     }};
 }
 
@@ -107,7 +107,7 @@ macro_rules! logging_session_ex {
 macro_rules! debug_logging_session {
   () => {{
     if cfg!(debug_assertions) {
-      Some($crate::logging_session!())
+      Some($crateging_session!())
     } else {
       None
     }
@@ -118,7 +118,7 @@ macro_rules! debug_logging_session {
 macro_rules! debug_logging_session_ex {
   ($($levels:expr),+) => {{
     if cfg!(debug_assertions) {
-      Some($crate::logging_session_ex!($($levels),+))
+      Some($crateging_session_ex!($($levels),+))
     } else {
       None
     }
@@ -129,7 +129,7 @@ macro_rules! debug_logging_session_ex {
 macro_rules! start_debug_logging_session {
   () => {{
     #[cfg(debug_assertions)]
-    $crate::logging_session!().start();
+    $crateging_session!().start();
   }};
 }
 
@@ -137,6 +137,6 @@ macro_rules! start_debug_logging_session {
 macro_rules! start_debug_logging_session_ex {
   ($($levels:expr),+) => {{
     #[cfg(debug_assertions)]
-    $crate::logging_session_ex!($($levels),+).start();
+    $crateging_session_ex!($($levels),+).start();
   }};
 }

@@ -5,7 +5,7 @@
 pub use crate::{
   debug_logging_session,
   debug_logging_session_ex,
-  log::level::LogLevel,
+  level::LogLevel,
   log_filter,
   log_filter_max,
   log_filter_multiple,

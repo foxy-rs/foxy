@@ -1,4 +1,4 @@
-use crate::log::level::LogLevel;
+use crate::level::LogLevel;
 
 #[allow(unused)]
 pub fn format_filter_slice(crate_logging_levels: &[(&str, Option<LogLevel>)]) -> String {
@@ -23,7 +23,7 @@ pub fn format_filter_slice(crate_logging_levels: &[(&str, Option<LogLevel>)]) ->
 macro_rules! log_filter_max {
   () => {{
     const NAME: &str = env!("CARGO_PKG_NAME");
-    $crate::log::format::format_filter_slice(&[("RUST_LOG", None), (NAME, Some($crate::log::level::LogLevel::Trace))])
+    $crate::format::format_filter_slice(&[("RUST_LOG", None), (NAME, Some($crate::level::LogLevel::Trace))])
   }};
 }
 
@@ -31,7 +31,7 @@ macro_rules! log_filter_max {
 macro_rules! log_filter {
   ($level:expr) => {{
     const NAME: &str = env!("CARGO_PKG_NAME");
-    $crate::log::format::format_filter_slice(&[("RUST_LOG", None), (NAME, $level)])
+    $crate::format::format_filter_slice(&[("RUST_LOG", None), (NAME, $level)])
   }};
 }
 
@@ -40,7 +40,7 @@ macro_rules! log_filter {
 #[macro_export]
 macro_rules! log_filter_multiple {
     ($($levels:expr),+) => {{
-        $crate::log::format::format_filter_slice(&[("RUST_LOG", None), $($levels),+])
+        $crate::format::format_filter_slice(&[("RUST_LOG", None), $($levels),+])
     }};
 }
 
@@ -50,6 +50,6 @@ macro_rules! log_filter_multiple {
 macro_rules! log_filter_with_others {
     ($level:expr, $($levels:expr),+) => {{
         const NAME: &str = env!("CARGO_PKG_NAME");
-        $crate::log::format::format_filter_slice(&[("RUST_LOG", None), (NAME, $level), $($levels),+])
+        $crate::format::format_filter_slice(&[("RUST_LOG", None), (NAME, $level), $($levels),+])
     }};
 }
