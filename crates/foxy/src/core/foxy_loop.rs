@@ -333,8 +333,8 @@ impl<T: 'static + Send + Sync> Framework<T> {
             .egui_state
             .handle_platform_output(&window, full_output.platform_output.clone());
 
-          // let mesh_count = foxy.as_ref().meshes.len();
-          // let meshes = foxy.as_mut().meshes.drain(0..mesh_count).collect();
+          let mesh_count = foxy.as_ref().meshes.len();
+          let meshes = foxy.as_mut().meshes.drain(0..mesh_count).collect();
 
           render_queue.force_push(RenderData { full_output, meshes });
         }
