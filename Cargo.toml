@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members  = ["crates/foxy", "crates/foxy_renderer", "crates/foxy_utils", "samples/simple", "samples/ookami"]
+members  = ["crates/foxy", "crates/foxy_renderer", "crates/foxy_utils", "crates/foxy_time", "samples/simple", "samples/ookami"]
 
 [workspace.package]
 license = "MIT OR Apache-2.0"
