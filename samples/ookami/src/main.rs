@@ -25,6 +25,13 @@ impl Runnable for App {
       debug!("UPDATE | {:?}: {:?} + {:?}", button, state, foxy.input().shift().is_pressed())
     }
   }
+
+  fn delete(self)
+  where
+    Self: Sized,
+  {
+    debug!("Delete!")
+  }
 }
 
 fn main() -> FoxyResult<()> {

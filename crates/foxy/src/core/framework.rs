@@ -12,7 +12,7 @@ use foxy_renderer::{
 };
 use foxy_time::{timer::Timer, EngineTime};
 use foxy_utils::mailbox::{Mailbox, MessagingError};
-use tracing::{debug, error, info, trace};
+use tracing::{debug, error, info, trace, warn};
 
 use super::{
   builder::{DebugInfo, FoxySettings},
@@ -97,31 +97,29 @@ impl Framework {
       }
 
       match &message {
-        Message::Window(window_message) => match window_message {
-          WindowMessage::Draw => {
-            self.render();
-          }
-          WindowMessage::Resizing { .. } => {
-            self.renderer.resize();
-            window.redraw();
-          }
-          _ => (),
-        },
+        Message::Window(WindowMessage::Resizing { .. }) => {
+          self.renderer.resize();
+          self.render();
+        }
         Message::CloseRequested => {
-          let _ = self
+          let response = self
             .render_mailbox
             .send_and_recv(RenderLoopMessage::ExitRequested)
             .log_error();
+          if let Ok(GameLoopMessage::Exit) = response {
+            if let Some(thread) = self.game_thread.take() {
+              let _ = thread.join();
+            }
+          }
         }
         Message::Closing => {
+          warn!("Closing!");
           self.renderer.delete();
-          if let Some(thread) = self.game_thread.take() {
-            let _ = thread.join();
-          }
           info!("OTSU KON DESHITA!");
         }
         Message::None => {
-          window.redraw();
+          self.render();
+
           if !self.had_first_frame {
             self.had_first_frame = true;
             window.set_visibility(self.preferred_visibility);
@@ -130,7 +128,7 @@ impl Framework {
         _ => (),
       }
 
-      if !matches!(message, Message::Closing) {
+      if !window.is_closing() {
         if let Err(error) = self.render_mailbox.send(RenderLoopMessage::Window(message)) {
           error!("{error}")
         }
@@ -205,8 +203,8 @@ impl Framework {
                 render_queue.force_push(RenderData {});
               }
               RenderLoopMessage::MustExit => {
-                let _ = mailbox.send(GameLoopMessage::Exit);
                 app.stop(&mut foxy);
+                let _ = mailbox.send(GameLoopMessage::Exit);
                 app.delete();
                 break;
               }
