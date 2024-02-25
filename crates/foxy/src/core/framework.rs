@@ -20,11 +20,9 @@ use super::{
   runnable::Runnable,
   FoxyResult,
 };
-use crate::{
-  core::{
-    message::{GameLoopMessage, RenderLoopMessage},
-    runnable::Flow,
-  },
+use crate::core::{
+  message::{GameLoopMessage, RenderLoopMessage},
+  runnable::Flow,
 };
 
 pub struct Framework {
@@ -35,6 +33,7 @@ pub struct Framework {
 
   // Keep window below the renderer to ensure proper drop order
   window: Arc<Window>,
+  preferred_visibility: Visibility,
 
   game_thread: Option<JoinHandle<FoxyResult<()>>>,
   fps_timer: Timer,
@@ -54,8 +53,10 @@ impl Framework {
   const MAX_FRAME_DATA_IN_FLIGHT: usize = 2;
 
   // A relic of ancient, more flexible times
-  pub fn with_events<App: Runnable>(settings: FoxySettings) -> FoxyResult<Self> {
+  pub fn with_events<App: Runnable>(mut settings: FoxySettings) -> FoxyResult<Self> {
     trace!("Firing up Foxy");
+    let preferred_visibility = settings.window.visibility;
+    settings.window.visibility = Visibility::Hidden;
 
     let window = Arc::new(Window::new(settings.window)?);
 
@@ -74,6 +75,7 @@ impl Framework {
       render_queue,
       render_mailbox,
       window,
+      preferred_visibility,
       game_thread,
       debug_info: settings.debug_info,
       fps_timer: Timer::new(),
@@ -86,7 +88,7 @@ impl Framework {
 
     let _ = self.render_mailbox.send(RenderLoopMessage::Start).log_error();
     let window = self.window.clone();
-    
+
     for message in window.as_ref() {
       let was_handled = self.renderer.input(&message);
 
@@ -101,29 +103,37 @@ impl Framework {
           }
           WindowMessage::Resizing { .. } => {
             self.renderer.resize();
+            window.redraw();
           }
           _ => (),
         },
         Message::CloseRequested => {
-          let response = self
+          let _ = self
             .render_mailbox
             .send_and_recv(RenderLoopMessage::ExitRequested)
             .log_error();
-          if let Err(_) | Ok(GameLoopMessage::Exit) = response {
-            self.renderer.delete();
-          }
         }
         Message::Closing => {
+          self.renderer.delete();
           if let Some(thread) = self.game_thread.take() {
             let _ = thread.join();
           }
           info!("OTSU KON DESHITA!");
         }
+        Message::None => {
+          window.redraw();
+          if !self.had_first_frame {
+            self.had_first_frame = true;
+            window.set_visibility(self.preferred_visibility);
+          }
+        }
         _ => (),
       }
 
-      if let Err(error) = self.render_mailbox.send(RenderLoopMessage::Window(message)) {
-        error!("{error:?}")
+      if !matches!(message, Message::Closing) {
+        if let Err(error) = self.render_mailbox.send(RenderLoopMessage::Window(message)) {
+          error!("{error}")
+        }
       }
     }
 

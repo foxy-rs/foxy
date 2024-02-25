@@ -6,6 +6,7 @@ pub struct RingBuffer<T> {
   capacity: usize,
 }
 
+#[allow(unused)]
 impl<T> RingBuffer<T> {
   pub fn new(capacity: usize) -> Self {
     let mut items = VecDeque::new();

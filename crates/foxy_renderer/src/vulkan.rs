@@ -244,7 +244,7 @@ impl Vulkan {
 
   pub fn resize(&mut self) {}
 
-  pub fn input(&mut self, message: &Message) -> bool {
+  pub fn input(&mut self, _message: &Message) -> bool {
     false
   }
 }
@@ -303,7 +303,7 @@ impl Vulkan {
       .max_sets(1000)
       .pool_sizes(&pool_sizes);
 
-    let egui_pool = unsafe { device.logical().create_descriptor_pool(&pool_info, None) }?;
+    let _egui_pool = unsafe { device.logical().create_descriptor_pool(&pool_info, None) }?;
 
     todo!()
   }
@@ -397,7 +397,7 @@ impl Vulkan {
     }
   }
 
-  fn draw_background(&mut self, render_time: &Time) -> Result<(), VulkanError> {
+  fn draw_background(&mut self, _render_time: &Time) -> Result<(), VulkanError> {
     let current_frame = self
       .frame_data
       .get_mut(self.frame_index)

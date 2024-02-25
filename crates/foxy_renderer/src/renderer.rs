@@ -38,7 +38,7 @@ impl Renderer {
 
   pub fn resize(&mut self) {}
 
-  pub fn input(&mut self, message: &Message) -> bool {
+  pub fn input(&mut self, _message: &Message) -> bool {
     false
   }
 }

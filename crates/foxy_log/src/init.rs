@@ -1,5 +1,4 @@
-use crate::format::format_filter_slice;
-use crate::level::LogLevel;
+use crate::{format::format_filter_slice, level::LogLevel};
 
 #[allow(unused)]
 pub fn init_slice(crate_logging_levels: &[(&str, Option<LogLevel>)]) {

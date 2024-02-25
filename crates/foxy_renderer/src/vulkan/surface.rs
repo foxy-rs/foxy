@@ -2,7 +2,7 @@ use ash::{extensions::khr, vk};
 use ezwin::raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle};
 
 use super::error::VulkanError;
-use crate::{vulkan::instance::Instance, vulkan_error};
+use crate::vulkan::instance::Instance;
 
 pub struct Surface {
   surface: vk::SurfaceKHR,
