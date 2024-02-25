@@ -21,10 +21,6 @@ impl<T> Handle<T> {
     self.0.read().expect("lock was poisoned")
   }
 
-  // pub fn try_get(&self) -> Result<RwLockReadGuard<'_, Device>,
-  // TryLockError<RwLockReadGuard<'_, Device>>> {   self.0.try_read()
-  // }
-
   pub fn get_mut(&mut self) -> RwLockWriteGuard<'_, T> {
     self.0.write().expect("lock was poisoned")
   }

@@ -5,6 +5,8 @@ use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum VulkanError {
+  #[error("{0}")]
+  Error(String),
   #[error("VkResult: `{0}`")]
   Ash(#[from] ash::vk::Result),
   #[error("{0}")]
@@ -13,8 +15,6 @@ pub enum VulkanError {
   Unsupported(String),
   #[error("{0}")]
   Shader(String),
-  #[error("{0}")]
-  Other(#[from] anyhow::Error),
   #[error("{0}")]
   SyncObjects(String),
   #[error("{0}")]
@@ -48,10 +48,10 @@ macro_rules! vulkan_shader_error {
 #[macro_export]
 macro_rules! vulkan_error {
   () => {
-    $crate::vulkan::error::VulkanError::Other(anyhow::anyhow!("vulkan error"))
+    $crate::vulkan::error::VulkanError::Error(format!("vulkan error"))
   };
   ($($arg:tt)*) => {{
-    $crate::vulkan::error::VulkanError::Other(anyhow::anyhow!(format!($($arg)*)))
+    $crate::vulkan::error::VulkanError::Error(format!($($arg)*))
   }}
 }
 

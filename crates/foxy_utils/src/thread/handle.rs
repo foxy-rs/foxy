@@ -1,9 +1,9 @@
 use std::thread::JoinHandle;
 
+use foxy_log::LogErr;
 use tracing::*;
 
 use super::error::ThreadError;
-use crate::log::LogErr;
 
 pub type HandlesResult = Result<JoinHandle<Result<(), ThreadError>>, ThreadError>;
 

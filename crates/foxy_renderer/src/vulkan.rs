@@ -3,10 +3,14 @@
 use std::{collections::HashSet, mem::ManuallyDrop, sync::Arc, time::Duration};
 
 use ash::vk;
-use foxy_utils::{log::LogErr, time::Time};
+use ezwin::{
+  prelude::{Message, Window},
+  window::settings::Size,
+};
+use foxy_log::LogErr;
+use foxy_time::Time;
 use tracing::*;
 use vk_mem::{Alloc, Allocator, AllocatorCreateInfo};
-use winit::{dpi::PhysicalSize, event::WindowEvent, window::Window};
 
 use self::{
   device::Device,
@@ -20,7 +24,7 @@ use self::{
 };
 use crate::{
   error::RendererError,
-  renderer::{render_data::RenderData, Egui},
+  renderer::render_data::RenderData,
   store_shader,
   vulkan::{
     pipeline::ComputePipeline,
@@ -240,7 +244,7 @@ impl Vulkan {
 
   pub fn resize(&mut self) {}
 
-  pub fn input(&mut self, event: &WindowEvent) -> bool {
+  pub fn input(&mut self, message: &Message) -> bool {
     false
   }
 }
@@ -521,11 +525,11 @@ impl Vulkan {
   fn new_draw_image(
     device: &Device,
     allocator: &Allocator,
-    window_size: PhysicalSize<u32>,
+    window_size: Size,
   ) -> Result<(AllocatedImage, vk::Extent2D), VulkanError> {
     let draw_extent = *vk::Extent3D::builder()
-      .width(window_size.width)
-      .height(window_size.height)
+      .width(window_size.width as u32)
+      .height(window_size.height as u32)
       .depth(1);
     let draw_image_format = vk::Format::R16G16B16A16_SFLOAT;
 

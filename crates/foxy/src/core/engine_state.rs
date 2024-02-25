@@ -1,23 +1,16 @@
-use std::sync::Arc;
+use std::sync::{Arc, RwLockReadGuard};
 
-use foxy_utils::time::{EngineTime, Time};
-use winit::window::Window;
-
-use super::input::Input;
+use ezwin::window::{input::Input, Window};
+use foxy_time::{EngineTime, Time};
 
 pub struct Foxy {
   pub(crate) time: EngineTime,
   pub(crate) window: Arc<Window>,
-  pub(crate) input: Input,
 }
 
 impl Foxy {
   pub fn new(time: EngineTime, window: Arc<Window>) -> Self {
-    Self {
-      time,
-      window,
-      input: Input::new(),
-    }
+    Self { time, window }
   }
 
   pub fn time(&self) -> Time {
@@ -28,7 +21,7 @@ impl Foxy {
     self.window.clone()
   }
 
-  pub fn input(&self) -> &Input {
-    &self.input
+  pub fn input(&self) -> RwLockReadGuard<Input> {
+    self.window.input()
   }
 }

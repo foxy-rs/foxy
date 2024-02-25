@@ -1,10 +1,6 @@
-use super::{
-  builder::FoxyCreateInfo,
-  engine_state::Foxy,
-  event::{FoxyEvent, InputEvent, WindowEvent},
-  framework::Framework,
-  FoxyResult,
-};
+use ezwin::prelude::Message;
+
+use super::{builder::FoxySettings, engine_state::Foxy, framework::Framework, FoxyResult};
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum Flow {
@@ -18,15 +14,11 @@ pub trait Runnable {
 
   fn start(&mut self, foxy: &mut Foxy) {}
 
-  fn fixed_update(&mut self, foxy: &mut Foxy, event: &FoxyEvent) {}
+  fn fixed_update(&mut self, foxy: &mut Foxy, message: &Message) {}
 
-  fn window(&mut self, foxy: &mut Foxy, event: &WindowEvent) {}
+  fn update(&mut self, foxy: &mut Foxy, message: &Message) {}
 
-  fn input(&mut self, foxy: &mut Foxy, event: &InputEvent) {}
-
-  fn update(&mut self, foxy: &mut Foxy, event: &FoxyEvent) {}
-
-  fn late_update(&mut self, foxy: &mut Foxy, event: &FoxyEvent) {}
+  fn late_update(&mut self, foxy: &mut Foxy, message: &Message) {}
 
   fn stop(&mut self, foxy: &mut Foxy) -> Flow {
     Flow::Exit
@@ -38,8 +30,8 @@ pub trait Runnable {
   {
   }
 
-  fn settings() -> FoxyCreateInfo {
-    FoxyCreateInfo::default()
+  fn settings() -> FoxySettings {
+    FoxySettings::default()
   }
 
   /// ## You don't want to override this method. It's implemented as a simple wrapper around the Framework::run() method.

@@ -21,3 +21,5 @@ glam      = "0.25"
 strum     = { version = "0.26", features = ["derive"] }
 quanta    = "0.12"
 crossbeam = "0.8"
+
+foxy_log = "1.0"

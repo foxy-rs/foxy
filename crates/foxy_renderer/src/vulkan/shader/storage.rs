@@ -2,7 +2,7 @@
 
 use std::{collections::HashMap, path::PathBuf};
 
-use foxy_utils::types::handle::Handle;
+use foxy_utils::handle::Handle;
 
 use super::{stage::ShaderStage, Shader};
 use crate::vulkan::device::Device;

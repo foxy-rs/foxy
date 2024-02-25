@@ -6,19 +6,22 @@ use tracing::debug;
 pub struct App;
 
 impl Runnable for App {
-  fn settings() -> FoxyCreateInfo {
-    FoxyCreateInfo::default()
-      .with_size(800, 450)
+  fn settings() -> FoxySettings {
+    FoxySettings::default()
+      .with_window(WindowSettings::default().with_size((800, 450)).with_flow(Flow::Poll))
       .with_debug_info(DebugInfo::Shown)
-      .with_polling(Polling::Poll)
   }
 
   fn new(_foxy: &mut Foxy) -> Self {
     Self {}
   }
 
-  fn input(&mut self, foxy: &mut Foxy, event: &InputEvent) {
-    if let InputEvent::Mouse(button, state) = event {
+  fn update(&mut self, foxy: &mut Foxy, message: &Message) {
+    if let Message::Keyboard { key, state, .. } = message {
+      debug!("UPDATE | {:?}: {:?} + {:?}", key, state, foxy.input().shift().is_pressed())
+    }
+
+    if let Message::Mouse(MouseMessage::Button { button, state, .. }) = message {
       debug!("UPDATE | {:?}: {:?} + {:?}", button, state, foxy.input().shift().is_pressed())
     }
   }

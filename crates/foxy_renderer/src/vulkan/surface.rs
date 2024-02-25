@@ -1,9 +1,8 @@
-use anyhow::Context;
 use ash::{extensions::khr, vk};
-use raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle};
+use ezwin::raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle};
 
 use super::error::VulkanError;
-use crate::vulkan::instance::Instance;
+use crate::{vulkan::instance::Instance, vulkan_error};
 
 pub struct Surface {
   surface: vk::SurfaceKHR,
@@ -26,8 +25,7 @@ impl Surface {
         window.raw_window_handle(),
         None,
       )
-    }
-    .context("Failed to create window surface")?;
+    }?;
 
     let surface_loader = khr::Surface::new(instance.entry(), instance.raw());
 
@@ -51,20 +49,17 @@ impl Surface {
         self
           .surface_loader()
           .get_physical_device_surface_capabilities(physical_device, *self.surface())
-      }
-      .context("Failed to get physical device surface capabilities")?,
+      }?,
       formats: unsafe {
         self
           .surface_loader()
           .get_physical_device_surface_formats(physical_device, *self.surface())
-      }
-      .context("Failed to get physical device surface formats")?,
+      }?,
       present_modes: unsafe {
         self
           .surface_loader()
           .get_physical_device_surface_present_modes(physical_device, *self.surface())
-      }
-      .context("Failed to get physical device surface present modes")?,
+      }?,
     })
   }
 }

@@ -1,11 +1,9 @@
-pub use foxy_utils::log::prelude::*;
-// pub use gtl_log_helper::prelude::*;
-pub use winit;
+pub use ezwin::prelude::*;
+pub use foxy_log::prelude::*;
 
 pub use crate::core::{
-  builder::{DebugInfo, FoxyCreateInfo, Polling},
+  builder::{DebugInfo, FoxySettings, Polling},
   engine_state::Foxy,
-  event::{FoxyEvent, InputEvent, WindowEvent},
   framework::Framework,
   message::RenderLoopMessage,
   runnable::Runnable,

@@ -1,7 +1,7 @@
 use ash::{extensions::khr, vk};
-use foxy_utils::types::{handle::Handle, primitives::Dimensions};
+use ezwin::window::settings::Size;
+use foxy_utils::handle::Handle;
 use tracing::*;
-use winit::dpi::PhysicalSize;
 
 use self::image_format::{ColorSpace, ImageFormat, PresentMode};
 use super::{device::Device, instance::Instance, surface::Surface};
@@ -42,11 +42,14 @@ impl Swapchain {
     instance: &Instance,
     surface: &Surface,
     device: Device,
-    dims: PhysicalSize<u32>,
+    dims: Size,
     preferred_image_format: ImageFormat,
   ) -> Result<Self, VulkanError> {
     debug!("Window extent: {dims:?}");
-    let extent = vk::Extent2D::builder().width(dims.width).height(dims.height).build();
+    let extent = vk::Extent2D::builder()
+      .width(dims.width as u32)
+      .height(dims.height as u32)
+      .build();
     // debug!("Window extent (true): {extent:?}");
 
     let swapchain_loader = khr::Swapchain::new(instance.raw(), device.logical());
@@ -70,8 +73,8 @@ impl Swapchain {
     self.size().width as f32 / self.size().height as f32
   }
 
-  pub fn size(&self) -> Dimensions {
-    Dimensions {
+  pub fn size(&self) -> Size {
+    Size {
       width: self.extent.width as i32,
       height: self.extent.height as i32,
     }

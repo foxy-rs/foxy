@@ -3,7 +3,6 @@ use std::{
   ffi::{c_void, CStr},
 };
 
-use anyhow::Context;
 use ash::{extensions::khr, vk};
 use itertools::Itertools;
 use tracing::*;
@@ -15,7 +14,7 @@ use super::{
   surface::Surface,
   types::queue::{Queue, QueueFamilyIndices},
 };
-use crate::vulkan_unsupported_error;
+use crate::{vulkan_error, vulkan_unsupported_error};
 
 #[derive(Clone)]
 pub struct Device {
@@ -196,7 +195,7 @@ impl Device {
           _ => 5,
         }
       })
-      .context("Failed to find valid physical device")?;
+      .ok_or_else(|| vulkan_error!("Failed to find valid physical device"))?;
 
     let props = unsafe { instance.raw().get_physical_device_properties(*physical_device) };
 
@@ -250,8 +249,7 @@ impl Device {
       .enabled_features(&device_features)
       .push_next(&mut features_11);
 
-    let device = unsafe { instance.raw().create_device(physical_device, &create_info, None) }
-      .context("Failed to create logical graphics device")?;
+    let device = unsafe { instance.raw().create_device(physical_device, &create_info, None) }?;
 
     let graphics_queue = unsafe { device.get_device_queue(indices.graphics_family, 0) };
     let present_queue = unsafe { device.get_device_queue(indices.present_family, 0) };

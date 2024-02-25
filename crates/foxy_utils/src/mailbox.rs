@@ -1,3 +1,6 @@
+use crossbeam::channel::{Receiver, RecvError, SendError, Sender, TryRecvError};
+use thiserror::Error;
+
 #[derive(Debug, Clone)]
 pub struct Mailbox<SenderMessage: Send + Sync, ReceiverMessage: Send + Sync> {
   sender: Sender<SenderMessage>,
@@ -38,9 +41,6 @@ impl<SenderMessage: Send + Sync, ReceiverMessage: Send + Sync> Mailbox<SenderMes
     self.recv()
   }
 }
-
-use crossbeam::channel::{Receiver, RecvError, SendError, Sender, TryRecvError};
-use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum MessagingError<SenderMessage> {

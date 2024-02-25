@@ -4,9 +4,7 @@ use thiserror::Error;
 
 pub mod builder;
 pub mod engine_state;
-pub mod event;
 pub mod framework;
-pub mod input;
 pub mod message;
 pub mod runnable;
 
@@ -23,17 +21,7 @@ pub enum FoxyError {
   #[error("{0}")]
   IOError(#[from] std::io::Error),
   #[error("{0}")]
-  EventLoopError(#[from] winit::error::EventLoopError),
-  #[error("{0}")]
-  ExternalError(#[from] winit::error::ExternalError),
-  #[error("{0}")]
-  NotSupportedError(#[from] winit::error::NotSupportedError),
-  #[error("{0}")]
-  OsError(#[from] winit::error::OsError),
-  #[error("{0}")]
-  HandleError(#[from] winit::raw_window_handle::HandleError),
-  #[error("{0}")]
-  CursorIconParseError(#[from] winit::window::CursorIconParseError),
+  EzwinError(#[from] ezwin::debug::error::WindowError),
 }
 
 #[macro_export]

@@ -6,7 +6,6 @@ use std::{
   path::{Path, PathBuf},
 };
 
-use anyhow::Context;
 use byteorder::{ByteOrder, NativeEndian};
 use strum::{Display, EnumIter};
 use tracing::*;
@@ -14,6 +13,7 @@ use tracing::*;
 use super::stage::ShaderStage;
 use crate::{
   vulkan::{error::VulkanError, shader::Shader},
+  vulkan_error,
   vulkan_shader_error,
 };
 
@@ -124,7 +124,7 @@ impl Source {
   fn cached_path(path: impl AsRef<Path>) -> Result<PathBuf, VulkanError> {
     let shader_cache_dir = env::current_exe()?
       .parent()
-      .context("invalid exe parent")?
+      .ok_or_else(|| vulkan_error!("invalid exe parent"))?
       .join(Shader::SHADER_CACHE_DIR);
 
     let mut cached_path = shader_cache_dir.join(
@@ -135,7 +135,9 @@ impl Source {
     );
 
     // let file_name = cached_path.file_name().context("invalid file name")?;
-    let parent = cached_path.parent().context("invalid file parent")?;
+    let parent = cached_path
+      .parent()
+      .ok_or_else(|| vulkan_error!("invalid file parent"))?;
 
     info!("{:?}", cached_path);
     if let Err(error) = fs::create_dir_all(parent) {
@@ -144,7 +146,7 @@ impl Source {
 
     let mut extension = cached_path
       .extension()
-      .context("invalid file extension")?
+      .ok_or_else(|| vulkan_error!("invalid file extension"))?
       .to_os_string();
     extension.push(".spv");
 
@@ -165,8 +167,9 @@ impl Source {
     output_path: &P,
   ) -> Result<Vec<u8>, VulkanError> {
     let output_path = output_path.as_ref();
-    let compiler = shaderc::Compiler::new().context("failed to initialize shaderc compiler")?;
-    let mut options = shaderc::CompileOptions::new().context("failed to initialize shaderc compiler options")?;
+    let compiler = shaderc::Compiler::new().ok_or_else(|| vulkan_error!("failed to initialize shaderc compiler"))?;
+    let mut options =
+      shaderc::CompileOptions::new().ok_or_else(|| vulkan_error!("failed to initialize shaderc compiler options"))?;
 
     options.set_source_language(shaderc::SourceLanguage::GLSL);
 
@@ -179,9 +182,9 @@ impl Source {
       S::kind().into(),
       output_path
         .file_name()
-        .context("failed to access file_name")?
+        .ok_or_else(|| vulkan_error!("failed to access file_name"))?
         .to_str()
-        .context("failed to convert file_name to str")?,
+        .ok_or_else(|| vulkan_error!("failed to convert file_name to str"))?,
       S::kind().entry_point().to_str().unwrap(),
       Some(&options),
     ) {

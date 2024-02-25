@@ -1,11 +1,11 @@
-use winit::event::WindowEvent;
+use ezwin::prelude::Message;
 
 #[derive(Debug)]
 pub enum RenderLoopMessage {
   Start,
   MustExit,
   ExitRequested,
-  Winit(WindowEvent),
+  Window(Message),
   None,
 }
 

@@ -4,10 +4,9 @@ use ash::{
   extensions::{ext, khr},
   vk,
 };
+use ezwin::{prelude::Window, raw_window_handle::HasRawDisplayHandle};
 use itertools::Itertools;
-use raw_window_handle::HasRawDisplayHandle;
 use tracing::*;
-use winit::window::Window;
 
 use super::ValidationStatus;
 use crate::{
