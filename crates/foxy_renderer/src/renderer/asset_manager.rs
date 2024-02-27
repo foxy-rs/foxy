@@ -102,7 +102,7 @@ impl AssetManager {
         include_bytes!("../../assets/foxy/textures/default.png").to_vec()
       });
 
-      let diffuse = DiffuseTexture::new(device, queue, &source);
+      let diffuse = DiffuseTexture::from_bytes(device, queue, &source);
 
       textures.insert(texture.clone(), Arc::from(diffuse));
 

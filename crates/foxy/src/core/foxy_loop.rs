@@ -34,27 +34,15 @@ use crate::core::{
   FoxyError,
 };
 
-// pub struct RenderBuffer {
-//   buffer: [RenderData; 3],
-// }
-//
-// impl RenderBuffer {
-//   pub fn new() -> Self {
-//     Self { buffer:  }
-//   }
-// }
-
 struct State {
   polling_strategy: Polling,
   debug_info: DebugInfo,
 
   renderer: Renderer,
   render_time: EngineTime,
-  // render_buffer: Arc<Mutex<RenderBuffer>>,
   render_queue: Arc<ArrayQueue<RenderData>>,
   render_mailbox: Mailbox<RenderLoopMessage, GameLoopMessage>,
 
-  // Keep window below the renderer to ensure proper drop order
   window: Arc<Window>,
 
   game_thread: Option<JoinHandle<FoxyResult<()>>>,
@@ -117,7 +105,7 @@ impl<T: 'static + Send + Sync> Framework<T> {
   pub fn run(self) -> FoxyResult<()> {
     info!("KON KON KITSUNE!");
     let Some(mut state) = self.state else {
-      return Err(FoxyError::Error(format!("failed to take foxy state")));
+      return Err(FoxyError::Error("failed to take foxy state".to_owned()));
     };
 
     let _ = state.render_mailbox.send(RenderLoopMessage::Start).log_error();
@@ -132,9 +120,6 @@ impl<T: 'static + Send + Sync> Framework<T> {
 
       match event {
         Event::WindowEvent { event, .. } => {
-          // let was_handled = state.renderer.handle_input(&event);
-
-          // first check
           match event {
             WindowEvent::CloseRequested => {
               let response = state
@@ -156,7 +141,6 @@ impl<T: 'static + Send + Sync> Framework<T> {
           }
 
           if !elwt.exiting() {
-            // !was_handled went here
             if let Err(error) = state.render_mailbox.send(RenderLoopMessage::Winit(event)) {
               error!("{error:?}")
             }

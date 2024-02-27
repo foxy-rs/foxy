@@ -79,7 +79,6 @@ impl State {
     &self.input
   }
 
-  // // TEMPORARY UNTIL ECS IS IMPLEMENTED
   pub fn submit_mesh(&mut self, mesh: StaticMesh) {
     self.meshes.push(mesh);
   }
