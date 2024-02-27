@@ -3,7 +3,7 @@ pub use foxy_log::prelude::*;
 
 pub use crate::core::{
   builder::{DebugInfo, FoxySettings, Polling},
-  engine_state::Foxy,
+  foxy_state::Foxy,
   framework::Framework,
   message::RenderLoopMessage,
   runnable::Runnable,

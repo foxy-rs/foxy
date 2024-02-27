@@ -17,20 +17,13 @@ impl Runnable for App {
   }
 
   fn update(&mut self, foxy: &mut Foxy, message: &Message) {
-    if let Message::Keyboard { key, state, .. } = message {
-      debug!("UPDATE | {:?}: {:?} + {:?}", key, state, foxy.input().shift().is_pressed())
+    if foxy.key(Key::E).is_held() {
+      debug!("E");
     }
 
     if let Message::Mouse(MouseMessage::Button { button, state, .. }) = message {
-      debug!("UPDATE | {:?}: {:?} + {:?}", button, state, foxy.input().shift().is_pressed())
+      debug!("UPDATE | {:?}: {:?} + {:?}", button, state, foxy.shift().is_pressed());
     }
-  }
-
-  fn delete(self)
-  where
-    Self: Sized,
-  {
-    debug!("Delete!")
   }
 }
 

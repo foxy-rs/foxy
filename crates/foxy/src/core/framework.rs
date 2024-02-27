@@ -1,6 +1,7 @@
 use std::{sync::Arc, thread::JoinHandle, time::Duration};
 
 use crossbeam::{channel::TryRecvError, queue::ArrayQueue};
+use egui::RawInput;
 use ezwin::{
   prelude::{Message, Window, WindowMessage},
   window::settings::Visibility,
@@ -16,7 +17,7 @@ use tracing::{debug, error, info, trace, warn};
 
 use super::{
   builder::{DebugInfo, FoxySettings},
-  engine_state::Foxy,
+  foxy_state::Foxy,
   runnable::Runnable,
   FoxyResult,
 };
@@ -190,6 +191,8 @@ impl Framework {
         loop {
           let next_message = mailbox.try_recv();
 
+          let raw_input: RawInput = foxy.take_egui_raw_input();
+
           match next_message {
             Ok(message) => match message {
               RenderLoopMessage::Window(window_message) => {
@@ -200,6 +203,11 @@ impl Framework {
                 }
 
                 app.update(&mut foxy, &window_message);
+
+                let full_output = foxy.egui_context.run(raw_input, |ui| {
+                  app.egui(&foxy, ui);
+                });
+
                 render_queue.force_push(RenderData {});
               }
               RenderLoopMessage::MustExit => {

@@ -1,6 +1,6 @@
 use ezwin::prelude::Message;
 
-use super::{builder::FoxySettings, engine_state::Foxy, framework::Framework, FoxyResult};
+use super::{builder::FoxySettings, foxy_state::Foxy, framework::Framework, FoxyResult};
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum Flow {
@@ -19,6 +19,8 @@ pub trait Runnable {
   fn update(&mut self, foxy: &mut Foxy, message: &Message) {}
 
   fn late_update(&mut self, foxy: &mut Foxy, message: &Message) {}
+
+  fn egui(&mut self, foxy: &Foxy, egui: &egui::Context) {}
 
   fn stop(&mut self, foxy: &mut Foxy) -> Flow {
     Flow::Exit

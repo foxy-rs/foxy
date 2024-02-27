@@ -3,7 +3,7 @@ use foxy_utils::thread::error::ThreadError;
 use thiserror::Error;
 
 pub mod builder;
-pub mod engine_state;
+pub mod foxy_state;
 pub mod framework;
 pub mod message;
 pub mod runnable;
