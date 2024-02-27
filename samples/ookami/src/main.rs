@@ -58,32 +58,7 @@ impl Runnable for App {
   }
 
   fn update(&mut self, foxy: &Foxy, event: &FoxyEvent) {
-    foxy.as_mut().submit_mesh(StaticMesh::new(
-      &[
-        Vertex {
-          position: [-self.x, -self.x, 0.0],
-          color: [1.0, 0.0, 0.0, 1.0],
-          uv: [0., 1.],
-        },
-        Vertex {
-          position: [self.x, -self.x, 0.0],
-          color: [1.0, 1.0, 0.0, 1.0],
-          uv: [1., 1.],
-        },
-        Vertex {
-          position: [self.x, self.x, 0.0],
-          color: [0.0, 1.0, 1.0, 1.0],
-          uv: [1., 0.],
-        },
-        Vertex {
-          position: [-self.x, self.x, 0.0],
-          color: [0.0, 0.0, 1.0, 1.0],
-          uv: [0., 0.],
-        },
-      ],
-      Some(&[0, 1, 2, 0, 2, 3]),
-      StandardMaterial::new(None),
-    ))
+    foxy.as_mut().submit_mesh(self.mesh.clone());
   }
 
   fn gui(&mut self, foxy: &Foxy, egui: &foxy::egui::Context) {

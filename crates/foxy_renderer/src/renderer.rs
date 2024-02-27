@@ -114,7 +114,7 @@ impl Renderer {
 
         let meshes = render_data
           .meshes
-          .into_iter()
+          .iter()
           .map(|m| m.bake(self.context.device()))
           .collect_vec();
 

@@ -31,8 +31,8 @@ pub struct State {
   pub(crate) egui_context: Context,
   pub(crate) egui_state: egui_winit::State,
   pub(crate) input: Input,
-  // pub(crate) meshes: Vec<StaticMesh>,
-  pub(crate) world: World, 
+  pub(crate) meshes: Vec<StaticMesh>,
+  pub(crate) world: World,
 }
 
 impl State {
@@ -53,7 +53,7 @@ impl State {
     egui_context.set_visuals(visuals);
 
     let egui_state = egui_winit::State::new(egui_context.clone(), id, &window, None, None);
-    
+
     let world = World::new();
 
     Self {
@@ -62,6 +62,7 @@ impl State {
       egui_context,
       egui_state,
       input: Input::new(),
+      meshes: Default::default(),
       world,
     }
   }
@@ -79,10 +80,10 @@ impl State {
   }
 
   // // TEMPORARY UNTIL ECS IS IMPLEMENTED
-  // pub fn submit_mesh(&mut self, mesh: StaticMesh) {
-  //   self.meshes.push(mesh);
-  // }
-  
+  pub fn submit_mesh(&mut self, mesh: StaticMesh) {
+    self.meshes.push(mesh);
+  }
+
   pub fn world(&self) -> &World {
     &self.world
   }

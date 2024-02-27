@@ -26,23 +26,23 @@ macro_rules! log_lib_info {
 
 pub trait LogErr {
   fn log_error(self) -> Self
-    where
-      Self: Sized;
+  where
+    Self: Sized;
   fn log_warn(self) -> Self
-    where
-      Self: Sized;
+  where
+    Self: Sized;
   fn log_error_msg(self, msg: &'static str) -> Self
-    where
-      Self: Sized;
+  where
+    Self: Sized;
   fn log_warn_msg(self, msg: &'static str) -> Self
-    where
-      Self: Sized;
+  where
+    Self: Sized;
 }
 
 impl<T, E: Display> LogErr for Result<T, E> {
   fn log_error(self) -> Self
-    where
-      Self: Sized,
+  where
+    Self: Sized,
   {
     if let Err(error) = &self {
       tracing::error!("{error}");
@@ -52,8 +52,8 @@ impl<T, E: Display> LogErr for Result<T, E> {
   }
 
   fn log_warn(self) -> Self
-    where
-      Self: Sized,
+  where
+    Self: Sized,
   {
     if let Err(error) = &self {
       tracing::warn!("{error}");
@@ -63,8 +63,8 @@ impl<T, E: Display> LogErr for Result<T, E> {
   }
 
   fn log_error_msg(self, msg: &'static str) -> Self
-    where
-      Self: Sized,
+  where
+    Self: Sized,
   {
     if let Err(error) = &self {
       tracing::error!("`{msg}`: {error}");
@@ -74,8 +74,8 @@ impl<T, E: Display> LogErr for Result<T, E> {
   }
 
   fn log_warn_msg(self, msg: &'static str) -> Self
-    where
-      Self: Sized,
+  where
+    Self: Sized,
   {
     if let Err(error) = &self {
       tracing::warn!("`{msg}`: {error}");

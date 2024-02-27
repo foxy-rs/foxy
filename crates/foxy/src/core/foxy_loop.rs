@@ -1,5 +1,8 @@
-use std::{sync::Arc, thread::JoinHandle, time::Duration};
-use std::sync::Mutex;
+use std::{
+  sync::{Arc, Mutex},
+  thread::JoinHandle,
+  time::Duration,
+};
 
 use crossbeam::{channel::TryRecvError, queue::ArrayQueue};
 use foxy_renderer::{
@@ -34,7 +37,7 @@ use crate::core::{
 // pub struct RenderBuffer {
 //   buffer: [RenderData; 3],
 // }
-// 
+//
 // impl RenderBuffer {
 //   pub fn new() -> Self {
 //     Self { buffer:  }
@@ -175,6 +178,8 @@ impl<T: 'static + Send + Sync> Framework<T> {
         }
         _ => (),
       }
+
+      // debug!("Æ")
     })?)
   }
 

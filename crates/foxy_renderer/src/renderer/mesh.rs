@@ -30,7 +30,7 @@ impl StaticMesh {
     }
   }
 
-  pub fn bake(self, device: &wgpu::Device) -> BakedStaticMesh {
+  pub fn bake(&self, device: &wgpu::Device) -> BakedStaticMesh {
     BakedStaticMesh::new(device, self)
   }
 }
@@ -42,7 +42,7 @@ pub struct BakedStaticMesh {
 }
 
 impl BakedStaticMesh {
-  pub fn new(device: &wgpu::Device, mesh: StaticMesh) -> Self {
+  pub fn new(device: &wgpu::Device, mesh: &StaticMesh) -> Self {
     let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
       label: Some("Vertex Buffer"),
       contents: bytemuck::cast_slice(&mesh.vertices),
@@ -54,10 +54,10 @@ impl BakedStaticMesh {
       count: mesh.vertices.len() as u32,
     };
 
-    let indices = if let Some(indices) = mesh.indices {
+    let indices = if let Some(indices) = &mesh.indices {
       let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
         label: Some("Index Buffer"),
-        contents: bytemuck::cast_slice(&indices),
+        contents: bytemuck::cast_slice(indices),
         usage: wgpu::BufferUsages::INDEX,
       });
 
@@ -72,7 +72,7 @@ impl BakedStaticMesh {
     Self {
       vertices,
       indices,
-      material: mesh.material,
+      material: mesh.material.clone(),
     }
   }
 }
