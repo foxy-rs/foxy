@@ -4,10 +4,10 @@ use wgpu::CommandEncoder;
 use super::Pass;
 use crate::renderer::{
   asset_manager::{AssetManager, RenderPipelineInfo},
+  diffuse_texture::DiffuseTexture,
   mesh::BakedStaticMesh,
   render_data::Drawable,
   target::RenderTarget,
-  texture::DiffuseTexture,
   vertex::Vertex,
   Renderer,
 };

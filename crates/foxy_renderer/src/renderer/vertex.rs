@@ -18,7 +18,7 @@ impl Default for Vertex {
   fn default() -> Self {
     Self {
       position: [0., 0., 0.],
-      color: [1., 1., 1., 1.],
+      color: [1.0, 1.0, 1.0, 1.],
       uv: [0., 0.],
     }
   }

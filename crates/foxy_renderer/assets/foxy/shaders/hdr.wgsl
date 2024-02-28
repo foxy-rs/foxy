@@ -1,6 +1,6 @@
 // Maps HDR values to linear values
 // Based on http://www.oscars.org/science-technology/sci-tech-projects/aces
-fn aces_tone_map(hdr: vec3<f32>) -> vec3<f32> {
+fn aces_tone_map(color: vec3<f32>) -> vec3<f32> {
     let m1 = mat3x3(
         0.59719, 0.07600, 0.02840,
         0.35458, 0.90834, 0.13383,
@@ -11,11 +11,21 @@ fn aces_tone_map(hdr: vec3<f32>) -> vec3<f32> {
         -0.53108,  1.10813, -0.07276,
         -0.07367, -0.00605,  1.07602,
     );
-    let v = m1 * hdr;
+    let v = m1 * color;
     let a = v * (v + 0.0245786) - 0.000090537;
     let b = v * (0.983729 * v + 0.4329510) + 0.238081;
     return clamp(m2 * (a / b), vec3(0.0), vec3(1.0));
 }
+
+
+// fn aces_tone_map(color: vec3<f32>) -> vec3<f32> {
+//     let a: f32 = 2.51;
+//     let b: f32 = 0.03;
+//     let c: f32 = 2.43;
+//     let d: f32 = 0.59;
+//     let e: f32 = 0.14;
+//     return clamp((color * (a * color + b)) / (color * (c * color + d ) + e), vec3(0.0), vec3(1.0));
+// }
 
 struct VertexOutput {
     @location(0) uv: vec2<f32>,

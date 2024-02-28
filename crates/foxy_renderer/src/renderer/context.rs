@@ -54,7 +54,8 @@ impl GraphicsContext {
       let (device, queue) = adapter
         .request_device(
           &wgpu::DeviceDescriptor {
-            required_features: wgpu::Features::empty(),
+            required_features: wgpu::Features::TEXTURE_ADAPTER_SPECIFIC_FORMAT_FEATURES
+              | wgpu::Features::FLOAT32_FILTERABLE,
             required_limits: wgpu::Limits::default(),
             label: None,
           },

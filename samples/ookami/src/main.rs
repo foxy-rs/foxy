@@ -21,27 +21,27 @@ impl Runnable for App {
       &[
         Vertex {
           position: [-x, -x, 0.0],
-          color: [1.0, 0.0, 0.0, 1.0],
           uv: [0., 1.],
+          ..Default::default()
         },
         Vertex {
           position: [x, -x, 0.0],
-          color: [1.0, 1.0, 0.0, 1.0],
           uv: [1., 1.],
+          ..Default::default()
         },
         Vertex {
           position: [x, x, 0.0],
-          color: [0.0, 1.0, 1.0, 1.0],
           uv: [1., 0.],
+          ..Default::default()
         },
         Vertex {
           position: [-x, x, 0.0],
-          color: [0.0, 0.0, 1.0, 1.0],
           uv: [0., 0.],
+          ..Default::default()
         },
       ],
       Some(&[0, 1, 2, 0, 2, 3]),
-      StandardMaterial::new(None),
+      StandardMaterial::new(Some("assets/foxy/textures/cobblestone.png")), //
     );
     Self { x, mesh }
   }

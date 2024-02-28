@@ -34,5 +34,13 @@ var s_diffuse: sampler;
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
   // TODO: Fix texture reading, cause it broke
   var color = textureSample(t_diffuse, s_diffuse, in.tex_coords);
+
+  // // Apply gamma correction
+  // color = apply_gamma(color, 2.2);
+
   return color * in.color;
+}
+
+fn apply_gamma(color: vec4<f32>, gamma: f32) -> vec4<f32> {
+  return vec4(pow(color.rgb, vec3<f32>(1.0 / gamma)), color.a);
 }

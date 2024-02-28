@@ -5,12 +5,13 @@ use std::{
   sync::{Arc, RwLock},
 };
 
+use image::{GenericImageView, ImageBuffer};
 use tracing::error;
 use uuid::Uuid;
 use wgpu::{PrimitiveTopology, RenderPipeline, ShaderModule, ShaderModuleDescriptor, ShaderSource};
 
-use super::shader::ShaderHandle;
-use crate::renderer::texture::{DiffuseTexture, TextureHandle};
+use super::{shader::ShaderHandle, Renderer};
+use crate::renderer::diffuse_texture::{DiffuseTexture, TextureHandle};
 
 pub struct RenderPipelineInfo<'a> {
   pub id: Uuid,
@@ -95,19 +96,79 @@ impl AssetManager {
         .unwrap()
         .parent()
         .unwrap()
-        .join(texture.0.clone());
+        .join(texture.as_path_buf().clone());
 
       let source = fs::read(path).unwrap_or_else(|error| {
         error!("{error:?}");
         include_bytes!("../../assets/foxy/textures/default.png").to_vec()
       });
 
-      let diffuse = DiffuseTexture::from_bytes(device, queue, &source);
+      let diffuse_image = image::load_from_memory(&source).unwrap();
+      let dimensions = diffuse_image.dimensions();
+      let data = diffuse_image.to_rgba8();
+      let size = wgpu::Extent3d {
+        width: dimensions.0,
+        height: dimensions.1,
+        depth_or_array_layers: 1,
+      };
+      let diffuse = DiffuseTexture::new(device, size);
+      diffuse.write_image(queue, data);
 
       textures.insert(texture.clone(), Arc::from(diffuse));
 
       textures.get(&texture).unwrap().clone()
     }
+  }
+
+  pub fn read_file(&self, texture: TextureHandle, device: &wgpu::Device, queue: &wgpu::Queue) -> Arc<DiffuseTexture> {
+    let mut textures = self.textures.write().unwrap();
+
+    let path = std::env::current_exe()
+      .unwrap()
+      .parent()
+      .unwrap()
+      .join(texture.as_path_buf().clone());
+
+    let source = fs::read(path).unwrap_or_else(|error| {
+      error!("{error:?}");
+      include_bytes!("../../assets/foxy/textures/default.png").to_vec()
+    });
+
+    let diffuse_image = image::load_from_memory(&source).unwrap();
+    let dimensions = diffuse_image.dimensions();
+    let data = diffuse_image.to_rgba8();
+    let size = wgpu::Extent3d {
+      width: dimensions.0,
+      height: dimensions.1,
+      depth_or_array_layers: 1,
+    };
+    let diffuse = DiffuseTexture::new(device, size);
+    diffuse.write_image(queue, data);
+
+    textures.insert(texture.clone(), Arc::from(diffuse));
+
+    textures.get(&texture).unwrap().clone()
+  }
+
+  pub fn create_texture(
+    &self,
+    texture: TextureHandle,
+    device: &wgpu::Device,
+    queue: &wgpu::Queue,
+    size: (u32, u32),
+  ) -> Arc<DiffuseTexture> {
+    let mut textures = self.textures.write().unwrap();
+
+    let diffuse = DiffuseTexture::new(device, wgpu::Extent3d {
+      width: size.0,
+      height: size.1,
+      depth_or_array_layers: 1,
+    });
+    diffuse.write_image(queue, ImageBuffer::from_pixel(size.0, size.1, [255, 255, 255, 255].into()));
+
+    textures.insert(texture.clone(), Arc::from(diffuse));
+
+    textures.get(&texture).unwrap().clone()
   }
 
   pub fn create_render_pipeline(&self, device: &wgpu::Device, info: &RenderPipelineInfo) -> Arc<RenderPipeline> {

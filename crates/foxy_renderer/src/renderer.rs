@@ -16,13 +16,13 @@ use crate::{egui::EguiRenderer, error::RendererError, renderer::asset_manager::A
 
 pub mod asset_manager;
 pub mod context;
+pub mod diffuse_texture;
 pub mod material;
 pub mod mesh;
 pub mod render_data;
 pub mod render_pass;
 pub mod shader;
 pub mod target;
-pub mod texture;
 pub mod vertex;
 
 pub struct Renderer {
@@ -46,7 +46,7 @@ impl Renderer {
     b: 1.0,
     a: 1.0,
   };
-  pub const RENDER_TARGET_FORMAT: TextureFormat = TextureFormat::Rgba16Float;
+  pub const RENDER_TARGET_FORMAT: TextureFormat = TextureFormat::Rgba32Float;
   pub const SURFACE_FORMAT: TextureFormat = TextureFormat::Rgba8UnormSrgb;
 
   pub fn new(window: Arc<Window>, egui_context: egui::Context) -> Result<Self, RendererError> {

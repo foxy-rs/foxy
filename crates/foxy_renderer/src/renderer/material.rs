@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use wgpu::TextureFormat;
 
-use super::{shader::ShaderHandle, texture::TextureHandle, Renderer};
+use super::{diffuse_texture::TextureHandle, shader::ShaderHandle, Renderer};
 
 pub trait Material {
   fn format() -> TextureFormat
@@ -33,7 +33,7 @@ impl Material for StandardMaterial {
 impl StandardMaterial {
   pub fn new(albedo: Option<&'static str>) -> Arc<Self> {
     Arc::new(Self {
-      albedo: TextureHandle(albedo.unwrap_or("assets/foxy/textures/default.png").into()),
+      albedo: TextureHandle::FromFile(albedo.unwrap_or("assets/foxy/textures/default.png").into()),
     })
   }
 }
