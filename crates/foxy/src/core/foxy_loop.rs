@@ -132,15 +132,13 @@ impl<T: 'static + Send + Sync> Framework<T> {
             }
             WindowEvent::Resized(_) | WindowEvent::ScaleFactorChanged { .. } => {
               state.renderer.refresh();
-              state.window.request_redraw();
             }
-            WindowEvent::RedrawRequested => {
-              Self::render(&mut state, elwt);
-            }
+            WindowEvent::RedrawRequested => {}
             _ => (),
           }
 
           if !elwt.exiting() {
+            Self::render(&mut state, elwt);
             if let Err(error) = state.render_mailbox.send(RenderLoopMessage::Winit(event)) {
               error!("{error:?}")
             }
