@@ -6,7 +6,6 @@ use foxy_time::Time;
 use self::render_data::RenderData;
 use crate::{error::RendererError, vulkan::Vulkan};
 
-pub mod command;
 pub mod render_data;
 
 // pub struct Egui {

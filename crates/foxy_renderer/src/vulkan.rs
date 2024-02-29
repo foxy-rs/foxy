@@ -3,6 +3,7 @@
 use std::{collections::HashSet, mem::ManuallyDrop, sync::Arc, time::Duration};
 
 use ash::vk;
+use egui::RawInput;
 use ezwin::{
   prelude::{Message, Window},
   window::settings::Size,
@@ -245,6 +246,7 @@ impl Vulkan {
   pub fn resize(&mut self) {}
 
   pub fn input(&mut self, _message: &Message) -> bool {
+
     false
   }
 }
@@ -305,7 +307,9 @@ impl Vulkan {
 
     let _egui_pool = unsafe { device.logical().create_descriptor_pool(&pool_info, None) }?;
 
-    todo!()
+    let egui_context = egui::Context::default();
+
+    Ok(())
   }
 
   fn immediate_submit(&mut self, mut submitter: impl FnMut(vk::CommandBuffer)) -> Result<(), VulkanError> {

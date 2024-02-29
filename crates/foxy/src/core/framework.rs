@@ -27,14 +27,13 @@ use crate::core::{
 };
 
 pub struct Framework {
+  window: Arc<Window>,
+  preferred_visibility: Visibility,
+
   renderer: Renderer,
   render_time: EngineTime,
   render_queue: Arc<ArrayQueue<RenderData>>,
   render_mailbox: Mailbox<RenderLoopMessage, GameLoopMessage>,
-
-  // Keep window below the renderer to ensure proper drop order
-  window: Arc<Window>,
-  preferred_visibility: Visibility,
 
   game_thread: Option<JoinHandle<FoxyResult<()>>>,
   fps_timer: Timer,
@@ -71,12 +70,12 @@ impl Framework {
     let game_thread = Some(Self::game_loop::<App>(game_mailbox, foxy, render_queue.clone())?);
 
     Ok(Self {
+      window,
+      preferred_visibility,
       renderer,
       render_time,
       render_queue,
       render_mailbox,
-      window,
-      preferred_visibility,
       game_thread,
       debug_info: settings.debug_info,
       fps_timer: Timer::new(),

@@ -28,7 +28,11 @@ impl Foxy {
 
     egui_context.set_visuals(visuals);
 
-    Self { time, window, egui_context }
+    Self {
+      time,
+      window,
+      egui_context,
+    }
   }
 
   pub fn time(&self) -> Time {
