@@ -246,7 +246,6 @@ impl Vulkan {
   pub fn resize(&mut self) {}
 
   pub fn input(&mut self, _message: &Message) -> bool {
-
     false
   }
 }
