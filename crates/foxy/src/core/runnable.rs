@@ -1,6 +1,6 @@
 use ezwin::prelude::Message;
 
-use super::{builder::FoxySettings, foxy_state::Foxy, framework::Framework, FoxyResult};
+use super::{builder::FoxySettings, framework::Framework, state::Foxy, FoxyResult};
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum Flow {

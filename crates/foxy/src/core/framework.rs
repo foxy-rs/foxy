@@ -17,8 +17,8 @@ use tracing::{debug, error, info, trace, warn};
 
 use super::{
   builder::{DebugInfo, FoxySettings},
-  foxy_state::Foxy,
   runnable::Runnable,
+  state::Foxy,
   FoxyResult,
 };
 use crate::core::{
