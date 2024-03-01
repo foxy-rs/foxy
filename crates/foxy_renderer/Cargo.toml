@@ -26,7 +26,8 @@ foxy_time  = { version = "1.0", path = "../../../foxy_time" }
 foxy_log   = { version = "1.0", path = "../../../foxy_log" }
 foxy_utils = { version = "0.3", path = "../../../foxy_utils" }
 
-ezwin = { version = "2.8", path = "../../../ezwin", features = ["rwh_05"], default-features = false }
+# ezwin = { version = "2", path = "../../../ezwin", features = ["rwh_05"], default-features = false }
+winit = { version = "0.29", features = ["rwh_05"], default-features = false }
 
 vulkano         = "0.34"
 vulkano-shaders = "0.34"

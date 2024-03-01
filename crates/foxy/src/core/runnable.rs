@@ -1,4 +1,4 @@
-use ezwin::prelude::Message;
+use winit::event::WindowEvent;
 
 use super::{builder::FoxySettings, framework::Framework, state::Foxy, FoxyResult};
 
@@ -14,11 +14,11 @@ pub trait Runnable {
 
   fn start(&mut self, foxy: &mut Foxy) {}
 
-  fn fixed_update(&mut self, foxy: &mut Foxy, message: &Message) {}
+  fn fixed_update(&mut self, foxy: &mut Foxy, message: Option<&WindowEvent>) {}
 
-  fn update(&mut self, foxy: &mut Foxy, message: &Message) {}
+  fn update(&mut self, foxy: &mut Foxy, message: Option<&WindowEvent>) {}
 
-  fn late_update(&mut self, foxy: &mut Foxy, message: &Message) {}
+  fn late_update(&mut self, foxy: &mut Foxy, message: Option<&WindowEvent>) {}
 
   fn egui(&mut self, foxy: &Foxy, egui: &egui::Context) {}
 
