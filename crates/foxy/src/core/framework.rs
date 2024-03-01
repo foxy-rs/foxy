@@ -122,8 +122,9 @@ impl Framework {
       }
 
       match &message {
-        Message::Window(WindowMessage::Resizing { .. }) => {
+        Message::Window(WindowMessage::Resized { .. }) => {
           self.renderer.resize();
+          self.render();
         }
         Message::CloseRequested => {
           trace!("Close requested");
@@ -161,14 +162,17 @@ impl Framework {
           trace!("Closing window!");
           self.renderer.delete();
         }
+        Message::Window(WindowMessage::Draw) => {
+          self.render();
+        }
         _ => (),
       }
 
       if !self.window.is_closing() {
-        if let Err(error) = self.render_mailbox.send(RenderLoopMessage::Window(message)) {
+        if let Err(error) = self.render_mailbox.try_send(RenderLoopMessage::Window(message)) {
           error!("{error}")
         }
-        self.render();
+        self.window.redraw();
       }
 
       self.frame_count = self.frame_count.wrapping_add(1);
