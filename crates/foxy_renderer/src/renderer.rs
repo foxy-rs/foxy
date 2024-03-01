@@ -4,7 +4,7 @@ use ezwin::prelude::{Message, Window};
 use foxy_time::Time;
 
 use self::render_data::RenderData;
-use crate::{error::RendererError, vulkan::Vulkan};
+use crate::error::RendererError;
 
 pub mod render_data;
 
@@ -14,24 +14,16 @@ pub mod render_data;
 //   state: egui_winit::State,
 // }
 
-pub struct Renderer {
-  vk: Vulkan,
-}
+pub struct Renderer {}
 
 impl Renderer {
   pub fn new(window: Arc<Window>) -> Result<Self, RendererError> {
-    let vk = Vulkan::new(window)?;
-    // let ectx = egui::Context::default();
-
-    Ok(Self { vk })
+    Ok(Self {})
   }
 
-  pub fn delete(&mut self) {
-    self.vk.delete();
-  }
+  pub fn delete(&mut self) {}
 
   pub fn render(&mut self, render_time: Time, render_data: RenderData) -> Result<(), RendererError> {
-    self.vk.render(render_time, render_data)?;
     Ok(())
   }
 

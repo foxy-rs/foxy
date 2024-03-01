@@ -39,7 +39,7 @@ pub struct Framework {
   fps_timer: Timer,
 
   debug_info: DebugInfo,
-  had_first_frame: bool,
+  frame_count: u32,
 }
 
 impl Framework {
@@ -79,7 +79,7 @@ impl Framework {
       game_thread,
       debug_info: settings.debug_info,
       fps_timer: Timer::new(),
-      had_first_frame: false,
+      frame_count: 0,
     })
   }
 
@@ -87,8 +87,8 @@ impl Framework {
     info!("KON KON KITSUNE!");
 
     let _ = self.render_mailbox.send(RenderLoopMessage::Start).log_error();
-    let window = self.window.clone();
 
+    let window = self.window.clone(); // so it can be iterated cleanly
     for message in window.as_ref() {
       let was_handled = self.renderer.input(&message);
 
@@ -99,7 +99,6 @@ impl Framework {
       match &message {
         Message::Window(WindowMessage::Resizing { .. }) => {
           self.renderer.resize();
-          self.render();
         }
         Message::CloseRequested => {
           let response = self
@@ -107,6 +106,7 @@ impl Framework {
             .send_and_recv(RenderLoopMessage::ExitRequested)
             .log_error();
           if let Ok(GameLoopMessage::Exit) = response {
+            self.window.close();
             if let Some(thread) = self.game_thread.take() {
               let _ = thread.join();
             }
@@ -117,21 +117,19 @@ impl Framework {
           self.renderer.delete();
           info!("OTSU KON DESHITA!");
         }
-        Message::None => {
-          self.render();
-
-          if !self.had_first_frame {
-            self.had_first_frame = true;
-            window.set_visibility(self.preferred_visibility);
-          }
-        }
         _ => (),
       }
 
-      if !window.is_closing() {
+      if !self.window.is_closing() {
         if let Err(error) = self.render_mailbox.send(RenderLoopMessage::Window(message)) {
           error!("{error}")
         }
+        self.render();
+      }
+
+      self.frame_count = self.frame_count.wrapping_add(1);
+      if self.frame_count > 10 {
+        self.window.set_visibility(self.preferred_visibility);
       }
     }
 
@@ -149,18 +147,10 @@ impl Framework {
       self.render_time.tick();
     }
 
-    match self.renderer.render(self.render_time.time(), render_data) {
-      Ok(()) if !self.had_first_frame => {
-        self.had_first_frame = true;
-        self.window.set_visibility(Visibility::Shown);
-      }
-      Err(RendererError::RebuildSwapchain) => {}
-      Err(error) => {
-        error!("`{error}` Aborting...");
-        let _ = self.render_mailbox.send_and_recv(RenderLoopMessage::MustExit);
-        self.window.close();
-      }
-      _ => (),
+    if let Err(error) = self.renderer.render(self.render_time.time(), render_data) {
+      error!("`{error}` Aborting...");
+      let _ = self.render_mailbox.send_and_recv(RenderLoopMessage::MustExit);
+      self.window.close();
     }
 
     if self.fps_timer.has_elapsed(Duration::from_millis(200)) {
