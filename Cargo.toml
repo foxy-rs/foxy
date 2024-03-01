@@ -11,9 +11,6 @@ opt-level = 0
 [profile.dev.package."foxy_renderer"]
 opt-level = 0
 
-[profile.dev.package."foxy_utils"]
-opt-level = 0
-
 # Enable high optimizations for dependencies
 [profile.dev.package."*"]
 opt-level = 3
