@@ -14,7 +14,6 @@ use vulkano::{
   },
   instance::Instance,
   swapchain::Surface,
-  Version,
 };
 
 use crate::{error::RendererError, renderer_error};
@@ -44,6 +43,12 @@ impl FoxyDevice {
 
     let (device, graphics_queue) =
       Self::new_logical_device(device_extensions, device_features, &physical_device, queue_family_index)?;
+
+    info!(
+      "Selected device: [{} | {}]",
+      device.physical_device().properties().device_name,
+      device.api_version()
+    );
 
     Ok(Self { device, graphics_queue })
   }
@@ -88,8 +93,7 @@ impl FoxyDevice {
         _ => 5,
       })
       .ok_or_else(|| renderer_error!("failed to find valid device"))?;
-    let driver_version = Version::from(physical.properties().driver_version);
-    info!("Selected device: [{} | {}]", physical.properties().device_name, driver_version);
+    // let driver_version = Version::from(physical.properties().driver_version);
 
     Ok((physical, queue_family_index))
   }

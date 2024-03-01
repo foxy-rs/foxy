@@ -2,11 +2,7 @@ use std::sync::Arc;
 
 use ezwin::prelude::{Message, Window};
 use foxy_time::Time;
-use vulkano::{
-  instance::{Instance, InstanceCreateInfo},
-  swapchain::Surface,
-  VulkanLibrary,
-};
+use vulkano::swapchain::Surface;
 
 use self::{device::FoxyDevice, instance::FoxyInstance, render_data::RenderData};
 use crate::error::RendererError;
@@ -16,12 +12,6 @@ mod device;
 mod instance;
 pub mod render_data;
 mod shader;
-
-// pub struct Egui {
-//   context: egui::Context,
-//   input: egui::RawInput,
-//   state: egui_winit::State,
-// }
 
 pub struct Renderer {
   is_dirty: bool,
@@ -45,13 +35,15 @@ impl Renderer {
 
   pub fn delete(&mut self) {}
 
-  pub fn render(&mut self, render_time: Time, render_data: RenderData) -> Result<(), RendererError> {
+  pub fn render(&mut self, _render_time: Time, _render_data: RenderData) -> Result<(), RendererError> {
     Ok(())
   }
 
-  pub fn resize(&mut self) {}
+  pub fn resize(&mut self) {
+    self.is_dirty = true;
+  }
 
-  pub fn input(&mut self, message: &Message) -> bool {
+  pub fn input(&mut self, _message: &Message) -> bool {
     false
   }
 }

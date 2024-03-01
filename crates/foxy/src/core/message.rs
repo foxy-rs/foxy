@@ -2,7 +2,6 @@ use ezwin::prelude::Message;
 
 #[derive(Debug)]
 pub enum RenderLoopMessage {
-  Start,
   MustExit,
   ExitRequested,
   Window(Message),

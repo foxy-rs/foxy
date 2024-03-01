@@ -2,7 +2,6 @@ use std::sync::Arc;
 
 use ezwin::window::Window;
 use itertools::Itertools;
-use tracing::*;
 use vulkano::{
   instance::{Instance, InstanceCreateInfo, InstanceExtensions},
   swapchain::Surface,
@@ -41,9 +40,6 @@ impl FoxyInstance {
   }
 
   fn new_instance(library: Arc<VulkanLibrary>, window: &Window) -> Result<Arc<Instance>, RendererError> {
-    let Version { major, minor, patch } = library.api_version();
-    info!("Vulkan {major}.{minor}.{patch}");
-
     let (requested_layers, requested_extensions) = Self::request_layers_and_extensions(&library, window)?;
 
     let instance_create_info = InstanceCreateInfo {
