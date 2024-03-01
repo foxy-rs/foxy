@@ -28,6 +28,7 @@ foxy_utils = { version = "0.3", path = "../../../foxy_utils" }
 
 ezwin = { version = "2.8", path = "../../../ezwin", features = ["rwh_05"], default-features = false }
 
-vulkano = "0.34"
+vulkano         = "0.34"
+vulkano-shaders = "0.34"
 
 egui = "0.26"
