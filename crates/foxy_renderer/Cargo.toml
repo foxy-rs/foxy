@@ -26,10 +26,8 @@ foxy_time  = { version = "1.0", path = "../../../foxy_time" }
 foxy_log   = { version = "1.0", path = "../../../foxy_log" }
 foxy_utils = { version = "0.3", path = "../../../foxy_utils" }
 
-ezwin      = { version = "2.8", path = "../../../ezwin", features = ["rwh_05"], default-features = false }
-ash-window = "0.12"
-ash        = { version = "0.37", features = ["linked", "debug"] }
-shaderc    = "0.8"
-vk-mem     = "0.3"
+ezwin = { version = "2.8", path = "../../../ezwin", features = ["rwh_05"], default-features = false }
+
+vulkano = "0.34"
 
 egui = "0.26"
