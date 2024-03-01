@@ -112,8 +112,11 @@ impl Framework {
 
     let window = self.window.clone(); // so it can be iterated cleanly
     for message in window.as_ref() {
-      let was_handled = self.renderer.input(&message);
+      if !self.window.is_closing() {
+        self.sync_barrier.wait();
+      }
 
+      let was_handled = self.renderer.input(&message);
       if was_handled {
         continue;
       }
@@ -130,10 +133,14 @@ impl Framework {
           }
 
           let response = loop {
-            self.sync_barrier.wait();
             match self.render_mailbox.try_recv() {
               Ok(response) => {
                 break response;
+              }
+              Err(MessagingError::TryRecvError {
+                error: TryRecvError::Empty,
+              }) => {
+                self.sync_barrier.wait();
               }
               Err(MessagingError::TryRecvError {
                 error: TryRecvError::Disconnected,
@@ -158,12 +165,9 @@ impl Framework {
       }
 
       if !self.window.is_closing() {
-        self.sync_barrier.wait();
-
         if let Err(error) = self.render_mailbox.send(RenderLoopMessage::Window(message)) {
           error!("{error}")
         }
-
         self.render();
       }
 
@@ -219,11 +223,11 @@ impl Framework {
       .spawn(move || -> FoxyResult<()> {
         debug!("Kicking off game loop");
 
-        sync_barrier.wait();
-
         let mut app = App::new(&mut foxy);
         app.start(&mut foxy);
         loop {
+          sync_barrier.wait();
+
           let next_message = mailbox.try_recv();
 
           let raw_input: RawInput = foxy.take_egui_raw_input();
@@ -231,8 +235,6 @@ impl Framework {
           match next_message {
             Ok(message) => match message {
               RenderLoopMessage::Window(window_message) => {
-                sync_barrier.wait();
-
                 foxy.time.update();
                 while foxy.time.should_do_tick_unchecked() {
                   foxy.time.tick();
@@ -249,16 +251,12 @@ impl Framework {
               }
               RenderLoopMessage::MustExit => {
                 app.stop(&mut foxy);
-                trace!("Exiting game!");
                 let _ = mailbox.send(GameLoopMessage::Exit);
-                app.delete();
                 break;
               }
               RenderLoopMessage::ExitRequested => {
                 if let Flow::Exit = app.stop(&mut foxy) {
-                  trace!("Exiting game!");
                   let _ = mailbox.send(GameLoopMessage::Exit);
-                  app.delete();
                   break;
                 } else {
                   let _ = mailbox.send(GameLoopMessage::DontExit);
@@ -270,14 +268,15 @@ impl Framework {
               error: TryRecvError::Disconnected,
             }) => {
               app.stop(&mut foxy);
-              trace!("Exiting game!");
-              app.delete();
               break;
             }
             _ => (),
           };
         }
 
+        trace!("Exiting game!");
+
+        app.delete();
         sync_barrier.wait();
 
         debug!("Wrapping up game loop");
