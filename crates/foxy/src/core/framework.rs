@@ -1,8 +1,4 @@
-use std::{
-  sync::{Arc, Barrier},
-  thread::JoinHandle,
-  time::Duration,
-};
+use std::{sync::Arc, thread::JoinHandle, time::Duration};
 
 use crossbeam::{channel::TryRecvError, queue::ArrayQueue};
 use egui::RawInput;
@@ -37,8 +33,6 @@ pub struct Framework {
 
   debug_info: DebugInfo,
   frame_count: u32,
-
-  sync_barrier: Arc<Barrier>,
 }
 
 impl Framework {
@@ -68,17 +62,10 @@ impl Framework {
     let render_time = settings.time.build();
     let render_queue = Arc::new(ArrayQueue::new(Self::MAX_FRAME_DATA_IN_FLIGHT));
 
-    let sync_barrier = Arc::new(Barrier::new(2));
-
     let time = settings.time.build();
     let foxy = Foxy::new(time, window.clone());
     let (game_mailbox, render_mailbox) = Mailbox::new_entangled_pair();
-    let game_thread = Some(Self::game_loop::<App>(
-      game_mailbox,
-      foxy,
-      render_queue.clone(),
-      sync_barrier.clone(),
-    )?);
+    let game_thread = Some(Self::game_loop::<App>(game_mailbox, foxy, render_queue.clone())?);
 
     Ok(Self {
       window,
@@ -91,7 +78,6 @@ impl Framework {
       debug_info: settings.debug_info,
       fps_timer: Timer::new(),
       frame_count: 0,
-      sync_barrier,
     })
   }
 
@@ -149,7 +135,6 @@ impl Framework {
     mailbox: Mailbox<GameLoopMessage, RenderLoopMessage>,
     mut foxy: Foxy,
     render_queue: Arc<ArrayQueue<RenderData>>,
-    sync_barrier: Arc<Barrier>,
   ) -> FoxyResult<JoinHandle<FoxyResult<()>>> {
     let handle = std::thread::Builder::new()
       .name(Self::GAME_THREAD_ID.into())
@@ -159,8 +144,6 @@ impl Framework {
         let mut app = App::new(&mut foxy);
         app.start(&mut foxy);
         loop {
-          sync_barrier.wait();
-
           let next_message = mailbox.try_recv();
 
           let raw_input: RawInput = foxy.take_egui_raw_input();
@@ -210,7 +193,6 @@ impl Framework {
         trace!("Exiting game!");
 
         app.delete();
-        sync_barrier.wait();
 
         debug!("Wrapping up game loop");
         Ok(())
@@ -222,10 +204,6 @@ impl Framework {
 
 impl WindowProcedure for Framework {
   fn on_message(&mut self, _window: &Arc<Window>, message: Message) {
-    if !self.window.is_closing() {
-      self.sync_barrier.wait();
-    }
-
     let was_handled = self.renderer.input(&message);
     if was_handled {
       return;
@@ -243,24 +221,7 @@ impl WindowProcedure for Framework {
           panic!("game loop disconnected before exit message was sent");
         }
 
-        let response = loop {
-          match self.render_mailbox.try_recv() {
-            Ok(response) => {
-              break response;
-            }
-            Err(MessagingError::TryRecvError {
-              error: TryRecvError::Empty,
-            }) => {
-              self.sync_barrier.wait();
-            }
-            Err(MessagingError::TryRecvError {
-              error: TryRecvError::Disconnected,
-            }) => {
-              panic!("game loop disconnected before exit response was recieved");
-            }
-            _ => (),
-          };
-        };
+        let response = self.render_mailbox.recv().unwrap();
 
         trace!("Evaluating close response");
 
