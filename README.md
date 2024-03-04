@@ -43,7 +43,7 @@ This layout was chosen to allow for the window messages not to block the applica
 
 ## Thanks to
 
-* Piston: for the idea of how a simple, Rust-y API for an engine might look light.
+* Piston: for the idea of how a simple, Rust-y API for an engine might look like.
 * Winit: as a reference on events and how to best structure them.
 * Vulkan Guide (<https://vkguide.dev/>): for being a wealth of knowledge on architecturing a vulkan application.
 * Brenden Galea: for his amazing Vulkan tutorial series (which I would love for him to continue!).
