@@ -18,12 +18,9 @@ use super::{
   state::Foxy,
   FoxyResult,
 };
-use crate::{
-  core::{
-    message::{GameLoopMessage, RenderLoopMessage},
-    runnable::Flow,
-  },
-  foxy_error,
+use crate::core::{
+  message::{GameLoopMessage, RenderLoopMessage},
+  runnable::Flow,
 };
 
 pub struct Framework {
@@ -224,7 +221,7 @@ impl Framework {
 }
 
 impl WindowProcedure for Framework {
-  fn on_message(&mut self, window: &Arc<Window>, message: Message) {
+  fn on_message(&mut self, _window: &Arc<Window>, message: Message) {
     if !self.window.is_closing() {
       self.sync_barrier.wait();
     }
