@@ -3,30 +3,23 @@
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/R6R8PGIU6)
 
 ```rust
-use foxy::prelude::{
-  winit::event::{Event, WindowEvent},
-  *,
-};
+use foxy::prelude::*;
 
 pub struct App;
 
-impl Runnable<()> for App {
-  // fn foxy() -> FoxyCreateInfo {
-  //   FoxyCreateInfo::default()
-  //     .with_debug_info(DebugInfo::Shown)
-  //     .with_polling(Polling::Poll)
-  // }
+impl Runnable for App {
+  fn settings() -> FoxySettings {
+    FoxySettings::default()
+      .with_window(WindowSettings::default().with_flow(Flow::Poll))
+      .with_debug_info(DebugInfo::Shown)
+  }
 
   fn new(_foxy: &mut Foxy) -> Self {
     Self {}
   }
 
-  fn update(&mut self, _foxy: &mut Foxy, event: &Option<Event<()>>) {
-    if let Some(Event::WindowEvent {
-      event: WindowEvent::KeyboardInput { event, .. },
-      ..
-    }) = event
-    {
+  fn update(&mut self, _foxy: &mut Foxy, event: &Message) {
+    if let Message::Window(WindowMessage::Key { .. }) = event {
       println!("UPDATE: {:?}", event)
     }
   }
