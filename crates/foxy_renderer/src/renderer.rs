@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use ezwin::window::{window_message::Message, Window};
+use ezwin::prelude::*;
 use foxy_time::Time;
 use tracing::{debug, error};
 use vulkano::{
@@ -86,7 +86,7 @@ impl Renderer {
 
   pub fn delete(&mut self) {}
 
-  pub fn render(&mut self, _render_time: Time, _render_data: RenderData) -> Result<(), RendererError> {
+  pub fn render(&mut self, _render_time: &Time, _render_data: RenderData) -> Result<(), RendererError> {
     let window_extent: [u32; 2] = self.window.inner_size().into();
     if window_extent.contains(&0) {
       return Ok(()); // skip rendering when window is smol

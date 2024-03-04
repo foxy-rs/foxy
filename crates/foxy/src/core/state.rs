@@ -1,20 +1,20 @@
-use std::sync::Arc;
+use std::{sync::Arc, time::Duration};
 
 use egui::{epaint::Shadow, RawInput, Rounding, Visuals};
 use ezwin::{
   prelude::{ButtonState, Key, KeyState, Mouse},
   window::Window,
 };
-use foxy_time::{EngineTime, Time};
+use foxy_time::Time;
 
 pub struct Foxy {
-  pub(crate) time: EngineTime,
+  pub(crate) time: Time,
   pub(crate) window: Arc<Window>,
   pub(crate) egui_context: egui::Context,
 }
 
 impl Foxy {
-  pub fn new(time: EngineTime, window: Arc<Window>) -> Self {
+  pub fn new(time: Time, window: Arc<Window>) -> Self {
     let egui_context = egui::Context::default();
 
     const BORDER_RADIUS: f32 = 6.0;
@@ -35,8 +35,12 @@ impl Foxy {
     }
   }
 
-  pub fn time(&self) -> Time {
-    self.time.time()
+  pub fn delta_time(&self) -> Duration {
+    self.time.delta().clone()
+  }
+
+  pub fn average_delta_time(&self) -> Duration {
+    self.time.average_delta().clone()
   }
 
   pub fn window(&self) -> &Arc<Window> {

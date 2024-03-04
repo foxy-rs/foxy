@@ -17,7 +17,7 @@ impl Runnable for App {
   }
 
   fn update(&mut self, _foxy: &mut Foxy, event: &Message) {
-    if let Message::Keyboard { .. } = event {
+    if let Message::Window(WindowMessage::Key { .. }) = event {
       debug!("UPDATE: {:?}", event)
     }
   }

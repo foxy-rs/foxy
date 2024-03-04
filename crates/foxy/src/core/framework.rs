@@ -6,12 +6,9 @@ use std::{
 
 use crossbeam::{channel::TryRecvError, queue::ArrayQueue};
 use egui::RawInput;
-use ezwin::{
-  prelude::{Message, Window, WindowMessage},
-  window::settings::Visibility,
-};
+use ezwin::prelude::*;
 use foxy_renderer::renderer::{render_data::RenderData, Renderer};
-use foxy_time::{timer::Timer, EngineTime};
+use foxy_time::{timer::Timer, Time};
 use foxy_utils::mailbox::{Mailbox, MessagingError};
 use tracing::*;
 
@@ -34,7 +31,7 @@ pub struct Framework {
   preferred_visibility: Visibility,
 
   renderer: Renderer,
-  render_time: EngineTime,
+  render_time: Time,
   render_queue: Arc<ArrayQueue<RenderData>>,
   render_mailbox: Mailbox<RenderLoopMessage, GameLoopMessage>,
 
@@ -48,8 +45,14 @@ pub struct Framework {
 }
 
 impl Framework {
-  pub fn new<App: Runnable>(settings: FoxySettings) -> FoxyResult<Self> {
-    Self::with_events::<App>(settings)
+  pub fn new<App: Runnable>(mut settings: FoxySettings) -> FoxyResult<Self> {
+    let preferred_visibility = settings.window.visibility;
+    settings.window.visibility = Visibility::Hidden;
+    settings.window.close_on_x = false;
+
+    let window = Window::new(settings.window.clone())?;
+
+    Self::initialize::<App>(settings, window, preferred_visibility)
   }
 }
 
@@ -57,14 +60,12 @@ impl Framework {
   const GAME_THREAD_ID: &'static str = "foxy";
   const MAX_FRAME_DATA_IN_FLIGHT: usize = 2;
 
-  // A relic of ancient, more flexible times
-  pub fn with_events<App: Runnable>(mut settings: FoxySettings) -> FoxyResult<Self> {
+  fn initialize<App: Runnable>(
+    settings: FoxySettings,
+    window: Arc<Window>,
+    preferred_visibility: Visibility,
+  ) -> FoxyResult<Self> {
     trace!("Firing up Foxy");
-    let preferred_visibility = settings.window.visibility;
-    settings.window.visibility = Visibility::Hidden;
-    settings.window.close_on_x = false;
-
-    let window = Arc::new(Window::new(settings.window)?);
 
     let renderer = Renderer::new(window.clone())?;
     let render_time = settings.time.build();
@@ -105,81 +106,13 @@ impl Framework {
     }
   }
 
-  pub fn run(mut self) -> FoxyResult<()> {
+  pub fn run(self) -> FoxyResult<()> {
     info!("KON KON KITSUNE!");
 
     debug!("Kicking off render loop");
 
-    let window = self.window.clone(); // so it can be iterated cleanly
-    for message in window.as_ref() {
-      if !self.window.is_closing() {
-        self.sync_barrier.wait();
-      }
-
-      let was_handled = self.renderer.input(&message);
-      if was_handled {
-        continue;
-      }
-
-      match &message {
-        Message::Window(WindowMessage::Resized { .. }) => {
-          self.renderer.resize();
-          self.render();
-        }
-        Message::CloseRequested => {
-          trace!("Close requested");
-
-          if let Err(MessagingError::SendError { .. }) = self.render_mailbox.send(RenderLoopMessage::ExitRequested) {
-            return Err(foxy_error!("game loop disconnected before exit message was sent"));
-          }
-
-          let response = loop {
-            match self.render_mailbox.try_recv() {
-              Ok(response) => {
-                break response;
-              }
-              Err(MessagingError::TryRecvError {
-                error: TryRecvError::Empty,
-              }) => {
-                self.sync_barrier.wait();
-              }
-              Err(MessagingError::TryRecvError {
-                error: TryRecvError::Disconnected,
-              }) => {
-                return Err(foxy_error!("game loop disconnected before exit response was recieved"));
-              }
-              _ => (),
-            };
-          };
-
-          trace!("Evaluating close response");
-
-          if let GameLoopMessage::Exit = response {
-            self.exit();
-          }
-        }
-        Message::Closing => {
-          trace!("Closing window!");
-          self.renderer.delete();
-        }
-        Message::Window(WindowMessage::Draw) => {
-          self.render();
-        }
-        _ => (),
-      }
-
-      if !self.window.is_closing() {
-        if let Err(error) = self.render_mailbox.try_send(RenderLoopMessage::Window(message)) {
-          error!("{error}")
-        }
-        self.window.redraw();
-      }
-
-      self.frame_count = self.frame_count.wrapping_add(1);
-      if self.frame_count > 10 {
-        self.window.set_visibility(self.preferred_visibility);
-      }
-    }
+    let window = self.window.clone();
+    window.run(self);
 
     debug!("Wrapping up render loop");
 
@@ -199,7 +132,7 @@ impl Framework {
       self.render_time.tick();
     }
 
-    if let Err(error) = self.renderer.render(self.render_time.time(), render_data) {
+    if let Err(error) = self.renderer.render(&self.render_time, render_data) {
       error!("`{error}` Aborting...");
       let _ = self.render_mailbox.send_and_recv(RenderLoopMessage::MustExit);
       self.exit();
@@ -207,8 +140,7 @@ impl Framework {
 
     if self.fps_timer.has_elapsed(Duration::from_millis(200)) {
       if let DebugInfo::Shown = self.debug_info {
-        let time = self.render_time.time();
-        let ft = time.average_delta_secs();
+        let ft = self.render_time.average_delta_secs();
         self
           .window
           .set_subtitle(format!(" | {:^5.4} s | {:>5.0} FPS", ft, 1.0 / ft));
@@ -288,5 +220,77 @@ impl Framework {
       })?;
 
     Ok(handle)
+  }
+}
+
+impl WindowProcedure for Framework {
+  fn on_message(&mut self, window: &Arc<Window>, message: Message) {
+    if !self.window.is_closing() {
+      self.sync_barrier.wait();
+    }
+
+    let was_handled = self.renderer.input(&message);
+    if was_handled {
+      return;
+    }
+
+    match &message {
+      Message::Window(WindowMessage::Resized { .. }) => {
+        self.renderer.resize();
+        self.render();
+      }
+      Message::Window(WindowMessage::CloseRequested) => {
+        trace!("Close requested");
+
+        if let Err(MessagingError::SendError { .. }) = self.render_mailbox.send(RenderLoopMessage::ExitRequested) {
+          panic!("game loop disconnected before exit message was sent");
+        }
+
+        let response = loop {
+          match self.render_mailbox.try_recv() {
+            Ok(response) => {
+              break response;
+            }
+            Err(MessagingError::TryRecvError {
+              error: TryRecvError::Empty,
+            }) => {
+              self.sync_barrier.wait();
+            }
+            Err(MessagingError::TryRecvError {
+              error: TryRecvError::Disconnected,
+            }) => {
+              panic!("game loop disconnected before exit response was recieved");
+            }
+            _ => (),
+          };
+        };
+
+        trace!("Evaluating close response");
+
+        if let GameLoopMessage::Exit = response {
+          self.exit();
+        }
+      }
+      Message::Window(WindowMessage::Closing) => {
+        trace!("Closing window!");
+        self.renderer.delete();
+      }
+      Message::Window(WindowMessage::Draw) => {
+        self.render();
+      }
+      _ => (),
+    }
+
+    if !self.window.is_closing() {
+      if let Err(error) = self.render_mailbox.try_send(RenderLoopMessage::Window(message)) {
+        error!("{error}")
+      }
+      self.window.request_redraw();
+    }
+
+    self.frame_count = self.frame_count.wrapping_add(1);
+    if self.frame_count > 10 {
+      self.window.set_visibility(self.preferred_visibility);
+    }
   }
 }

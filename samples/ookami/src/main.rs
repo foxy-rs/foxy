@@ -21,7 +21,7 @@ impl Runnable for App {
       debug!("E");
     }
 
-    if let Message::Mouse(MouseMessage::Button { button, state, .. }) = message {
+    if let Message::Window(WindowMessage::MouseButton { button, state, .. }) = message {
       debug!("UPDATE | {:?}: {:?} + {:?}", button, state, foxy.shift().is_pressed());
     }
   }
