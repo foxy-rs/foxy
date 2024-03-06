@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use ezwin::prelude::*;
 use foxy_time::Time;
-use tracing::{debug, error};
+use tracing::error;
 use vulkano::{
   command_buffer::{BlitImageInfo, ImageBlit, RenderingAttachmentInfo, RenderingInfo},
   format::ClearValue,
@@ -36,6 +36,7 @@ mod swapchain;
 pub struct Renderer {
   window: Arc<Window>,
 
+  #[allow(unused)]
   instance: FoxyInstance,
   surface: Arc<Surface>,
   device: FoxyDevice,

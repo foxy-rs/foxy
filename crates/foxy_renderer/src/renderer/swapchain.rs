@@ -128,15 +128,15 @@ impl FoxySwapchain {
       .collect_vec()
   }
 
-  pub fn extent(&self) -> (u32, u32) {
-    let extent = self.swapchain.image_extent();
-    (*extent.first().unwrap(), *extent.last().unwrap())
-  }
+  // pub fn extent(&self) -> (u32, u32) {
+  //   let extent = self.swapchain.image_extent();
+  //   (*extent.first().unwrap(), *extent.last().unwrap())
+  // }
 
-  pub fn aspect_ratio(&self) -> f32 {
-    let extent = self.swapchain.image_extent();
-    *extent.first().unwrap() as f32 / *extent.last().unwrap() as f32
-  }
+  // pub fn aspect_ratio(&self) -> f32 {
+  //   let extent = self.swapchain.image_extent();
+  //   *extent.first().unwrap() as f32 / *extent.last().unwrap() as f32
+  // }
 
   pub fn vk(&self) -> &Arc<Swapchain> {
     &self.swapchain
@@ -146,21 +146,21 @@ impl FoxySwapchain {
     &self.viewport
   }
 
-  pub fn image_count(&self) -> usize {
-    self.images.len()
-  }
+  // pub fn image_count(&self) -> usize {
+  //   self.images.len()
+  // }
 
   pub fn image(&self, index: usize) -> Arc<Image> {
     self.images.get(index).cloned().expect("invalid swapchain image index")
   }
 
-  pub fn image_view(&self, index: usize) -> Arc<ImageView> {
-    self
-      .image_views
-      .get(index)
-      .cloned()
-      .expect("invalid swapchain image index")
-  }
+  // pub fn image_view(&self, index: usize) -> Arc<ImageView> {
+  //   self
+  //     .image_views
+  //     .get(index)
+  //     .cloned()
+  //     .expect("invalid swapchain image index")
+  // }
 
   pub fn draw_image(&self) -> Arc<Image> {
     self.draw_image.clone()

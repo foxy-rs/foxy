@@ -36,11 +36,11 @@ impl Foxy {
   }
 
   pub fn delta_time(&self) -> Duration {
-    self.time.delta().clone()
+    *self.time.delta()
   }
 
   pub fn average_delta_time(&self) -> Duration {
-    self.time.average_delta().clone()
+    *self.time.average_delta()
   }
 
   pub fn window(&self) -> &Arc<Window> {

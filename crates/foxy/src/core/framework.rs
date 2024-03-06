@@ -202,7 +202,7 @@ impl Framework {
   }
 }
 
-impl WindowProcedure for Framework {
+impl WindowCallback for Framework {
   fn on_message(&mut self, _window: &Arc<Window>, message: Message) {
     let was_handled = self.renderer.input(&message);
     if was_handled {
