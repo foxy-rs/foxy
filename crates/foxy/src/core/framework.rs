@@ -1,6 +1,9 @@
-use std::{sync::Arc, thread::JoinHandle, time::Duration};
+use std::{sync::Barrier, thread::JoinHandle, time::Duration};
 
-use crossbeam::{channel::TryRecvError, queue::ArrayQueue};
+use crossbeam::{
+  channel::{TryRecvError, TrySendError},
+  queue::ArrayQueue,
+};
 use egui::RawInput;
 use ezwin::prelude::*;
 use foxy_renderer::renderer::{render_data::RenderData, Renderer};
@@ -29,6 +32,7 @@ pub struct Framework {
   render_mailbox: Mailbox<RenderLoopMessage, GameLoopMessage>,
 
   game_thread: Option<JoinHandle<FoxyResult<()>>>,
+  barrier: Arc<Barrier>,
   fps_timer: Timer,
 
   debug_info: DebugInfo,
@@ -62,10 +66,17 @@ impl Framework {
     let render_time = settings.time.build();
     let render_queue = Arc::new(ArrayQueue::new(Self::MAX_FRAME_DATA_IN_FLIGHT));
 
+    let barrier = Arc::new(Barrier::new(2));
+
     let time = settings.time.build();
     let foxy = Foxy::new(time, window.clone());
     let (game_mailbox, render_mailbox) = Mailbox::new_entangled_pair();
-    let game_thread = Some(Self::game_loop::<App>(game_mailbox, foxy, render_queue.clone())?);
+    let game_thread = Some(Self::game_loop::<App>(
+      game_mailbox,
+      foxy,
+      render_queue.clone(),
+      barrier.clone(),
+    )?);
 
     Ok(Self {
       window,
@@ -75,6 +86,7 @@ impl Framework {
       render_queue,
       render_mailbox,
       game_thread,
+      barrier,
       debug_info: settings.debug_info,
       fps_timer: Timer::new(),
       frame_count: 0,
@@ -89,13 +101,65 @@ impl Framework {
     }
   }
 
-  pub fn run(self) -> FoxyResult<()> {
+  pub fn run(mut self) -> FoxyResult<()> {
     info!("KON KON KITSUNE!");
 
     debug!("Kicking off render loop");
 
     let window = self.window.clone();
-    window.run(self);
+    for message in window.as_ref() {
+      let was_handled = self.renderer.input(&message);
+      if was_handled {
+        continue;
+      }
+
+      match &message {
+        Message::Window(WindowMessage::Resized { .. }) => {
+          self.renderer.resize();
+        }
+        Message::Window(WindowMessage::CloseRequested) => {
+          trace!("Close requested");
+
+          if let Err(MessagingError::TrySendError {
+            error: TrySendError::Disconnected(..),
+          }) = self.render_mailbox.try_send(RenderLoopMessage::ExitRequested)
+          {
+            panic!("game loop disconnected before exit message was sent");
+          }
+
+          self.barrier.wait();
+
+          let response = self.render_mailbox.recv().unwrap();
+
+          trace!("Evaluating close response");
+
+          if let GameLoopMessage::Exit = response {
+            self.exit();
+          }
+        }
+        Message::Window(WindowMessage::Closing) => {
+          trace!("Closing window!");
+          self.renderer.delete();
+        }
+        Message::Window(WindowMessage::Draw) => {
+          self.render();
+        }
+        _ => {
+          self.frame_count = self.frame_count.wrapping_add(1);
+          if self.frame_count == 10 {
+            self.window.set_visibility(self.preferred_visibility);
+          }
+          self.window.request_redraw()
+        }
+      }
+
+      if !self.window.is_closing() {
+        if let Err(error) = self.render_mailbox.try_send(RenderLoopMessage::Window(message)) {
+          error!("{error}")
+        }
+        self.barrier.wait();
+      }
+    }
 
     debug!("Wrapping up render loop");
 
@@ -135,6 +199,7 @@ impl Framework {
     mailbox: Mailbox<GameLoopMessage, RenderLoopMessage>,
     mut foxy: Foxy,
     render_queue: Arc<ArrayQueue<RenderData>>,
+    barrier: Arc<Barrier>,
   ) -> FoxyResult<JoinHandle<FoxyResult<()>>> {
     let handle = std::thread::Builder::new()
       .name(Self::GAME_THREAD_ID.into())
@@ -144,6 +209,7 @@ impl Framework {
         let mut app = App::new(&mut foxy);
         app.start(&mut foxy);
         loop {
+          barrier.wait();
           let next_message = mailbox.try_recv();
 
           let raw_input: RawInput = foxy.take_egui_raw_input();
@@ -199,56 +265,5 @@ impl Framework {
       })?;
 
     Ok(handle)
-  }
-}
-
-impl WindowCallback for Framework {
-  fn on_message(&mut self, _window: &Arc<Window>, message: Message) {
-    let was_handled = self.renderer.input(&message);
-    if was_handled {
-      return;
-    }
-
-    match &message {
-      Message::Window(WindowMessage::Resized { .. }) => {
-        self.renderer.resize();
-        self.render();
-      }
-      Message::Window(WindowMessage::CloseRequested) => {
-        trace!("Close requested");
-
-        if let Err(MessagingError::SendError { .. }) = self.render_mailbox.send(RenderLoopMessage::ExitRequested) {
-          panic!("game loop disconnected before exit message was sent");
-        }
-
-        let response = self.render_mailbox.recv().unwrap();
-
-        trace!("Evaluating close response");
-
-        if let GameLoopMessage::Exit = response {
-          self.exit();
-        }
-      }
-      Message::Window(WindowMessage::Closing) => {
-        trace!("Closing window!");
-        self.renderer.delete();
-      }
-      Message::Window(WindowMessage::Draw) => {
-        self.render();
-      }
-      _ => (),
-    }
-
-    if !self.window.is_closing() {
-      if let Err(error) = self.render_mailbox.try_send(RenderLoopMessage::Window(message)) {
-        error!("{error}")
-      }
-      self.window.request_redraw();
-    }
-
-    self.frame_count = self.frame_count.wrapping_add(1);
-    if self.frame_count > 10 {
-      self.window.set_visibility(self.preferred_visibility);
-    }
   }
 }
