@@ -137,11 +137,7 @@ impl Framework {
             self.exit();
           }
         }
-        Message::Window(WindowMessage::Closing) => {
-          trace!("Closing window!");
-          self.renderer.delete();
-        }
-        Message::Window(WindowMessage::Draw) => {
+        Message::Window(WindowMessage::Paint) => {
           self.render();
         }
         _ => {
@@ -162,6 +158,8 @@ impl Framework {
     }
 
     debug!("Wrapping up render loop");
+
+    self.renderer.delete();
 
     info!("OTSU KON DESHITA!");
 

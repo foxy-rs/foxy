@@ -17,7 +17,7 @@ impl Runnable for App {
   }
 
   fn update(&mut self, foxy: &mut Foxy, message: &Message) {
-    if foxy.key(Key::E).is_held() {
+    if foxy.key(Key::E).is_pressed() {
       debug!("E");
     }
 
