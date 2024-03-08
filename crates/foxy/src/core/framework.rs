@@ -45,7 +45,7 @@ impl Framework {
     settings.window.visibility = Visibility::Hidden;
     settings.window.close_on_x = false;
 
-    let window = Window::new(settings.window.clone())?;
+    let window = Arc::new(Window::new(settings.window.clone())?);
 
     Self::initialize::<App>(settings, window, preferred_visibility)
   }
