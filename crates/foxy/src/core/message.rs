@@ -1,4 +1,4 @@
-use ezwin::prelude::Message;
+use witer::prelude::*;
 
 #[derive(Debug)]
 pub enum RenderLoopMessage {

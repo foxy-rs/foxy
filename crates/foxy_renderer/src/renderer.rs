@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use ezwin::prelude::*;
 use foxy_time::Time;
 use tracing::error;
 use vulkano::{
@@ -13,6 +12,7 @@ use vulkano::{
   sync::{self, GpuFuture},
   Validated,
 };
+use witer::prelude::*;
 
 use self::{
   device::FoxyDevice,

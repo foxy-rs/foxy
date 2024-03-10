@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use ezwin::window::Window;
 use itertools::Itertools;
 use vulkano::{
   instance::{Instance, InstanceCreateInfo, InstanceExtensions},
@@ -8,6 +7,7 @@ use vulkano::{
   Version,
   VulkanLibrary,
 };
+use witer::window::Window;
 
 use super::debug::Debug;
 use crate::{error::RendererError, renderer_error};

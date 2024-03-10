@@ -1,5 +1,5 @@
-use ezwin::prelude::WindowSettings;
 use foxy_time::TimeSettings;
+use witer::prelude::*;
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 #[allow(unused)]

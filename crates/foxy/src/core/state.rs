@@ -1,11 +1,8 @@
 use std::{sync::Arc, time::Duration};
 
 use egui::{epaint::Shadow, RawInput, Rounding, Visuals};
-use ezwin::{
-  prelude::{ButtonState, Key, KeyState, Mouse},
-  window::Window,
-};
 use foxy_time::Time;
+use witer::prelude::*;
 
 pub struct Foxy {
   pub(crate) time: Time,

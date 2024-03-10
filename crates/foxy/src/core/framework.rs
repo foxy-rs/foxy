@@ -5,11 +5,11 @@ use crossbeam::{
   queue::ArrayQueue,
 };
 use egui::RawInput;
-use ezwin::prelude::*;
 use foxy_renderer::renderer::{render_data::RenderData, Renderer};
 use foxy_time::{timer::Timer, Time};
 use foxy_utils::mailbox::{Mailbox, MessagingError};
 use tracing::*;
+use witer::prelude::*;
 
 use super::{
   builder::{DebugInfo, FoxySettings},

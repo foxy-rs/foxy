@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use ezwin::window::Window;
 use itertools::Itertools;
 use tracing::*;
 use vulkano::{
@@ -11,6 +10,7 @@ use vulkano::{
   pipeline::graphics::viewport::Viewport,
   swapchain::{acquire_next_image, ColorSpace, Surface, Swapchain, SwapchainAcquireFuture, SwapchainCreateInfo},
 };
+use witer::prelude::*;
 
 use crate::{error::RendererError, renderer::image_format::PresentMode};
 

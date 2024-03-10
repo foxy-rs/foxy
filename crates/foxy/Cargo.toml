@@ -22,10 +22,10 @@ quanta     = "0.12"
 crossbeam  = "0.8"
 
 foxy_time  = { version = "1.1", path = "../../../foxy_time" }
-foxy_log   = { version = "1.0", path = "../../../foxy_log" }
+foxy_log   = { version = "1.2", path = "../../../foxy_log" }
 foxy_utils = { version = "0.3", path = "../../../foxy_utils" }
 
-ezwin = { version = "2.13", path = "../../../ezwin", features = ["rwh_05"], default-features = false }
+witer = { version = "0.2", path = "../../../witer", features = ["rwh_05"], default-features = false }
 
 foxy_renderer = { version = "0.1", path = "../foxy_renderer" }
 

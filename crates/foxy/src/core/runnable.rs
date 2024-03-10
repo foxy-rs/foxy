@@ -1,4 +1,4 @@
-use ezwin::prelude::Message;
+use witer::prelude::*;
 
 use super::{builder::FoxySettings, framework::Framework, state::Foxy, FoxyResult};
 
