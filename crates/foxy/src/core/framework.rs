@@ -1,13 +1,16 @@
-use std::{sync::{Arc, Barrier}, thread::JoinHandle, time::Duration};
+use std::{
+  sync::{Arc, Barrier},
+  thread::JoinHandle,
+  time::Duration,
+};
 
 use crossbeam::{
-  channel::{TryRecvError, TrySendError},
+  channel::{Receiver, Sender, TryRecvError, TrySendError},
   queue::ArrayQueue,
 };
 use egui::RawInput;
 use foxy_renderer::renderer::{render_data::RenderData, Renderer};
-use foxy_time::{timer::Timer, Time};
-use foxy_utils::mailbox::{Mailbox, MessagingError};
+use foxy_time::{timer::Timer, Time, TimeSettings};
 use tracing::*;
 use witer::prelude::*;
 
@@ -17,26 +20,23 @@ use super::{
   state::Foxy,
   FoxyResult,
 };
-use crate::core::{
-  message::{GameLoopMessage, RenderLoopMessage},
-  runnable::Flow,
+use crate::{
+  core::{
+    message::{GameLoopMessage, RenderLoopMessage},
+    runnable::Flow,
+  },
+  foxy_error,
 };
 
 pub struct Framework {
   window: Arc<Window>,
   preferred_visibility: Visibility,
+  message_sender: Sender<Message>,
+  sync_barrier: Arc<Barrier>,
 
-  renderer: Renderer,
-  render_time: Time,
-  render_queue: Arc<ArrayQueue<RenderData>>,
-  render_mailbox: Mailbox<RenderLoopMessage, GameLoopMessage>,
-
-  game_thread: Option<JoinHandle<FoxyResult<()>>>,
-  barrier: Arc<Barrier>,
-  fps_timer: Timer,
-
-  debug_info: DebugInfo,
-  frame_count: u32,
+  // render_queue: Arc<ArrayQueue<RenderData>>,
+  // render_mailbox: Mailbox<RenderLoopMessage, GameLoopMessage>,
+  game_thread: JoinHandle<FoxyResult<()>>,
 }
 
 impl Framework {
@@ -62,201 +62,114 @@ impl Framework {
   ) -> FoxyResult<Self> {
     trace!("Firing up Foxy");
 
-    let renderer = Renderer::new(window.clone())?;
-    let render_time = settings.time.build();
-    let render_queue = Arc::new(ArrayQueue::new(Self::MAX_FRAME_DATA_IN_FLIGHT));
+    let (message_sender, message_receiver) = crossbeam::channel::unbounded();
 
-    let barrier = Arc::new(Barrier::new(2));
+    let sync_barrier = Arc::new(Barrier::new(2));
 
-    let time = settings.time.build();
-    let foxy = Foxy::new(time, window.clone());
-    let (game_mailbox, render_mailbox) = Mailbox::new_entangled_pair();
-    let game_thread = Some(Self::game_loop::<App>(
-      game_mailbox,
-      foxy,
-      render_queue.clone(),
-      barrier.clone(),
-    )?);
+    let game_thread = Self::game_loop::<App>(
+      window.clone(),
+      settings.time,
+      settings.debug_info,
+      sync_barrier.clone(),
+      message_receiver,
+    )?;
 
     Ok(Self {
       window,
       preferred_visibility,
-      renderer,
-      render_time,
-      render_queue,
-      render_mailbox,
+      message_sender,
+      sync_barrier,
       game_thread,
-      barrier,
-      debug_info: settings.debug_info,
-      fps_timer: Timer::new(),
-      frame_count: 0,
     })
   }
 
-  fn exit(&mut self) {
-    trace!("Exiting");
-    self.window.close();
-    if let Some(thread) = self.game_thread.take() {
-      let _ = thread.join();
-    }
-  }
-
-  pub fn run(mut self) -> FoxyResult<()> {
+  pub fn run(self) -> FoxyResult<()> {
     info!("KON KON KITSUNE!");
 
-    debug!("Kicking off render loop");
+    self.sync_barrier.wait();
+
+    debug!("Kicking off window loop");
 
     let window = self.window.clone();
     for message in window.as_ref() {
-      let was_handled = self.renderer.input(&message);
-      if was_handled {
-        continue;
+      let should_sync = matches!(message, Message::Window(WindowMessage::Resized(..)));
+
+      if message.is_some() {
+        self.message_sender.try_send(message).unwrap();
       }
 
-      match &message {
-        Message::Window(WindowMessage::Resized { .. }) => {
-          self.renderer.resize();
-        }
-        Message::Window(WindowMessage::CloseRequested) => {
-          trace!("Close requested");
-
-          if let Err(MessagingError::TrySendError {
-            error: TrySendError::Disconnected(..),
-          }) = self.render_mailbox.try_send(RenderLoopMessage::ExitRequested)
-          {
-            panic!("game loop disconnected before exit message was sent");
-          }
-
-          self.barrier.wait();
-
-          let response = self.render_mailbox.recv().unwrap();
-
-          trace!("Evaluating close response");
-
-          if let GameLoopMessage::Exit = response {
-            self.exit();
-          }
-        }
-        Message::Window(WindowMessage::Paint) => {
-          self.render();
-        }
-        _ => {
-          self.frame_count = self.frame_count.wrapping_add(1);
-          if self.frame_count == 10 {
-            self.window.set_visibility(self.preferred_visibility);
-          }
-          self.window.request_redraw()
-        }
-      }
-
-      if !self.window.is_closing() {
-        if let Err(error) = self.render_mailbox.try_send(RenderLoopMessage::Window(message)) {
-          error!("{error}")
-        }
-        self.barrier.wait();
+      if should_sync {
+        self.sync_barrier.wait();
       }
     }
 
-    debug!("Wrapping up render loop");
+    debug!("Wrapping up window loop");
 
-    self.renderer.delete();
+    self.game_thread.join().map_err(|e| foxy_error!("{e:?}"))??;
+    // self.renderer.delete();
 
     info!("OTSU KON DESHITA!");
 
     Ok(())
   }
 
-  fn render(&mut self) {
-    let render_data = self.render_queue.pop();
-    let Some(render_data) = render_data else {
-      return;
-    };
-
-    self.render_time.update();
-    while self.render_time.should_do_tick_unchecked() {
-      self.render_time.tick();
-    }
-
-    if let Err(error) = self.renderer.render(&self.render_time, render_data) {
-      error!("`{error}` Aborting...");
-      let _ = self.render_mailbox.send_and_recv(RenderLoopMessage::MustExit);
-      self.exit();
-    }
-
-    if self.fps_timer.has_elapsed(Duration::from_millis(200)) {
-      if let DebugInfo::Shown = self.debug_info {
-        let ft = self.render_time.average_delta_secs();
-        self
-          .window
-          .set_subtitle(format!(" | {:^5.4} s | {:>5.0} FPS", ft, 1.0 / ft));
-      }
-    }
-  }
-
   fn game_loop<App: Runnable>(
-    mailbox: Mailbox<GameLoopMessage, RenderLoopMessage>,
-    mut foxy: Foxy,
-    render_queue: Arc<ArrayQueue<RenderData>>,
-    barrier: Arc<Barrier>,
+    window: Arc<Window>,
+    time_settings: TimeSettings,
+    debug_info: DebugInfo,
+    sync_barrier: Arc<Barrier>,
+    message_receiver: Receiver<Message>,
   ) -> FoxyResult<JoinHandle<FoxyResult<()>>> {
     let handle = std::thread::Builder::new()
       .name(Self::GAME_THREAD_ID.into())
       .spawn(move || -> FoxyResult<()> {
+        let mut foxy = Foxy::new(window, time_settings, debug_info)?;
+
+        sync_barrier.wait();
+
         debug!("Kicking off game loop");
 
         let mut app = App::new(&mut foxy);
         app.start(&mut foxy);
+
         loop {
-          barrier.wait();
-          let next_message = mailbox.try_recv();
+          let message = message_receiver.try_recv().ok().unwrap_or_default();
 
           let raw_input: RawInput = foxy.take_egui_raw_input();
 
-          match next_message {
-            Ok(message) => match message {
-              RenderLoopMessage::Window(window_message) => {
-                foxy.time.update();
-                while foxy.time.should_do_tick_unchecked() {
-                  foxy.time.tick();
-                  app.fixed_update(&mut foxy, &window_message);
-                }
-
-                app.update(&mut foxy, &window_message);
-
-                let _full_output = foxy.egui_context.run(raw_input, |ui| {
-                  app.egui(&foxy, ui);
-                });
-
-                render_queue.force_push(RenderData {});
-              }
-              RenderLoopMessage::MustExit => {
-                app.stop(&mut foxy);
-                let _ = mailbox.send(GameLoopMessage::Exit);
-                break;
-              }
-              RenderLoopMessage::ExitRequested => {
-                if let Flow::Exit = app.stop(&mut foxy) {
-                  let _ = mailbox.send(GameLoopMessage::Exit);
-                  break;
-                } else {
-                  let _ = mailbox.send(GameLoopMessage::DontExit);
-                }
-              }
-              _ => (),
-            },
-            Err(MessagingError::TryRecvError {
-              error: TryRecvError::Disconnected,
-            }) => {
-              app.stop(&mut foxy);
-              break;
+          match &message {
+            Message::Window(WindowMessage::Resized(..)) => {
+              foxy.renderer.resize();
+              sync_barrier.wait();
             }
+            Message::Window(WindowMessage::CloseRequested) if app.stop(&mut foxy) == Flow::Exit => {
+              foxy.window.close();
+              continue;
+            }
+            Message::ExitLoop => break,
             _ => (),
-          };
+          }
+
+          foxy.time.update();
+          while foxy.time.should_do_tick_unchecked() {
+            foxy.time.tick();
+            app.fixed_update(&mut foxy, &message);
+          }
+          app.update(&mut foxy, &message);
+
+          let _full_output = foxy.egui_context.run(raw_input, |ui| {
+            app.egui(&foxy, ui);
+          });
+
+          if !foxy.render() {
+            foxy.window.close();
+          }
         }
 
         trace!("Exiting game!");
 
         app.delete();
+        foxy.renderer.delete();
 
         debug!("Wrapping up game loop");
         Ok(())
