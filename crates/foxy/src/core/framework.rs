@@ -1,4 +1,4 @@
-use std::{sync::Barrier, thread::JoinHandle, time::Duration};
+use std::{sync::{Arc, Barrier}, thread::JoinHandle, time::Duration};
 
 use crossbeam::{
   channel::{TryRecvError, TrySendError},
